@@ -220,6 +220,21 @@ The client should model online play before real networking is switched on:
 Local mode should mirror those shapes in browser storage so UI and gameplay can
 be built without needing a cloud project for every test.
 
+Smooth multiplayer requirements:
+
+- Combat runs at a deterministic fixed 60 Hz simulation tick.
+- Local inputs execute immediately with a small planned input-delay budget for
+  remote matches.
+- Input packets should contain frame number, player id, and encoded input bits,
+  not renderer state.
+- Clients keep rollback snapshots for recent frames and resimulate when late
+  remote inputs differ from predictions.
+- Phaser draws the latest/interpolated simulation state only; gameplay rules
+  stay outside the renderer.
+- Match results update wins, losses, draws, streaks, total duration, and
+  favorite fighter.
+- Custom avatar fields are part of the profile shape from the start.
+
 Base fighters:
 
 - David: agile, balanced, fast stamina recovery.

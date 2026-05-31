@@ -49,9 +49,12 @@ The local menu already models the online shape:
 - level selection
 - private, casual, and ranked matchmaking intent
 - local lobby and matchmaking ticket records in browser storage
+- custom avatar profile persistence
+- local wins, losses, streaks, match count, and match history
+- rollback-ready simulation snapshots and encoded input frames
 
 Supabase schema support for profiles, avatars, lobbies, lobby members,
-matchmaking tickets, and match results lives in `supabase/schema.sql`.
+matchmaking tickets, player stats, and match results lives in `supabase/schema.sql`.
 
 ## Development Style
 

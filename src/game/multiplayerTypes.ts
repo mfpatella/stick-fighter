@@ -5,12 +5,42 @@ export type AvatarColor = "cedar" | "olive" | "gold" | "crimson" | "sky";
 export type LobbyStatus = "open" | "ready" | "in_match" | "closed";
 export type MatchmakingStatus = "searching" | "matched" | "cancelled" | "expired";
 export type MatchmakingMode = "casual" | "ranked" | "private";
+export type MatchResultKind = "win" | "loss" | "draw";
 
 export type PlayerAvatar = {
   displayName: string;
   frame: AvatarFrame;
   color: AvatarColor;
   favoriteFighter: BaseFighterKey;
+  updatedAt?: string;
+};
+
+export type PlayerStats = {
+  wins: number;
+  losses: number;
+  draws: number;
+  matchesPlayed: number;
+  currentStreak: number;
+  bestStreak: number;
+  totalDurationSeconds: number;
+  favoriteFighter: BaseFighterKey;
+  updatedAt: string;
+};
+
+export type NetplayTuning = {
+  tickRate: 60;
+  inputDelayFrames: number;
+  jitterBufferFrames: number;
+  maxRollbackFrames: number;
+  snapshotHistoryFrames: number;
+};
+
+export const defaultNetplayTuning: NetplayTuning = {
+  tickRate: 60,
+  inputDelayFrames: 2,
+  jitterBufferFrames: 2,
+  maxRollbackFrames: 10,
+  snapshotHistoryFrames: 90
 };
 
 export type LobbyMember = {

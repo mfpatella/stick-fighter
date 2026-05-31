@@ -16,7 +16,7 @@ import {
   type PartOwner,
   type TrainingDropKind
 } from "./combatSimulation";
-import { recordLocalMatch } from "../services/backend";
+import { recordMatch } from "../services/backend";
 import { defaultGameSettings, startingLoadouts, type GameLaunchSettings } from "./gameSettings";
 import { backgroundAssets } from "./artAssets";
 
@@ -452,10 +452,13 @@ export class TrainingScene extends Phaser.Scene {
         this.statusText.setText(
           event.playerWon ? "Round complete: David stands firm" : "Round complete: press R to train again"
         );
-        recordLocalMatch({
+        void recordMatch({
           result: event.playerWon ? "win" : "loss",
           fighterKey: this.simulation.state.player.key,
-          opponentKind: "cpu_training_guard",
+          opponentKind: "cpu",
+          opponentFighterKey: this.simulation.state.opponent.key,
+          levelKey: this.settings.level,
+          mode: this.settings.matchmakingMode,
           durationSeconds: event.durationSeconds
         });
       }

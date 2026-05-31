@@ -38,6 +38,23 @@ The local game should follow these rules now:
    enums.
 5. Keep rendering derived from fighter state.
 6. Avoid random gameplay decisions that cannot later be seeded and replayed.
+7. Encode controller state into small input bitfields before sending over a
+   network channel.
+8. Keep complete simulation snapshots so late inputs can be replayed without
+   touching Phaser renderer objects.
+
+## Implemented Netplay-Friendly Hooks
+
+- `CombatSimulation.createSnapshot()` captures combat state, RNG seed, CPU
+  timers, and loose-part counters for rollback history.
+- `CombatSimulation.restoreSnapshot()` restores the pure simulation state for
+  deterministic resimulation.
+- `encodePlayerInput()` and `decodePlayerInput()` pack player buttons into a
+  compact number that can be broadcast or stored per frame.
+- The local renderer interpolates between previous and current simulation
+  frames, while gameplay remains on a fixed tick.
+- Local match records update wins, losses, streaks, total play time, and
+  favorite fighter so the UI can be built before cloud auth is connected.
 
 ## Online Roadmap
 
@@ -53,6 +70,18 @@ Phase 2 should move live match combat toward one of these:
 Supabase should remain responsible for accounts, profiles, match records,
 leaderboards, and lobby metadata.
 
+Current Supabase use should focus on:
+
+- Authenticated profiles and custom avatars.
+- Realtime Presence for lobby occupancy, ready checks, and who is online.
+- Realtime Broadcast for prototype room messages and input packets.
+- Postgres tables for match history and player stats.
+
+If live fights feel inconsistent over Broadcast, keep Supabase for identity and
+persistence, then move the combat packet transport to a dedicated game server or
+managed low-latency relay while retaining the same input-frame and snapshot
+model.
+
 ## First Combat Features To Carry Forward
 
 - Startup, active, and recovery frames.
@@ -63,4 +92,3 @@ leaderboards, and lobby metadata.
 - Input buffering.
 - Visible debug hitboxes.
 - Fixed-step simulation.
-

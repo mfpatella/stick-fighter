@@ -136,6 +136,7 @@ export type CombatSimulationOptions = {
 };
 
 export type CombatState = {
+  frameNumber: number;
   player: FighterSnapshot;
   opponent: FighterSnapshot;
   detachedParts: DetachedPart[];
@@ -161,6 +162,21 @@ export type PlayerInput = {
   reattachPressed: boolean;
 };
 
+export type EncodedPlayerInput = number;
+
+export type SimulationSnapshot = {
+  state: CombatState;
+  internal: {
+    cpuAttackCooldown: number;
+    cpuAttachCooldown: number;
+    cpuBlockTimer: number;
+    hitStopTimer: number;
+    rngSeed: number;
+    nextDetachedPartId: number;
+    neutralDropTimer: number;
+  };
+};
+
 export type CombatEvent =
   | {
       type: "hit";
@@ -179,9 +195,30 @@ export type CombatEvent =
 export const combatFps = 60;
 export const fixedStep = 1 / combatFps;
 export const maxFixedSteps = 5;
+export const netplayInputDelayFrames = 2;
+export const netplayMaxRollbackFrames = 10;
+export const netplayJitterBufferFrames = 2;
 export const groundY = 410;
 export const fighterWidth = 44;
 export const fighterHeight = 116;
+
+const inputFlags: Record<keyof PlayerInput, EncodedPlayerInput> = {
+  left: 1 << 0,
+  right: 1 << 1,
+  block: 1 << 2,
+  jumpPressed: 1 << 3,
+  lightPressed: 1 << 4,
+  heavyPressed: 1 << 5,
+  lowPressed: 1 << 6,
+  highPressed: 1 << 7,
+  kickPressed: 1 << 8,
+  powerKickPressed: 1 << 9,
+  chompPressed: 1 << 10,
+  tailPressed: 1 << 11,
+  clawPressed: 1 << 12,
+  dashPressed: 1 << 13,
+  reattachPressed: 1 << 14
+};
 
 const frames = (count: number) => count / combatFps;
 const gravity = 2500;
@@ -500,6 +537,7 @@ export class CombatSimulation {
       opponentFighter: options.opponentFighter ?? "guard"
     };
     this.state = {
+      frameNumber: 0,
       player: createFighter(this.options.playerFighter, 260),
       opponent: {
         ...createFighter(this.options.opponentFighter, 700),
@@ -512,6 +550,38 @@ export class CombatSimulation {
     this.state.opponent.health = this.options.opponentHealth;
     this.state.opponent.stats.maxHealth = this.options.opponentHealth;
     this.options.playerStartingParts.forEach((part) => this.grantTrainingPart(part, "player"));
+  }
+
+  createSnapshot(): SimulationSnapshot {
+    return {
+      state: cloneSerializable(this.state),
+      internal: {
+        cpuAttackCooldown: this.cpuAttackCooldown,
+        cpuAttachCooldown: this.cpuAttachCooldown,
+        cpuBlockTimer: this.cpuBlockTimer,
+        hitStopTimer: this.hitStopTimer,
+        rngSeed: this.rngSeed,
+        nextDetachedPartId: this.nextDetachedPartId,
+        neutralDropTimer: this.neutralDropTimer
+      }
+    };
+  }
+
+  restoreSnapshot(snapshot: SimulationSnapshot) {
+    const restored = cloneSerializable(snapshot.state);
+    this.state.frameNumber = restored.frameNumber;
+    this.state.player = restored.player;
+    this.state.opponent = restored.opponent;
+    this.state.detachedParts = restored.detachedParts;
+    this.state.roundOver = restored.roundOver;
+    this.state.elapsedSeconds = restored.elapsedSeconds;
+    this.cpuAttackCooldown = snapshot.internal.cpuAttackCooldown;
+    this.cpuAttachCooldown = snapshot.internal.cpuAttachCooldown;
+    this.cpuBlockTimer = snapshot.internal.cpuBlockTimer;
+    this.hitStopTimer = snapshot.internal.hitStopTimer;
+    this.rngSeed = snapshot.internal.rngSeed;
+    this.nextDetachedPartId = snapshot.internal.nextDetachedPartId;
+    this.neutralDropTimer = snapshot.internal.neutralDropTimer;
   }
 
   grantTrainingPart(kind: TrainingDropKind, owner: "player" | "opponent" = "player"): CombatEvent | null {
@@ -560,6 +630,7 @@ export class CombatSimulation {
     const events: CombatEvent[] = [];
 
     if (this.hitStopTimer > 0) {
+      this.state.frameNumber += 1;
       this.hitStopTimer = Math.max(0, this.hitStopTimer - delta);
       return events;
     }
@@ -568,6 +639,7 @@ export class CombatSimulation {
       return events;
     }
 
+    this.state.frameNumber += 1;
     this.state.elapsedSeconds += delta;
     this.cpuAttachCooldown = Math.max(0, this.cpuAttachCooldown - delta);
     this.updateTimers(this.state.player, delta);
@@ -1251,6 +1323,23 @@ export function getHurtBox(fighter: FighterSnapshot): Rect {
   };
 }
 
+export function encodePlayerInput(input: PlayerInput): EncodedPlayerInput {
+  return (Object.keys(inputFlags) as Array<keyof PlayerInput>).reduce(
+    (bits, key) => (input[key] ? bits | inputFlags[key] : bits),
+    0
+  );
+}
+
+export function decodePlayerInput(bits: EncodedPlayerInput): PlayerInput {
+  return (Object.keys(inputFlags) as Array<keyof PlayerInput>).reduce(
+    (input, key) => ({
+      ...input,
+      [key]: (bits & inputFlags[key]) !== 0
+    }),
+    {} as PlayerInput
+  );
+}
+
 export function getAttackBox(fighter: FighterSnapshot): Rect {
   const spec = attackSpecs[fighter.attackKind ?? "light"];
   const reach = spec.reach * fighter.stats.reachScale;
@@ -1713,6 +1802,10 @@ function formatDetachedPartLabel(owner: PartOwner, part: BonusPart) {
 
 function rectsIntersect(a: Rect, b: Rect) {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function cloneSerializable<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function clamp(value: number, min: number, max: number) {

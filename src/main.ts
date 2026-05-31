@@ -1,9 +1,16 @@
 import Phaser from "phaser";
 import { TrainingScene } from "./game/TrainingScene";
-import { playerFighterKeys, opponentFighterKeys, type BaseFighterKey } from "./game/fighterCatalog";
+import { baseFighters, playerFighterKeys, opponentFighterKeys, type BaseFighterKey } from "./game/fighterCatalog";
 import { defaultGameSettings, type GameLaunchSettings } from "./game/gameSettings";
 import { levelKeys, type LevelKey } from "./game/levels";
-import { backendModeLabel, createLocalLobby, createLocalMatchmakingTicket, saveLocalProfile } from "./services/backend";
+import {
+  backendModeLabel,
+  createLocalLobby,
+  createLocalMatchmakingTicket,
+  loadLocalPlayerStats,
+  loadLocalProfile,
+  saveLocalProfile
+} from "./services/backend";
 import "./styles.css";
 
 const modeElement = document.querySelector<HTMLDivElement>("#backend-mode");
@@ -15,6 +22,10 @@ const beginButton = document.querySelector<HTMLButtonElement>("#begin-game");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset-setup");
 const guardHealthOutput = document.querySelector<HTMLOutputElement>("#guard-health-value");
 const onlineStatus = document.querySelector<HTMLElement>("#online-status");
+const avatarPreviewToken = document.querySelector<HTMLElement>("#avatar-preview-token");
+const avatarPreviewName = document.querySelector<HTMLElement>("#avatar-preview-name");
+const avatarPreviewMeta = document.querySelector<HTMLElement>("#avatar-preview-meta");
+const statsSummary = document.querySelector<HTMLElement>("#stats-summary");
 const controls = document.querySelector<HTMLElement>(".controls");
 const trainingTools = document.querySelector<HTMLElement>(".training-tools");
 
@@ -59,6 +70,14 @@ document.querySelectorAll<HTMLButtonElement>("[data-menu-tab]").forEach((button)
   });
 });
 
+hydrateStoredProfile();
+updateAvatarPreview();
+updateStatsSummary();
+
+setupForm?.addEventListener("input", () => {
+  updateAvatarPreview();
+});
+
 setupForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   startGame(readSettings());
@@ -67,7 +86,10 @@ setupForm?.addEventListener("submit", (event) => {
 resetButton?.addEventListener("click", () => {
   setupForm?.reset();
   updateGuardHealthOutput();
+  updateAvatarPreview();
 });
+
+window.addEventListener("sff:stats-updated", updateStatsSummary);
 
 openMenuButton?.addEventListener("click", () => {
   setMenuOpen(true);
@@ -147,6 +169,57 @@ function setMenuOpen(open: boolean) {
   }
 }
 
+function hydrateStoredProfile() {
+  if (!setupForm) {
+    return;
+  }
+
+  const profile = loadLocalProfile();
+  if (!profile) {
+    return;
+  }
+
+  setFormValue("displayName", profile.displayName);
+  setFormValue("avatarFrame", profile.frame);
+  setFormValue("avatarColor", profile.color);
+  setFormValue("playerFighter", profile.favoriteFighter);
+}
+
+function updateAvatarPreview() {
+  const settings = readSettings();
+  const initials = settings.displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  if (avatarPreviewToken) {
+    avatarPreviewToken.textContent = initials || "LP";
+    avatarPreviewToken.className = `avatar-token avatar-token-${settings.avatarColor} avatar-frame-${settings.avatarFrame}`;
+  }
+
+  if (avatarPreviewName) {
+    avatarPreviewName.textContent = settings.displayName;
+  }
+
+  if (avatarPreviewMeta) {
+    avatarPreviewMeta.textContent = `${formatAvatarFrame(settings.avatarFrame)} avatar, ${baseFighters[settings.playerFighter].name} favorite`;
+  }
+}
+
+function updateStatsSummary() {
+  if (!statsSummary) {
+    return;
+  }
+
+  const stats = loadLocalPlayerStats();
+  statsSummary.querySelector<HTMLElement>('[data-stat="wins"]')!.textContent = String(stats.wins);
+  statsSummary.querySelector<HTMLElement>('[data-stat="losses"]')!.textContent = String(stats.losses);
+  statsSummary.querySelector<HTMLElement>('[data-stat="matchesPlayed"]')!.textContent = String(stats.matchesPlayed);
+  statsSummary.querySelector<HTMLElement>('[data-stat="bestStreak"]')!.textContent = String(stats.bestStreak);
+}
+
 function readSettings(): GameLaunchSettings {
   if (!setupForm) {
     return defaultGameSettings;
@@ -190,6 +263,29 @@ function updateGuardHealthOutput() {
 function getGuardHealthInput() {
   const field = setupForm?.elements.namedItem("guardHealth");
   return field instanceof HTMLInputElement ? field : null;
+}
+
+function setFormValue(name: string, value: string) {
+  const field = setupForm?.elements.namedItem(name);
+  if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
+    field.value = value;
+  }
+}
+
+function formatAvatarFrame(frame: string) {
+  if (frame === "covenant") {
+    return "Covenant";
+  }
+
+  if (frame === "mighty") {
+    return "Mighty";
+  }
+
+  if (frame === "wild") {
+    return "Wild parts";
+  }
+
+  return "Shepherd";
 }
 
 function readFighter(value: FormDataEntryValue | null, allowed: BaseFighterKey[], fallback: BaseFighterKey) {

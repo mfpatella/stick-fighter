@@ -29,6 +29,37 @@ create policy "Players can update their own profile"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
+create table if not exists public.player_stats (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  wins integer not null default 0 check (wins >= 0),
+  losses integer not null default 0 check (losses >= 0),
+  draws integer not null default 0 check (draws >= 0),
+  matches_played integer not null default 0 check (matches_played >= 0),
+  current_streak integer not null default 0 check (current_streak >= 0),
+  best_streak integer not null default 0 check (best_streak >= 0),
+  total_duration_seconds integer not null default 0 check (total_duration_seconds >= 0),
+  rating integer not null default 1000 check (rating >= 0),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.player_stats enable row level security;
+
+create policy "Player stats are readable by everyone"
+  on public.player_stats
+  for select
+  using (true);
+
+create policy "Players can insert their own stats row"
+  on public.player_stats
+  for insert
+  with check (auth.uid() = profile_id);
+
+create policy "Players can update their own stats row"
+  on public.player_stats
+  for update
+  using (auth.uid() = profile_id)
+  with check (auth.uid() = profile_id);
+
 create table if not exists public.lobbies (
   id uuid primary key default gen_random_uuid(),
   host_id uuid not null references public.profiles(id) on delete cascade,
@@ -133,6 +164,9 @@ create table if not exists public.match_results (
   player_id uuid not null references public.profiles(id) on delete cascade,
   opponent_kind text not null,
   fighter_key text not null,
+  opponent_fighter_key text,
+  level_key text,
+  mode text not null default 'casual' check (mode in ('casual', 'ranked', 'private', 'training')),
   result text not null check (result in ('win', 'loss', 'draw')),
   duration_seconds integer not null check (duration_seconds >= 0),
   created_at timestamptz not null default now()
@@ -153,6 +187,8 @@ create policy "Players can insert their own match results"
 grant usage on schema public to anon, authenticated;
 grant select, insert, update on public.profiles to authenticated;
 grant select on public.profiles to anon;
+grant select, insert, update on public.player_stats to authenticated;
+grant select on public.player_stats to anon;
 grant select, insert, update on public.lobbies to authenticated;
 grant select on public.lobbies to anon;
 grant select, insert, update, delete on public.lobby_members to authenticated;
