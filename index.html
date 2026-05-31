@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stick Figure Fighter</title>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="Game status">
+        <div>
+          <p class="eyebrow">Local training build</p>
+          <h1>Stick Figure Fighter</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="open-menu" class="menu-button" type="button" hidden>Menu</button>
+          <div id="backend-mode" class="mode-pill">Local mode</div>
+        </div>
+      </section>
+      <section id="menu-overlay" class="menu-overlay" aria-label="Game menu">
+        <div class="menu-header">
+          <div>
+            <p class="eyebrow">Choose your match</p>
+            <h2>Training Setup</h2>
+          </div>
+          <button id="close-menu" class="icon-button" type="button" aria-label="Close menu" hidden>×</button>
+        </div>
+        <div class="menu-tabs" role="tablist" aria-label="Setup sections">
+          <button class="menu-tab is-active" type="button" data-menu-tab="play">Play</button>
+          <button class="menu-tab" type="button" data-menu-tab="fighter">Fighter</button>
+          <button class="menu-tab" type="button" data-menu-tab="rules">Rules</button>
+          <button class="menu-tab" type="button" data-menu-tab="online">Online</button>
+        </div>
+        <form id="game-setup" class="menu-form">
+          <section class="menu-panel is-active" data-menu-panel="play" aria-label="Play settings">
+            <label>
+              <span>Mode</span>
+              <select name="mode">
+                <option value="partsBuilder" selected>Parts Builder</option>
+                <option value="training">Training Yard</option>
+                <option value="storySpar">Story Spar</option>
+              </select>
+            </label>
+            <label>
+              <span>Difficulty</span>
+              <select name="difficulty">
+                <option value="gentle">Gentle</option>
+                <option value="standard" selected>Standard</option>
+                <option value="champion">Champion</option>
+              </select>
+            </label>
+            <label>
+              <span>Guard Health</span>
+              <input name="guardHealth" type="range" min="60" max="140" step="10" value="100" />
+              <output id="guard-health-value">100</output>
+            </label>
+          </section>
+          <section class="menu-panel" data-menu-panel="fighter" aria-label="Fighter settings">
+            <label>
+              <span>Your Fighter</span>
+              <select name="playerFighter">
+                <option value="david" selected>David - Agile Striker</option>
+                <option value="jonathan">Jonathan - Shield Friend</option>
+                <option value="benaiah">Benaiah - Mighty Bruiser</option>
+                <option value="asahel">Asahel - Swift Runner</option>
+                <option value="goliath">Goliath - Giant Champion</option>
+                <option value="ishbiBenob">Ishbi-Benob - Spear Giant</option>
+                <option value="saph">Saph - Heavy Guard</option>
+                <option value="lahmi">Lahmi - Giant Duelist</option>
+              </select>
+            </label>
+            <label>
+              <span>CPU Fighter</span>
+              <select name="opponentFighter">
+                <option value="guard" selected>Training Guard</option>
+                <option value="david">David</option>
+                <option value="jonathan">Jonathan</option>
+                <option value="benaiah">Benaiah</option>
+                <option value="asahel">Asahel</option>
+                <option value="goliath">Goliath</option>
+                <option value="ishbiBenob">Ishbi-Benob</option>
+                <option value="saph">Saph</option>
+                <option value="lahmi">Lahmi</option>
+              </select>
+            </label>
+            <label>
+              <span>Starting Build</span>
+              <select name="loadout">
+                <option value="classic" selected>Classic David</option>
+                <option value="winged">Winged Runner</option>
+                <option value="predator">Predator Head + Claws</option>
+                <option value="beast">Full Beast Kit</option>
+              </select>
+            </label>
+            <label class="switch-row">
+              <input name="trainingTools" type="checkbox" checked />
+              <span>Local spawn tools</span>
+            </label>
+            <label class="switch-row">
+              <input name="motionFx" type="checkbox" checked />
+              <span>Full motion effects</span>
+            </label>
+          </section>
+          <section class="menu-panel" data-menu-panel="rules" aria-label="Rules settings">
+            <label>
+              <span>Level</span>
+              <select name="level">
+                <option value="trainingYard" selected>Training Yard</option>
+                <option value="shepherdField">Shepherd Field</option>
+                <option value="covenantHall">Covenant Hall</option>
+                <option value="mightyArena">Mighty Arena</option>
+              </select>
+            </label>
+            <label class="switch-row">
+              <input name="randomDrops" type="checkbox" checked />
+              <span>Random part drops</span>
+            </label>
+            <label class="switch-row">
+              <input name="showHitboxes" type="checkbox" />
+              <span>Show combat boxes</span>
+            </label>
+          </section>
+          <section class="menu-panel" data-menu-panel="online" aria-label="Online settings">
+            <label>
+              <span>Display Name</span>
+              <input name="displayName" type="text" minlength="2" maxlength="32" value="Local Player" />
+            </label>
+            <label>
+              <span>Avatar Frame</span>
+              <select name="avatarFrame">
+                <option value="shepherd" selected>Shepherd</option>
+                <option value="covenant">Covenant</option>
+                <option value="mighty">Mighty</option>
+                <option value="wild">Wild Parts</option>
+              </select>
+            </label>
+            <label>
+              <span>Avatar Color</span>
+              <select name="avatarColor">
+                <option value="olive" selected>Olive</option>
+                <option value="cedar">Cedar</option>
+                <option value="gold">Gold</option>
+                <option value="crimson">Crimson</option>
+                <option value="sky">Sky</option>
+              </select>
+            </label>
+            <label>
+              <span>Matchmaking</span>
+              <select name="matchmakingMode">
+                <option value="casual" selected>Casual</option>
+                <option value="ranked">Ranked</option>
+                <option value="private">Private Lobby</option>
+              </select>
+            </label>
+            <label>
+              <span>Players</span>
+              <select name="maxPlayers">
+                <option value="2" selected>1v1</option>
+                <option value="4">2v2 Future</option>
+              </select>
+            </label>
+            <p id="online-status" class="menu-note">Local lobby data will be saved now; Supabase can sync the same shape later.</p>
+          </section>
+          <div class="menu-actions">
+            <button id="begin-game" class="primary-action" type="submit">Begin Fight</button>
+            <button id="reset-setup" type="button">Reset Setup</button>
+          </div>
+        </form>
+      </section>
+      <div id="game" aria-label="Fight arena"></div>
+      <section class="controls" aria-label="Controls" hidden>
+        <span>A/D or arrows</span>
+        <span id="control-jump">W/Space jump</span>
+        <span>J light</span>
+        <span>K heavy</span>
+        <span>U kick</span>
+        <span>O spin kick</span>
+        <span>H low</span>
+        <span>I high</span>
+        <span id="control-chomp" class="ability-control" hidden>C chomp</span>
+        <span id="control-tail" class="ability-control" hidden>T tail strike</span>
+        <span id="control-claws" class="ability-control" hidden>V claw swipe</span>
+        <span>L/S block</span>
+        <span>Shift dodge</span>
+        <span>E attach part</span>
+      </section>
+      <section class="training-tools" aria-label="Local testing tools" hidden>
+        <span>Local spawns</span>
+        <button type="button" data-training-drop="crocodileHead">Croc head</button>
+        <button type="button" data-training-drop="tail">Tail</button>
+        <button type="button" data-training-drop="claws">Claws</button>
+        <button type="button" data-training-drop="wings">Wings</button>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
