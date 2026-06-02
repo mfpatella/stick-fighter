@@ -137,7 +137,8 @@ h2 {
 }
 
 .menu-tab,
-.menu-actions button {
+.menu-actions button,
+.secondary-action {
   border: 1px solid #a8b4aa;
   border-radius: 6px;
   padding: 9px 12px;
@@ -146,6 +147,11 @@ h2 {
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+}
+
+.secondary-action {
+  align-self: end;
+  min-height: 64px;
 }
 
 .menu-tab.is-active,
@@ -220,6 +226,61 @@ h2 {
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.auth-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(260px, 1.15fr) auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid rgb(168 180 170 / 82%);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgb(247 243 232 / 78%);
+}
+
+.auth-status {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.auth-panel span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.auth-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-fields label {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.auth-actions button {
+  min-height: 38px;
+  border: 1px solid #a8b4aa;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .avatar-preview,
@@ -456,6 +517,10 @@ h2 {
 .touch-button:hover,
 .touch-button:focus-visible,
 .touch-button.is-pressed,
+.auth-actions button:hover,
+.auth-actions button:focus-visible,
+.secondary-action:hover,
+.secondary-action:focus-visible,
 .menu-button:hover,
 .menu-button:focus-visible,
 .icon-button:hover,
@@ -474,6 +539,8 @@ h2 {
 .training-tools button.is-pressed,
 .touch-button:active,
 .touch-button.is-pressed,
+.auth-actions button:active,
+.secondary-action:active,
 .menu-button:active,
 .icon-button:active,
 .menu-tab:active,
@@ -484,6 +551,8 @@ h2 {
 
 .training-tools button:focus-visible,
 .touch-button:focus-visible,
+.auth-actions button:focus-visible,
+.secondary-action:focus-visible,
 .menu-button:focus-visible,
 .icon-button:focus-visible,
 .menu-tab:focus-visible,
@@ -503,6 +572,11 @@ h2 {
   background: #e5efd6;
   color: #24381f;
   box-shadow: 0 0 0 2px rgb(126 155 104 / 14%), 0 2px 0 rgb(32 40 32 / 12%);
+}
+
+.auth-actions button:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 @media (max-width: 640px) {
@@ -548,8 +622,22 @@ h2 {
   }
 
   .avatar-preview,
-  .stats-summary {
+  .stats-summary,
+  .auth-panel {
     grid-column: span 1;
+  }
+
+  .auth-panel,
+  .auth-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-actions {
+    justify-content: stretch;
+  }
+
+  .auth-actions button {
+    flex: 1 1 130px;
   }
 
   .stats-summary {

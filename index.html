@@ -121,6 +121,27 @@
             </label>
           </section>
           <section class="menu-panel" data-menu-panel="online" aria-label="Online settings">
+            <div class="auth-panel">
+              <div>
+                <p id="auth-status" class="auth-status">Playing as local guest</p>
+                <span id="auth-detail">Sign in to save stats, host lobbies, and sync avatars online.</span>
+              </div>
+              <div class="auth-fields">
+                <label>
+                  <span>Email</span>
+                  <input name="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
+                </label>
+                <label>
+                  <span>Password</span>
+                  <input name="authPassword" type="password" minlength="6" autocomplete="current-password" />
+                </label>
+              </div>
+              <div class="auth-actions">
+                <button id="sign-in" type="button">Sign In</button>
+                <button id="sign-up" type="button">Create Account</button>
+                <button id="sign-out" type="button" hidden>Sign Out</button>
+              </div>
+            </div>
             <label>
               <span>Display Name</span>
               <input name="displayName" type="text" minlength="2" maxlength="32" value="Local Player" />
@@ -159,6 +180,11 @@
                 <option value="4">2v2 Future</option>
               </select>
             </label>
+            <label>
+              <span>Room Code</span>
+              <input name="roomCode" type="text" maxlength="12" autocomplete="off" placeholder="ABC123" />
+            </label>
+            <button id="join-lobby" class="secondary-action" type="button">Join Lobby</button>
             <div class="avatar-preview" aria-live="polite">
               <div id="avatar-preview-token" class="avatar-token avatar-token-olive avatar-frame-shepherd">LP</div>
               <div>

@@ -77,6 +77,15 @@ Current Supabase use should focus on:
 - Realtime Broadcast for prototype room messages and input packets.
 - Postgres tables for match history and player stats.
 
+Implemented online shell:
+
+- Email/password sign up and sign in through Supabase Auth.
+- Profile/avatar upsert after sign in.
+- Supabase lobby, lobby member, and matchmaking ticket creation when a signed-in
+  player starts a fight.
+- Realtime `match:<lobbyId>` rooms with Presence for connected fighters and a
+  Broadcast event hook reserved for encoded input frames.
+
 If live fights feel inconsistent over Broadcast, keep Supabase for identity and
 persistence, then move the combat packet transport to a dedicated game server or
 managed low-latency relay while retaining the same input-frame and snapshot

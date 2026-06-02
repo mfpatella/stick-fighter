@@ -1,4 +1,10 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  createClient,
+  type RealtimeChannel,
+  type Session,
+  type SupabaseClient,
+  type User
+} from "@supabase/supabase-js";
 import type { BaseFighterKey } from "../game/fighterCatalog";
 import type { LevelKey } from "../game/levels";
 import type {
@@ -35,6 +41,29 @@ const localLobbyKey = "sff.local.lobby";
 const localTicketKey = "sff.local.matchmakingTicket";
 const localResultsKey = "sff.local.matchResults";
 const localStatsKey = "sff.local.playerStats";
+
+export type AuthSnapshot = {
+  user: User | null;
+  session: Session | null;
+};
+
+export type AuthCredentials = {
+  email: string;
+  password: string;
+};
+
+export type OnlineLobbyResult = {
+  lobby: GameLobby;
+  source: "supabase" | "local";
+};
+
+export type RealtimeRoomState = {
+  lobbyId: string;
+  onlineCount: number;
+  status: "subscribing" | "online" | "closed" | "error";
+};
+
+let activeRealtimeChannel: RealtimeChannel | null = null;
 
 export function recordLocalMatch(match: MatchResult): PlayerStats {
   const recordedAt = new Date().toISOString();
@@ -101,6 +130,160 @@ export async function recordMatch(match: MatchResult) {
   }
 }
 
+export async function getAuthSnapshot(): Promise<AuthSnapshot> {
+  if (!supabase) {
+    return {
+      user: null,
+      session: null
+    };
+  }
+
+  const { data } = await supabase.auth.getSession();
+  return {
+    user: data.session?.user ?? null,
+    session: data.session
+  };
+}
+
+export function onAuthChanged(callback: (snapshot: AuthSnapshot) => void) {
+  if (!supabase) {
+    return () => undefined;
+  }
+
+  const {
+    data: { subscription }
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    callback({
+      user: session?.user ?? null,
+      session
+    });
+  });
+
+  return () => subscription.unsubscribe();
+}
+
+export async function signUpWithEmail(credentials: AuthCredentials) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email: credentials.email,
+    password: credentials.password,
+    options: {
+      emailRedirectTo: window.location.origin
+    }
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function signInWithEmail(credentials: AuthCredentials) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword(credentials);
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function signOutOnline() {
+  if (!supabase) {
+    return;
+  }
+
+  leaveRealtimeRoom();
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    throw error;
+  }
+}
+
+export async function savePlayerProfile(avatar: PlayerAvatar) {
+  saveLocalProfile(avatar);
+
+  if (!supabase) {
+    return {
+      source: "local" as const,
+      avatar
+    };
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      source: "local" as const,
+      avatar
+    };
+  }
+
+  const { error } = await supabase.from("profiles").upsert({
+    id: user.id,
+    display_name: avatar.displayName,
+    favorite_fighter: avatar.favoriteFighter,
+    avatar_frame: avatar.frame,
+    avatar_color: avatar.color,
+    updated_at: new Date().toISOString()
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    source: "supabase" as const,
+    avatar
+  };
+}
+
+export async function loadPlayerStats(): Promise<PlayerStats> {
+  if (!supabase) {
+    return loadLocalPlayerStats();
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return loadLocalPlayerStats();
+  }
+
+  const { data, error } = await supabase
+    .from("player_stats")
+    .select("wins, losses, draws, matches_played, current_streak, best_streak, total_duration_seconds, updated_at")
+    .eq("profile_id", user.id)
+    .maybeSingle();
+
+  if (error || !data) {
+    return loadLocalPlayerStats();
+  }
+
+  const localProfile = loadLocalProfile();
+  return {
+    wins: data.wins,
+    losses: data.losses,
+    draws: data.draws,
+    matchesPlayed: data.matches_played,
+    currentStreak: data.current_streak,
+    bestStreak: data.best_streak,
+    totalDurationSeconds: data.total_duration_seconds,
+    favoriteFighter: localProfile?.favoriteFighter ?? "david",
+    updatedAt: data.updated_at
+  };
+}
+
 export function saveLocalProfile(avatar: PlayerAvatar) {
   window.localStorage.setItem(
     localProfileKey,
@@ -155,6 +338,194 @@ export function createLocalLobby(input: {
   return lobby;
 }
 
+export async function createGameLobby(input: {
+  avatar: PlayerAvatar;
+  fighterKey: BaseFighterKey;
+  levelKey: LevelKey;
+  matchmakingMode: MatchmakingMode;
+  maxPlayers: 2 | 4;
+}): Promise<OnlineLobbyResult> {
+  if (!supabase) {
+    return {
+      lobby: createLocalLobby(input),
+      source: "local"
+    };
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      lobby: createLocalLobby(input),
+      source: "local"
+    };
+  }
+
+  await savePlayerProfile(input.avatar);
+
+  const { data: lobbyRow, error: lobbyError } = await supabase
+    .from("lobbies")
+    .insert({
+      host_id: user.id,
+      room_code: createRoomCode(),
+      mode: input.matchmakingMode,
+      level_key: input.levelKey,
+      max_players: input.maxPlayers,
+      status: "open"
+    })
+    .select("id, room_code, host_id, status, level_key, mode, max_players, created_at")
+    .single();
+
+  if (lobbyError) {
+    throw lobbyError;
+  }
+
+  const { error: memberError } = await supabase.from("lobby_members").insert({
+    lobby_id: lobbyRow.id,
+    profile_id: user.id,
+    fighter_key: input.fighterKey,
+    ready: true,
+    slot: 1
+  });
+
+  if (memberError) {
+    throw memberError;
+  }
+
+  const lobby: GameLobby = {
+    id: lobbyRow.id,
+    roomCode: lobbyRow.room_code,
+    hostId: lobbyRow.host_id,
+    status: lobbyRow.status,
+    levelKey: lobbyRow.level_key,
+    mode: lobbyRow.mode,
+    maxPlayers: lobbyRow.max_players,
+    members: [
+      {
+        profileId: user.id,
+        displayName: input.avatar.displayName,
+        fighterKey: input.fighterKey,
+        avatar: input.avatar,
+        ready: true,
+        slot: 1
+      }
+    ],
+    createdAt: lobbyRow.created_at
+  };
+
+  window.localStorage.setItem(localLobbyKey, JSON.stringify(lobby));
+  return {
+    lobby,
+    source: "supabase"
+  };
+}
+
+export async function joinLobbyByRoomCode(input: {
+  roomCode: string;
+  avatar: PlayerAvatar;
+  fighterKey: BaseFighterKey;
+}): Promise<GameLobby> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Sign in before joining an online lobby.");
+  }
+
+  await savePlayerProfile(input.avatar);
+
+  const normalizedRoomCode = input.roomCode.trim().toUpperCase();
+  const { data: lobbyRow, error: lobbyError } = await supabase
+    .from("lobbies")
+    .select("id, room_code, host_id, status, level_key, mode, max_players, created_at")
+    .eq("room_code", normalizedRoomCode)
+    .in("status", ["open", "ready"])
+    .maybeSingle();
+
+  if (lobbyError) {
+    throw lobbyError;
+  }
+
+  if (!lobbyRow) {
+    throw new Error(`Lobby ${normalizedRoomCode} was not found.`);
+  }
+
+  const { data: memberRows, error: membersError } = await supabase
+    .from("lobby_members")
+    .select("profile_id, fighter_key, slot, ready")
+    .eq("lobby_id", lobbyRow.id);
+
+  if (membersError) {
+    throw membersError;
+  }
+
+  const existingMember = memberRows.find((member) => member.profile_id === user.id);
+  const usedSlots = new Set(memberRows.map((member) => member.slot));
+  const slot = existingMember?.slot ?? findOpenSlot(usedSlots, lobbyRow.max_players);
+
+  if (!slot) {
+    throw new Error(`Lobby ${normalizedRoomCode} is full.`);
+  }
+
+  const { error: joinError } = await supabase.from("lobby_members").upsert({
+    lobby_id: lobbyRow.id,
+    profile_id: user.id,
+    fighter_key: input.fighterKey,
+    ready: true,
+    slot
+  });
+
+  if (joinError) {
+    throw joinError;
+  }
+
+  const lobby: GameLobby = {
+    id: lobbyRow.id,
+    roomCode: lobbyRow.room_code,
+    hostId: lobbyRow.host_id,
+    status: lobbyRow.status,
+    levelKey: lobbyRow.level_key,
+    mode: lobbyRow.mode,
+    maxPlayers: lobbyRow.max_players,
+    members: [
+      ...memberRows
+        .filter((member) => member.profile_id !== user.id)
+        .map((member) => ({
+          profileId: member.profile_id,
+          displayName: "Player",
+          fighterKey: member.fighter_key as BaseFighterKey,
+          avatar: {
+            displayName: "Player",
+            frame: "shepherd" as const,
+            color: "olive" as const,
+            favoriteFighter: member.fighter_key as BaseFighterKey
+          },
+          ready: member.ready,
+          slot: member.slot as 1 | 2 | 3 | 4
+        })),
+      {
+        profileId: user.id,
+        displayName: input.avatar.displayName,
+        fighterKey: input.fighterKey,
+        avatar: input.avatar,
+        ready: true,
+        slot: slot as 1 | 2 | 3 | 4
+      }
+    ],
+    createdAt: lobbyRow.created_at
+  };
+
+  window.localStorage.setItem(localLobbyKey, JSON.stringify(lobby));
+  return lobby;
+}
+
 export function createLocalMatchmakingTicket(input: {
   fighterKey: BaseFighterKey;
   levelKey: LevelKey | null;
@@ -174,8 +545,160 @@ export function createLocalMatchmakingTicket(input: {
   return ticket;
 }
 
+export async function createMatchmakingTicket(input: {
+  fighterKey: BaseFighterKey;
+  levelKey: LevelKey | null;
+  mode: MatchmakingMode;
+}): Promise<MatchmakingTicket | null> {
+  if (!supabase) {
+    return createLocalMatchmakingTicket(input);
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return createLocalMatchmakingTicket(input);
+  }
+
+  const { data, error } = await supabase
+    .from("matchmaking_tickets")
+    .insert({
+      profile_id: user.id,
+      fighter_key: input.fighterKey,
+      level_key: input.levelKey,
+      mode: input.mode,
+      status: "searching"
+    })
+    .select("id, profile_id, fighter_key, level_key, mode, status, created_at")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const ticket: MatchmakingTicket = {
+    id: data.id,
+    profileId: data.profile_id,
+    fighterKey: data.fighter_key,
+    levelKey: data.level_key,
+    mode: data.mode,
+    status: data.status,
+    createdAt: data.created_at
+  };
+
+  window.localStorage.setItem(localTicketKey, JSON.stringify(ticket));
+  return ticket;
+}
+
+export async function joinRealtimeRoom(input: {
+  lobby: GameLobby;
+  avatar: PlayerAvatar;
+  fighterKey: BaseFighterKey;
+  onState: (state: RealtimeRoomState) => void;
+}) {
+  if (!supabase) {
+    input.onState({
+      lobbyId: input.lobby.id,
+      onlineCount: 1,
+      status: "closed"
+    });
+    return () => undefined;
+  }
+
+  leaveRealtimeRoom();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    input.onState({
+      lobbyId: input.lobby.id,
+      onlineCount: 1,
+      status: "closed"
+    });
+    return () => undefined;
+  }
+
+  const channel = supabase.channel(`match:${input.lobby.id}`, {
+    config: {
+      broadcast: {
+        ack: false,
+        self: false
+      },
+      presence: {
+        key: user.id
+      }
+    }
+  });
+
+  activeRealtimeChannel = channel;
+  input.onState({
+    lobbyId: input.lobby.id,
+    onlineCount: 1,
+    status: "subscribing"
+  });
+
+  channel.on("presence", { event: "sync" }, () => {
+    input.onState({
+      lobbyId: input.lobby.id,
+      onlineCount: Object.keys(channel.presenceState()).length,
+      status: "online"
+    });
+  });
+
+  channel.on("broadcast", { event: "input-frame" }, () => {
+    // Match input packets land here once remote-player simulation is enabled.
+  });
+
+  channel.subscribe(async (status) => {
+    if (status === "SUBSCRIBED") {
+      await channel.track({
+        displayName: input.avatar.displayName,
+        fighterKey: input.fighterKey,
+        avatar: input.avatar,
+        joinedAt: new Date().toISOString()
+      });
+      input.onState({
+        lobbyId: input.lobby.id,
+        onlineCount: Object.keys(channel.presenceState()).length || 1,
+        status: "online"
+      });
+      return;
+    }
+
+    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      input.onState({
+        lobbyId: input.lobby.id,
+        onlineCount: 1,
+        status: "error"
+      });
+    }
+  });
+
+  return () => leaveRealtimeRoom();
+}
+
+export function leaveRealtimeRoom() {
+  if (activeRealtimeChannel && supabase) {
+    void supabase.removeChannel(activeRealtimeChannel);
+  }
+  activeRealtimeChannel = null;
+}
+
 function createRoomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function findOpenSlot(usedSlots: Set<number>, maxPlayers: 2 | 4) {
+  for (let slot = 1; slot <= maxPlayers; slot += 1) {
+    if (!usedSlots.has(slot)) {
+      return slot;
+    }
+  }
+
+  return null;
 }
 
 function createEmptyStats(): PlayerStats {
