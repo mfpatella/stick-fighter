@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { TrainingScene, type OnlineInputBridge } from "./game/TrainingScene";
+import { TrainingScene, type OnlineInputBridge, type OnlineNetplayStats } from "./game/TrainingScene";
 import {
   decodePlayerInput,
   encodePlayerInput
@@ -51,6 +51,7 @@ const lobbyPlayerList = document.querySelector<HTMLElement>("#lobby-player-list"
 const lobbyMatchSummary = document.querySelector<HTMLElement>("#lobby-match-summary");
 const fightModeLabel = document.querySelector<HTMLElement>("#fight-mode-label");
 const fightTitle = document.querySelector<HTMLElement>("#fight-title");
+const netplayStatus = document.querySelector<HTMLElement>("#netplay-status");
 const guardHealthOutput = document.querySelector<HTMLOutputElement>("#guard-health-value");
 const onlineStatus = document.querySelector<HTMLElement>("#online-status");
 const authStatus = document.querySelector<HTMLElement>("#auth-status");
@@ -338,6 +339,14 @@ async function handleStartOnlineFight() {
     return;
   }
 
+  if (currentLobby && currentLobbySource === "supabase" && currentLobbyOnlineCount < 2) {
+    if (lobbyStatus) {
+      lobbyStatus.textContent = "Waiting for another online player before starting the synced fight.";
+    }
+    renderLobbyActions();
+    return;
+  }
+
   const onlineSettings = resolveOnlineFightSettings({
     ...currentLobbySettings,
     matchType: "online"
@@ -363,6 +372,7 @@ async function handleStartOnlineFight() {
   };
 
   await broadcastRealtimeMatchStart(matchStart);
+  renderLobbyActions();
   await startOnlineFightFromMatchStart(matchStart);
 }
 
@@ -374,6 +384,7 @@ async function handleRealtimeMatchStart(match: RealtimeMatchStart) {
   if (lobbyStatus) {
     lobbyStatus.textContent = `Match starts in ${Math.max(0, Math.ceil((match.startAt - Date.now()) / 1000))}s.`;
   }
+  renderLobbyActions();
 
   await startOnlineFightFromMatchStart(match);
 }
@@ -384,6 +395,7 @@ async function startOnlineFightFromMatchStart(match: RealtimeMatchStart) {
   }
 
   activeMatchStartId = match.matchId;
+  renderLobbyActions();
   const delayMs = Math.max(0, match.startAt - Date.now());
   if (delayMs > 0) {
     await new Promise((resolve) => window.setTimeout(resolve, delayMs));
@@ -619,6 +631,11 @@ function renderFightHeading(settings: GameLaunchSettings) {
           ? "Online Arena"
           : "Bot Arena";
   }
+
+  if (netplayStatus) {
+    netplayStatus.hidden = settings.matchType !== "online";
+    netplayStatus.textContent = settings.matchType === "online" ? "Netplay starting..." : "";
+  }
 }
 
 function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
@@ -662,6 +679,29 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
     } else {
       lobbyStatus.textContent = `Lobby ${currentLobby.roomCode} is ${status}. Share the room code, then start when ready.`;
     }
+  }
+
+  renderLobbyActions();
+}
+
+function renderLobbyActions() {
+  if (!startOnlineFightButton) {
+    return;
+  }
+
+  const hasLobby = Boolean(currentLobby);
+  const isLocalFallback = currentLobbySource === "local";
+  const hasOnlineOpponent = currentLobbyOnlineCount >= 2;
+  startOnlineFightButton.disabled = !hasLobby || (!isLocalFallback && !hasOnlineOpponent) || Boolean(activeMatchStartId);
+
+  if (activeMatchStartId) {
+    startOnlineFightButton.textContent = "Starting...";
+  } else if (isLocalFallback) {
+    startOnlineFightButton.textContent = "Start Local Netplay Test";
+  } else if (!hasOnlineOpponent) {
+    startOnlineFightButton.textContent = "Waiting for Player";
+  } else {
+    startOnlineFightButton.textContent = "Start Synced Fight";
   }
 }
 
@@ -727,7 +767,7 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
         frame,
         side: localSide,
         input: encodePlayerInput(input),
-        sentAt: performance.now()
+        sentAt: Date.now()
       });
     },
     readRemoteInput: (frame) => {
@@ -737,8 +777,24 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
       }
 
       return decodePlayerInput(remoteFrame.input);
-    }
+    },
+    getBufferedRemoteFrames: () => remoteInputFrames.size,
+    onNetplayStats: updateNetplayStatus
   };
+}
+
+function updateNetplayStatus(stats: OnlineNetplayStats) {
+  if (!netplayStatus) {
+    return;
+  }
+
+  const newestRemoteFrame = Math.max(0, ...remoteInputFrames.keys());
+  const latestRemote = newestRemoteFrame ? remoteInputFrames.get(newestRemoteFrame) : null;
+  const packetAge = latestRemote ? Math.max(0, Date.now() - latestRemote.sentAt) : null;
+  const sideLabel = stats.localSide === "player" ? "P1" : "P2";
+  const packetLabel = packetAge === null ? "no remote" : `${packetAge}ms`;
+
+  netplayStatus.textContent = `${sideLabel} delay ${stats.inputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel}`;
 }
 
 function trimRemoteInputFrames() {

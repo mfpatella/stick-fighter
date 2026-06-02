@@ -61,6 +61,17 @@ export type OnlineInputBridge = {
   snapshotHistoryFrames: number;
   sendInput: (input: PlayerInput, frame: number) => void;
   readRemoteInput: (frame: number) => PlayerInput | null;
+  getBufferedRemoteFrames: () => number;
+  onNetplayStats: (stats: OnlineNetplayStats) => void;
+};
+
+export type OnlineNetplayStats = {
+  frame: number;
+  localSide: "player" | "opponent";
+  inputDelayFrames: number;
+  predictedFrames: number;
+  rollbackCount: number;
+  bufferedRemoteFrames: number;
 };
 
 type NetplayFrameInputs = {
@@ -122,6 +133,8 @@ export class TrainingScene extends Phaser.Scene {
   private netplaySnapshots = new Map<number, SimulationSnapshot>();
   private netplayInputs = new Map<number, NetplayFrameInputs>();
   private lastRemotePrediction = createEmptyInput();
+  private netplayPredictedFrames = 0;
+  private netplayRollbackCount = 0;
   private touchHeld = new Set<TouchAction>();
   private touchPulses = new Set<TouchAction>();
   private touchControlsAbort: AbortController | null = null;
@@ -178,6 +191,8 @@ export class TrainingScene extends Phaser.Scene {
     this.netplaySnapshots.clear();
     this.netplayInputs.clear();
     this.lastRemotePrediction = createEmptyInput();
+    this.netplayPredictedFrames = 0;
+    this.netplayRollbackCount = 0;
 
     this.createArena();
     this.graphics = this.add.graphics();
@@ -332,6 +347,7 @@ export class TrainingScene extends Phaser.Scene {
     );
     this.netplayInputs.set(nextFrame, inputs);
     this.trimNetplayHistory();
+    this.emitNetplayStats();
 
     return events;
   }
@@ -354,6 +370,8 @@ export class TrainingScene extends Phaser.Scene {
 
     if (!remotePredicted) {
       this.lastRemotePrediction = remote;
+    } else {
+      this.netplayPredictedFrames += 1;
     }
 
     return {
@@ -397,6 +415,7 @@ export class TrainingScene extends Phaser.Scene {
     }
 
     const targetFrame = this.simulation.state.frameNumber;
+    this.netplayRollbackCount += 1;
     this.simulation.restoreSnapshot(snapshot);
     this.effects = [];
     this.statusHoldTimer = 0;
@@ -432,6 +451,21 @@ export class TrainingScene extends Phaser.Scene {
         this.netplayInputs.delete(frame);
       }
     }
+  }
+
+  private emitNetplayStats() {
+    if (!this.onlineBridge || this.simulation.state.frameNumber % 15 !== 0) {
+      return;
+    }
+
+    this.onlineBridge.onNetplayStats({
+      frame: this.simulation.state.frameNumber,
+      localSide: this.onlineBridge.localSide,
+      inputDelayFrames: this.onlineBridge.inputDelayFrames,
+      predictedFrames: this.netplayPredictedFrames,
+      rollbackCount: this.netplayRollbackCount,
+      bufferedRemoteFrames: this.onlineBridge.getBufferedRemoteFrames()
+    });
   }
 
   private bindTouchControls() {
