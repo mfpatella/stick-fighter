@@ -50,6 +50,25 @@ type RenderState = {
   opponent: FighterSnapshot;
 };
 
+type TouchAction =
+  | "left"
+  | "right"
+  | "jump"
+  | "light"
+  | "heavy"
+  | "low"
+  | "high"
+  | "kick"
+  | "powerKick"
+  | "chomp"
+  | "tail"
+  | "claw"
+  | "block"
+  | "dash"
+  | "reattach";
+
+const heldTouchActions = new Set<TouchAction>(["left", "right", "block"]);
+
 export class TrainingScene extends Phaser.Scene {
   private simulation = new CombatSimulation();
   private previousRenderState: RenderState | null = null;
@@ -80,6 +99,9 @@ export class TrainingScene extends Phaser.Scene {
   private dustTimer = 0;
   private recordedRound = false;
   private settings: GameLaunchSettings = defaultGameSettings;
+  private touchHeld = new Set<TouchAction>();
+  private touchPulses = new Set<TouchAction>();
+  private touchControlsAbort: AbortController | null = null;
 
   constructor() {
     super("training");
@@ -133,8 +155,10 @@ export class TrainingScene extends Phaser.Scene {
     this.graphics.setDepth(10);
     this.createInput();
     this.createHud();
+    this.bindTouchControls();
     this.bindTrainingTools();
     this.updateShellControls();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.releaseTouchControls());
   }
 
   update(_time: number, deltaMs: number) {
@@ -143,6 +167,18 @@ export class TrainingScene extends Phaser.Scene {
       return;
     }
 
+    this.pendingJump ||= this.consumeTouchPulse("jump");
+    this.pendingLight ||= this.consumeTouchPulse("light");
+    this.pendingHeavy ||= this.consumeTouchPulse("heavy");
+    this.pendingLow ||= this.consumeTouchPulse("low");
+    this.pendingHigh ||= this.consumeTouchPulse("high");
+    this.pendingKick ||= this.consumeTouchPulse("kick");
+    this.pendingPowerKick ||= this.consumeTouchPulse("powerKick");
+    this.pendingChomp ||= this.consumeTouchPulse("chomp");
+    this.pendingTail ||= this.consumeTouchPulse("tail");
+    this.pendingClaw ||= this.consumeTouchPulse("claw");
+    this.pendingDash ||= this.consumeTouchPulse("dash");
+    this.pendingReattach ||= this.consumeTouchPulse("reattach");
     this.pendingJump ||= Phaser.Input.Keyboard.JustDown(this.keys.jump);
     this.pendingJump ||= Phaser.Input.Keyboard.JustDown(this.keys.jumpAlt);
     this.pendingJump ||= Phaser.Input.Keyboard.JustDown(this.keys.jumpArrow);
@@ -164,9 +200,13 @@ export class TrainingScene extends Phaser.Scene {
       this.previousRenderState = this.cloneRenderState();
       const events = this.simulation.step(
         {
-          left: this.keys.left.isDown || this.keys.leftAlt.isDown,
-          right: this.keys.right.isDown || this.keys.rightAlt.isDown,
-          block: this.keys.block.isDown || this.keys.blockAlt.isDown || this.keys.blockArrow.isDown,
+          left: this.keys.left.isDown || this.keys.leftAlt.isDown || this.touchHeld.has("left"),
+          right: this.keys.right.isDown || this.keys.rightAlt.isDown || this.touchHeld.has("right"),
+          block:
+            this.keys.block.isDown ||
+            this.keys.blockAlt.isDown ||
+            this.keys.blockArrow.isDown ||
+            this.touchHeld.has("block"),
           jumpPressed: this.pendingJump,
           lightPressed: this.pendingLight,
           heavyPressed: this.pendingHeavy,
@@ -235,6 +275,63 @@ export class TrainingScene extends Phaser.Scene {
       reattach: Phaser.Input.Keyboard.KeyCodes.E,
       reset: Phaser.Input.Keyboard.KeyCodes.R
     }) as Record<string, Phaser.Input.Keyboard.Key>;
+  }
+
+  private bindTouchControls() {
+    this.releaseTouchControls();
+    this.touchControlsAbort = new AbortController();
+    const { signal } = this.touchControlsAbort;
+    const buttons = document.querySelectorAll<HTMLButtonElement>("[data-touch-action]");
+
+    buttons.forEach((button) => {
+      const action = button.dataset.touchAction as TouchAction | undefined;
+      if (!action) {
+        return;
+      }
+
+      const press = (event: PointerEvent) => {
+        event.preventDefault();
+        if (heldTouchActions.has(action)) {
+          this.touchHeld.add(action);
+        } else {
+          this.touchPulses.add(action);
+        }
+        button.classList.add("is-pressed");
+      };
+
+      const release = (event: PointerEvent) => {
+        event.preventDefault();
+        if (heldTouchActions.has(action)) {
+          this.touchHeld.delete(action);
+        }
+        button.classList.remove("is-pressed");
+      };
+
+      button.addEventListener("pointerdown", press, { signal });
+      button.addEventListener("pointerup", release, { signal });
+      button.addEventListener("pointercancel", release, { signal });
+      button.addEventListener("pointerleave", release, { signal });
+      button.addEventListener("contextmenu", (event) => event.preventDefault(), { signal });
+    });
+  }
+
+  private releaseTouchControls() {
+    this.touchControlsAbort?.abort();
+    this.touchControlsAbort = null;
+    this.touchHeld.clear();
+    this.touchPulses.clear();
+    document.querySelectorAll<HTMLButtonElement>("[data-touch-action].is-pressed").forEach((button) => {
+      button.classList.remove("is-pressed");
+    });
+  }
+
+  private consumeTouchPulse(action: TouchAction) {
+    if (!this.touchPulses.has(action)) {
+      return false;
+    }
+
+    this.touchPulses.delete(action);
+    return true;
   }
 
   private createArena() {
@@ -637,7 +734,7 @@ export class TrainingScene extends Phaser.Scene {
 
     const jumpControl = document.getElementById("control-jump");
     if (jumpControl) {
-      jumpControl.textContent = hasWings ? "W/Space fly" : "W/Space jump";
+      jumpControl.textContent = hasWings ? "Fly" : "Jump";
       jumpControl.classList.toggle("ability-unlocked", hasWings);
     }
   }

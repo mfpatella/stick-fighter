@@ -40,6 +40,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  touch-action: manipulation;
 }
 
 .shell {
@@ -369,7 +370,35 @@ h2 {
   font-weight: 700;
 }
 
-.controls span,
+.controls {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(124px, 0.62fr) minmax(260px, 1.25fr);
+  align-items: stretch;
+  gap: 10px;
+}
+
+.control-cluster {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgb(168 180 170 / 72%);
+  border-radius: 8px;
+  background: rgb(238 243 239 / 74%);
+}
+
+.control-move {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.control-utility {
+  grid-template-columns: 1fr;
+}
+
+.control-strikes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.touch-button,
 .training-tools span,
 .training-tools button {
   border: 1px solid #a8b4aa;
@@ -382,6 +411,24 @@ h2 {
     border-color 120ms ease,
     transform 120ms ease,
     box-shadow 120ms ease;
+}
+
+.touch-button {
+  min-height: 46px;
+  color: #24381f;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.touch-button-wide,
+.touch-button-guard {
+  min-height: 58px;
 }
 
 .training-tools {
@@ -406,6 +453,9 @@ h2 {
 .training-tools button:hover,
 .training-tools button:focus-visible,
 .training-tools button.is-pressed,
+.touch-button:hover,
+.touch-button:focus-visible,
+.touch-button.is-pressed,
 .menu-button:hover,
 .menu-button:focus-visible,
 .icon-button:hover,
@@ -422,6 +472,8 @@ h2 {
 
 .training-tools button:active,
 .training-tools button.is-pressed,
+.touch-button:active,
+.touch-button.is-pressed,
 .menu-button:active,
 .icon-button:active,
 .menu-tab:active,
@@ -431,6 +483,7 @@ h2 {
 }
 
 .training-tools button:focus-visible,
+.touch-button:focus-visible,
 .menu-button:focus-visible,
 .icon-button:focus-visible,
 .menu-tab:focus-visible,
@@ -441,7 +494,7 @@ h2 {
   outline-offset: 2px;
 }
 
-.controls span[hidden] {
+.controls [hidden] {
   display: none;
 }
 
@@ -454,18 +507,30 @@ h2 {
 
 @media (max-width: 640px) {
   .shell {
-    width: min(100vw - 20px, 1120px);
-    padding: 14px 0;
+    width: min(100vw - 12px, 1120px);
+    padding: 8px 0 max(10px, env(safe-area-inset-bottom));
   }
 
   .topbar {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    gap: 10px;
+    margin-bottom: 8px;
   }
 
   .topbar-actions {
-    width: 100%;
-    justify-content: space-between;
+    width: auto;
+    justify-content: flex-end;
+  }
+
+  .topbar .eyebrow,
+  .mode-pill {
+    display: none;
+  }
+
+  h1,
+  h2 {
+    font-size: 1.42rem;
   }
 
   .menu-overlay {
@@ -505,9 +570,125 @@ h2 {
     font-size: 0.84rem;
   }
 
-  .controls span,
+  .controls {
+    grid-template-columns: 1fr;
+    margin-top: 8px;
+  }
+
+  .control-cluster {
+    padding: 7px;
+  }
+
+  .control-move {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .control-utility {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .control-strikes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .touch-button {
+    min-height: 48px;
+    padding: 6px 7px;
+    font-size: 0.78rem;
+  }
+
+  .touch-button-wide,
+  .touch-button-guard {
+    min-height: 54px;
+  }
+
   .training-tools span,
   .training-tools button {
     padding: 6px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .menu-button,
+  .icon-button {
+    min-height: 40px;
+  }
+
+  #game {
+    border-width: 1px;
+  }
+
+  .controls {
+    gap: 7px;
+  }
+
+  .control-strikes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .touch-button {
+    min-height: 46px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 34vw);
+    grid-template-areas:
+      "topbar topbar"
+      "arena controls"
+      "tools controls";
+    align-items: start;
+    gap: 7px 8px;
+    width: min(100vw - 16px, 1120px);
+    padding-top: 6px;
+  }
+
+  .topbar {
+    grid-area: topbar;
+    margin-bottom: 0;
+  }
+
+  .menu-overlay {
+    grid-column: 1 / -1;
+  }
+
+  #game {
+    grid-area: arena;
+  }
+
+  .controls {
+    grid-area: controls;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 0;
+  }
+
+  .training-tools {
+    grid-area: tools;
+    margin-top: 0;
+  }
+
+  .control-cluster {
+    padding: 6px;
+  }
+
+  .control-move {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .control-utility {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .control-strikes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .touch-button,
+  .touch-button-wide,
+  .touch-button-guard {
+    min-height: 44px;
   }
 }

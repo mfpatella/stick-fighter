@@ -32,7 +32,7 @@ export const defaultGameSettings: GameLaunchSettings = {
   difficulty: "standard",
   loadout: "classic",
   randomDrops: true,
-  trainingTools: true,
+  trainingTools: false,
   showHitboxes: false,
   motionFx: "full",
   guardHealth: 100,

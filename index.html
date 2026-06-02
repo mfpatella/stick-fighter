@@ -93,7 +93,7 @@
               </select>
             </label>
             <label class="switch-row">
-              <input name="trainingTools" type="checkbox" checked />
+              <input name="trainingTools" type="checkbox" />
               <span>Local spawn tools</span>
             </label>
             <label class="switch-row">
@@ -193,21 +193,28 @@
         </form>
       </section>
       <div id="game" aria-label="Fight arena"></div>
-      <section class="controls" aria-label="Controls" hidden>
-        <span>A/D or arrows</span>
-        <span id="control-jump">W/Space jump</span>
-        <span>J light</span>
-        <span>K heavy</span>
-        <span>U kick</span>
-        <span>O spin kick</span>
-        <span>H low</span>
-        <span>I high</span>
-        <span id="control-chomp" class="ability-control" hidden>C chomp</span>
-        <span id="control-tail" class="ability-control" hidden>T tail strike</span>
-        <span id="control-claws" class="ability-control" hidden>V claw swipe</span>
-        <span>L/S block</span>
-        <span>Shift dodge</span>
-        <span>E attach part</span>
+      <section class="controls" aria-label="Touch controls" hidden>
+        <div class="control-cluster control-move" aria-label="Movement">
+          <button type="button" class="touch-button touch-button-wide" data-touch-action="left" aria-label="Move left">Left</button>
+          <button type="button" class="touch-button touch-button-wide" data-touch-action="right" aria-label="Move right">Right</button>
+          <button id="control-jump" type="button" class="touch-button" data-touch-action="jump">Jump</button>
+          <button type="button" class="touch-button" data-touch-action="dash">Dodge</button>
+        </div>
+        <div class="control-cluster control-utility" aria-label="Defense and pickup">
+          <button type="button" class="touch-button touch-button-guard" data-touch-action="block">Hold Block</button>
+          <button type="button" class="touch-button" data-touch-action="reattach">Attach</button>
+        </div>
+        <div class="control-cluster control-strikes" aria-label="Strikes">
+          <button type="button" class="touch-button" data-touch-action="light">Light</button>
+          <button type="button" class="touch-button" data-touch-action="heavy">Heavy</button>
+          <button type="button" class="touch-button" data-touch-action="kick">Kick</button>
+          <button type="button" class="touch-button" data-touch-action="powerKick">Spin</button>
+          <button type="button" class="touch-button" data-touch-action="low">Low</button>
+          <button type="button" class="touch-button" data-touch-action="high">High</button>
+          <button id="control-chomp" type="button" class="touch-button ability-control" data-touch-action="chomp" hidden>Chomp</button>
+          <button id="control-tail" type="button" class="touch-button ability-control" data-touch-action="tail" hidden>Tail</button>
+          <button id="control-claws" type="button" class="touch-button ability-control" data-touch-action="claw" hidden>Claws</button>
+        </div>
       </section>
       <section class="training-tools" aria-label="Local testing tools" hidden>
         <span>Local spawns</span>
