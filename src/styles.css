@@ -710,6 +710,12 @@ h2 {
     padding: 14px;
   }
 
+  .fight-screen {
+    position: relative;
+    gap: 8px;
+    padding: 8px;
+  }
+
   .menu-header,
   .lobby-header,
   .fight-header,
@@ -778,12 +784,24 @@ h2 {
   }
 
   .controls {
-    grid-template-columns: 1fr;
-    margin-top: 8px;
+    position: absolute;
+    z-index: 30;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    grid-template-columns: minmax(132px, 0.85fr) minmax(76px, 0.5fr) minmax(168px, 1.15fr);
+    align-items: end;
+    gap: 6px;
+    margin-top: 0;
+    pointer-events: none;
   }
 
   .control-cluster {
-    padding: 7px;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
   }
 
   .control-move {
@@ -799,14 +817,18 @@ h2 {
   }
 
   .touch-button {
-    min-height: 48px;
+    min-height: 42px;
     padding: 6px 7px;
-    font-size: 0.78rem;
+    border-color: rgb(32 40 32 / 34%);
+    background: rgb(238 243 239 / 74%);
+    box-shadow: 0 2px 8px rgb(32 40 32 / 18%);
+    font-size: 0.74rem;
+    pointer-events: auto;
   }
 
   .touch-button-wide,
   .touch-button-guard {
-    min-height: 54px;
+    min-height: 42px;
   }
 
   .training-tools span,
@@ -840,20 +862,12 @@ h2 {
 
 @media (orientation: landscape) and (max-height: 560px) {
   .shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 34vw);
-    grid-template-areas:
-      "topbar topbar"
-      "arena controls"
-      "tools controls";
-    align-items: start;
-    gap: 7px 8px;
+    display: block;
     width: min(100vw - 16px, 1120px);
     padding-top: 6px;
   }
 
   .topbar {
-    grid-area: topbar;
     margin-bottom: 0;
   }
 
@@ -863,24 +877,34 @@ h2 {
     grid-column: 1 / -1;
   }
 
-  #game {
-    grid-area: arena;
+  .fight-screen {
+    position: relative;
+    gap: 6px;
+    padding: 8px;
   }
 
   .controls {
-    grid-area: controls;
-    grid-template-columns: 1fr;
-    gap: 8px;
+    position: absolute;
+    z-index: 30;
+    right: 8px;
+    bottom: max(6px, env(safe-area-inset-bottom));
+    left: 8px;
+    grid-template-columns: minmax(130px, 0.82fr) minmax(80px, 0.48fr) minmax(200px, 1.25fr);
+    gap: 6px;
     margin-top: 0;
+    pointer-events: none;
   }
 
   .training-tools {
-    grid-area: tools;
     margin-top: 0;
   }
 
   .control-cluster {
-    padding: 6px;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
   }
 
   .control-move {
@@ -898,6 +922,11 @@ h2 {
   .touch-button,
   .touch-button-wide,
   .touch-button-guard {
-    min-height: 44px;
+    min-height: 38px;
+    border-color: rgb(32 40 32 / 34%);
+    background: rgb(238 243 239 / 74%);
+    box-shadow: 0 2px 8px rgb(32 40 32 / 18%);
+    font-size: 0.72rem;
+    pointer-events: auto;
   }
 }
