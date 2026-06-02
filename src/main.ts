@@ -1,10 +1,8 @@
 import Phaser from "phaser";
 import { TrainingScene, type OnlineInputBridge } from "./game/TrainingScene";
 import {
-  createEmptyInput,
   decodePlayerInput,
-  encodePlayerInput,
-  type PlayerInput
+  encodePlayerInput
 } from "./game/combatSimulation";
 import { baseFighters, playerFighterKeys, opponentFighterKeys, type BaseFighterKey } from "./game/fighterCatalog";
 import { defaultGameSettings, type GameLaunchSettings } from "./game/gameSettings";
@@ -12,6 +10,7 @@ import { levelKeys, type LevelKey } from "./game/levels";
 import {
   backendModeLabel,
   broadcastRealtimeInputFrame,
+  broadcastRealtimeMatchStart,
   createGameLobby,
   createMatchmakingTicket,
   getAuthSnapshot,
@@ -26,9 +25,10 @@ import {
   signUpWithEmail,
   type AuthSnapshot,
   type RealtimeInputFrame,
+  type RealtimeMatchStart,
   type RealtimeParticipant
 } from "./services/backend";
-import type { GameLobby, PlayerAvatar } from "./game/multiplayerTypes";
+import { defaultNetplayTuning, type GameLobby, type PlayerAvatar } from "./game/multiplayerTypes";
 import "./styles.css";
 
 const modeElement = document.querySelector<HTMLDivElement>("#backend-mode");
@@ -77,8 +77,8 @@ let currentLobbySettings: GameLaunchSettings | null = null;
 let currentLobbySource: "supabase" | "local" | null = null;
 let currentLobbyOnlineCount = 0;
 let currentParticipants: RealtimeParticipant[] = [];
-let latestRemoteFrame: RealtimeInputFrame | null = null;
-let consumedRemoteFrame = -1;
+let remoteInputFrames = new Map<number, RealtimeInputFrame>();
+let activeMatchStartId: string | null = null;
 
 if (modeElement) {
   modeElement.textContent = backendModeLabel;
@@ -212,8 +212,8 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
     currentLobbySource = null;
     currentLobbyOnlineCount = 0;
     currentParticipants = [];
-    latestRemoteFrame = null;
-    consumedRemoteFrame = -1;
+    remoteInputFrames = new Map();
+    activeMatchStartId = null;
     leaveRoom?.();
     leaveRoom = null;
   }
@@ -294,8 +294,8 @@ async function enterLobby(
     displayName: member.displayName,
     fighterKey: member.fighterKey
   }));
-  latestRemoteFrame = null;
-  consumedRemoteFrame = -1;
+  remoteInputFrames = new Map();
+  activeMatchStartId = null;
   showAppScreen("lobby");
   renderLobbyState();
 
@@ -320,7 +320,11 @@ async function enterLobby(
       }
     },
     onInputFrame: (frame) => {
-      latestRemoteFrame = frame;
+      remoteInputFrames.set(frame.frame, frame);
+      trimRemoteInputFrames();
+    },
+    onMatchStart: (match) => {
+      void handleRealtimeMatchStart(match);
     }
   });
 }
@@ -334,14 +338,64 @@ async function handleStartOnlineFight() {
     return;
   }
 
-  const localSide = getLocalOnlineSide();
   const onlineSettings = resolveOnlineFightSettings({
     ...currentLobbySettings,
     matchType: "online"
   });
-  const bridge = createOnlineInputBridge(localSide);
 
-  await startFight(onlineSettings, bridge);
+  if (!currentLobby || currentLobbySource === "local") {
+    await startOnlineFightFromMatchStart({
+      matchId: crypto.randomUUID(),
+      lobbyId: currentLobby?.id ?? "local-lobby",
+      hostProfileId: getLocalProfileId(),
+      startAt: Date.now(),
+      settings: onlineSettings
+    });
+    return;
+  }
+
+  const matchStart: RealtimeMatchStart = {
+    matchId: crypto.randomUUID(),
+    lobbyId: currentLobby.id,
+    hostProfileId: getLocalProfileId(),
+    startAt: Date.now() + 900,
+    settings: onlineSettings
+  };
+
+  await broadcastRealtimeMatchStart(matchStart);
+  await startOnlineFightFromMatchStart(matchStart);
+}
+
+async function handleRealtimeMatchStart(match: RealtimeMatchStart) {
+  if (!currentLobby || match.lobbyId !== currentLobby.id || activeMatchStartId === match.matchId) {
+    return;
+  }
+
+  if (lobbyStatus) {
+    lobbyStatus.textContent = `Match starts in ${Math.max(0, Math.ceil((match.startAt - Date.now()) / 1000))}s.`;
+  }
+
+  await startOnlineFightFromMatchStart(match);
+}
+
+async function startOnlineFightFromMatchStart(match: RealtimeMatchStart) {
+  if (activeMatchStartId === match.matchId) {
+    return;
+  }
+
+  activeMatchStartId = match.matchId;
+  const delayMs = Math.max(0, match.startAt - Date.now());
+  if (delayMs > 0) {
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+  }
+
+  if ((!currentLobby && match.lobbyId !== "local-lobby") || (currentLobby && match.lobbyId !== currentLobby.id)) {
+    return;
+  }
+
+  remoteInputFrames = new Map();
+  const bridge = createOnlineInputBridge(getLocalOnlineSide());
+  await startFight(match.settings, bridge);
 }
 
 async function refreshAuthState() {
@@ -539,8 +593,8 @@ function returnToMenu() {
   currentLobbySource = null;
   currentLobbyOnlineCount = 0;
   currentParticipants = [];
-  latestRemoteFrame = null;
-  consumedRemoteFrame = -1;
+  remoteInputFrames = new Map();
+  activeMatchStartId = null;
   leaveRoom?.();
   leaveRoom = null;
   renderLobbyState();
@@ -660,6 +714,9 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
 
   return {
     localSide,
+    inputDelayFrames: defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames,
+    maxRollbackFrames: defaultNetplayTuning.maxRollbackFrames,
+    snapshotHistoryFrames: defaultNetplayTuning.snapshotHistoryFrames,
     sendInput: (input, frame) => {
       if (!currentLobby || currentLobbySource === "local") {
         return;
@@ -673,29 +730,26 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
         sentAt: performance.now()
       });
     },
-    readRemoteInput: () => {
-      if (!latestRemoteFrame || latestRemoteFrame.profileId === profileId) {
-        return createEmptyInput();
+    readRemoteInput: (frame) => {
+      const remoteFrame = remoteInputFrames.get(frame);
+      if (!remoteFrame || remoteFrame.profileId === profileId || remoteFrame.side === localSide) {
+        return null;
       }
 
-      const input = decodePlayerInput(latestRemoteFrame.input);
-      if (latestRemoteFrame.frame === consumedRemoteFrame) {
-        return stripTransientInput(input);
-      }
-
-      consumedRemoteFrame = latestRemoteFrame.frame;
-      return input;
+      return decodePlayerInput(remoteFrame.input);
     }
   };
 }
 
-function stripTransientInput(input: PlayerInput): PlayerInput {
-  return {
-    ...createEmptyInput(),
-    left: input.left,
-    right: input.right,
-    block: input.block
-  };
+function trimRemoteInputFrames() {
+  const newestFrame = Math.max(0, ...remoteInputFrames.keys());
+  const oldestFrame = newestFrame - defaultNetplayTuning.snapshotHistoryFrames;
+
+  for (const frame of remoteInputFrames.keys()) {
+    if (frame < oldestFrame) {
+      remoteInputFrames.delete(frame);
+    }
+  }
 }
 
 function hydrateStoredProfile() {

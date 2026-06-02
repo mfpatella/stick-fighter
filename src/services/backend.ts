@@ -7,6 +7,7 @@ import {
 } from "@supabase/supabase-js";
 import type { BaseFighterKey } from "../game/fighterCatalog";
 import type { EncodedPlayerInput } from "../game/combatSimulation";
+import type { GameLaunchSettings } from "../game/gameSettings";
 import type { LevelKey } from "../game/levels";
 import type {
   GameLobby,
@@ -77,6 +78,14 @@ export type RealtimeInputFrame = {
   side: "player" | "opponent";
   input: EncodedPlayerInput;
   sentAt: number;
+};
+
+export type RealtimeMatchStart = {
+  matchId: string;
+  lobbyId: string;
+  hostProfileId: string;
+  startAt: number;
+  settings: GameLaunchSettings;
 };
 
 let activeRealtimeChannel: RealtimeChannel | null = null;
@@ -614,6 +623,7 @@ export async function joinRealtimeRoom(input: {
   fighterKey: BaseFighterKey;
   onState: (state: RealtimeRoomState) => void;
   onInputFrame?: (frame: RealtimeInputFrame) => void;
+  onMatchStart?: (match: RealtimeMatchStart) => void;
 }) {
   if (!supabase) {
     input.onState({
@@ -683,6 +693,13 @@ export async function joinRealtimeRoom(input: {
     }
   });
 
+  channel.on("broadcast", { event: "match-start" }, (message) => {
+    const match = message.payload as RealtimeMatchStart;
+    if (match.hostProfileId !== user.id) {
+      input.onMatchStart?.(match);
+    }
+  });
+
   channel.subscribe(async (status) => {
     if (status === "SUBSCRIBED") {
       await channel.track({
@@ -731,6 +748,18 @@ export async function broadcastRealtimeInputFrame(frame: RealtimeInputFrame) {
     type: "broadcast",
     event: "input-frame",
     payload: frame
+  });
+}
+
+export async function broadcastRealtimeMatchStart(match: RealtimeMatchStart) {
+  if (!activeRealtimeChannel) {
+    return;
+  }
+
+  await activeRealtimeChannel.send({
+    type: "broadcast",
+    event: "match-start",
+    payload: match
   });
 }
 

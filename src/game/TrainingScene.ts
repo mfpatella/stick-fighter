@@ -6,6 +6,7 @@ import {
   CombatSimulation,
   type CombatEvent,
   createEmptyInput,
+  encodePlayerInput,
   type DetachedPart,
   type FighterSnapshot,
   fixedStep,
@@ -16,6 +17,7 @@ import {
   maxFixedSteps,
   type PartOwner,
   type PlayerInput,
+  type SimulationSnapshot,
   type TrainingDropKind
 } from "./combatSimulation";
 import { recordMatch } from "../services/backend";
@@ -54,8 +56,17 @@ type RenderState = {
 
 export type OnlineInputBridge = {
   localSide: "player" | "opponent";
+  inputDelayFrames: number;
+  maxRollbackFrames: number;
+  snapshotHistoryFrames: number;
   sendInput: (input: PlayerInput, frame: number) => void;
-  readRemoteInput: () => PlayerInput;
+  readRemoteInput: (frame: number) => PlayerInput | null;
+};
+
+type NetplayFrameInputs = {
+  local: PlayerInput;
+  remote: PlayerInput;
+  remotePredicted: boolean;
 };
 
 type TouchAction =
@@ -108,6 +119,9 @@ export class TrainingScene extends Phaser.Scene {
   private recordedRound = false;
   private settings: GameLaunchSettings = defaultGameSettings;
   private onlineBridge: OnlineInputBridge | null = null;
+  private netplaySnapshots = new Map<number, SimulationSnapshot>();
+  private netplayInputs = new Map<number, NetplayFrameInputs>();
+  private lastRemotePrediction = createEmptyInput();
   private touchHeld = new Set<TouchAction>();
   private touchPulses = new Set<TouchAction>();
   private touchControlsAbort: AbortController | null = null;
@@ -161,6 +175,9 @@ export class TrainingScene extends Phaser.Scene {
     this.effects = [];
     this.clouds = [];
     this.dustTimer = 0;
+    this.netplaySnapshots.clear();
+    this.netplayInputs.clear();
+    this.lastRemotePrediction = createEmptyInput();
 
     this.createArena();
     this.graphics = this.add.graphics();
@@ -211,12 +228,7 @@ export class TrainingScene extends Phaser.Scene {
     while (this.accumulator >= fixedStep && steps < maxFixedSteps) {
       this.previousRenderState = this.cloneRenderState();
       const localInput = this.readLocalInput();
-      const remoteInput = this.onlineBridge?.readRemoteInput() ?? createEmptyInput();
-      const playerInput = this.onlineBridge?.localSide === "opponent" ? remoteInput : localInput;
-      const opponentInput = this.onlineBridge?.localSide === "opponent" ? localInput : remoteInput;
-
-      this.onlineBridge?.sendInput(localInput, this.simulation.state.frameNumber + 1);
-      const events = this.simulation.step(playerInput, fixedStep, opponentInput);
+      const events = this.stepSimulation(localInput);
 
       this.pendingJump = false;
       this.pendingLight = false;
@@ -294,6 +306,132 @@ export class TrainingScene extends Phaser.Scene {
       dashPressed: this.pendingDash,
       reattachPressed: this.pendingReattach
     };
+  }
+
+  private stepSimulation(localInput: PlayerInput): CombatEvent[] {
+    if (!this.onlineBridge) {
+      return this.simulation.step(localInput, fixedStep);
+    }
+
+    const correctionFrame = this.findRollbackFrame();
+    if (correctionFrame !== null) {
+      this.rollbackAndReplay(correctionFrame);
+    }
+
+    const nextFrame = this.simulation.state.frameNumber + 1;
+    const sendFrame = nextFrame + this.onlineBridge.inputDelayFrames;
+    this.storeLocalInput(sendFrame, localInput);
+    this.onlineBridge.sendInput(localInput, sendFrame);
+    this.netplaySnapshots.set(nextFrame, this.simulation.createSnapshot());
+
+    const inputs = this.resolveNetplayInputs(nextFrame);
+    const events = this.simulation.step(
+      this.onlineBridge.localSide === "opponent" ? inputs.remote : inputs.local,
+      fixedStep,
+      this.onlineBridge.localSide === "opponent" ? inputs.local : inputs.remote
+    );
+    this.netplayInputs.set(nextFrame, inputs);
+    this.trimNetplayHistory();
+
+    return events;
+  }
+
+  private storeLocalInput(frame: number, input: PlayerInput) {
+    const previous = this.netplayInputs.get(frame);
+    this.netplayInputs.set(frame, {
+      local: input,
+      remote: previous?.remote ?? createEmptyInput(),
+      remotePredicted: previous?.remotePredicted ?? true
+    });
+  }
+
+  private resolveNetplayInputs(frame: number): NetplayFrameInputs {
+    const previous = this.netplayInputs.get(frame);
+    const remoteInput = this.onlineBridge?.readRemoteInput(frame);
+    const remotePredicted = !remoteInput;
+    const remote = remoteInput ?? previous?.remote ?? this.predictRemoteInput();
+    const local = previous?.local ?? createEmptyInput();
+
+    if (!remotePredicted) {
+      this.lastRemotePrediction = remote;
+    }
+
+    return {
+      local,
+      remote,
+      remotePredicted
+    };
+  }
+
+  private predictRemoteInput(): PlayerInput {
+    return stripTransientInput(this.lastRemotePrediction);
+  }
+
+  private findRollbackFrame(): number | null {
+    if (!this.onlineBridge) {
+      return null;
+    }
+
+    const currentFrame = this.simulation.state.frameNumber;
+    const oldestFrame = Math.max(1, currentFrame - this.onlineBridge.maxRollbackFrames);
+
+    for (let frame = oldestFrame; frame <= currentFrame; frame += 1) {
+      const usedInputs = this.netplayInputs.get(frame);
+      const authoritativeRemote = this.onlineBridge.readRemoteInput(frame);
+      if (
+        usedInputs?.remotePredicted &&
+        authoritativeRemote &&
+        encodePlayerInput(usedInputs.remote) !== encodePlayerInput(authoritativeRemote)
+      ) {
+        return frame;
+      }
+    }
+
+    return null;
+  }
+
+  private rollbackAndReplay(frame: number) {
+    const snapshot = this.netplaySnapshots.get(frame);
+    if (!snapshot || !this.onlineBridge) {
+      return;
+    }
+
+    const targetFrame = this.simulation.state.frameNumber;
+    this.simulation.restoreSnapshot(snapshot);
+    this.effects = [];
+    this.statusHoldTimer = 0;
+    this.blockFlashTimer = 0;
+
+    while (this.simulation.state.frameNumber < targetFrame) {
+      const replayFrame = this.simulation.state.frameNumber + 1;
+      this.netplaySnapshots.set(replayFrame, this.simulation.createSnapshot());
+      const inputs = this.resolveNetplayInputs(replayFrame);
+      this.simulation.step(
+        this.onlineBridge.localSide === "opponent" ? inputs.remote : inputs.local,
+        fixedStep,
+        this.onlineBridge.localSide === "opponent" ? inputs.local : inputs.remote
+      );
+      this.netplayInputs.set(replayFrame, inputs);
+    }
+  }
+
+  private trimNetplayHistory() {
+    if (!this.onlineBridge) {
+      return;
+    }
+
+    const oldestFrame = this.simulation.state.frameNumber - this.onlineBridge.snapshotHistoryFrames;
+    for (const frame of this.netplaySnapshots.keys()) {
+      if (frame < oldestFrame) {
+        this.netplaySnapshots.delete(frame);
+      }
+    }
+
+    for (const frame of this.netplayInputs.keys()) {
+      if (frame < oldestFrame) {
+        this.netplayInputs.delete(frame);
+      }
+    }
   }
 
   private bindTouchControls() {
@@ -1493,6 +1631,15 @@ function describeAttachment(part: AttachedBonusPart) {
 
 function isHeadless(fighter: FighterSnapshot) {
   return !fighter.parts.head && !fighter.bonusParts.some((part) => part.category === "head");
+}
+
+function stripTransientInput(input: PlayerInput): PlayerInput {
+  return {
+    ...createEmptyInput(),
+    left: input.left,
+    right: input.right,
+    block: input.block
+  };
 }
 
 function formatPartName(part: BodyPart) {
