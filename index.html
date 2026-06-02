@@ -17,7 +17,7 @@
           <div id="backend-mode" class="mode-pill">Local mode</div>
         </div>
       </section>
-      <section id="menu-overlay" class="menu-overlay" aria-label="Game menu">
+      <section id="menu-overlay" class="app-screen menu-overlay" aria-label="Game menu">
         <div class="menu-header">
           <div>
             <p class="eyebrow">Choose your match</p>
@@ -33,6 +33,14 @@
         </div>
         <form id="game-setup" class="menu-form">
           <section class="menu-panel is-active" data-menu-panel="play" aria-label="Play settings">
+            <label>
+              <span>Match Type</span>
+              <select name="matchType">
+                <option value="singlePlayer" selected>Single Player Bot Fight</option>
+                <option value="online">Online Player Lobby</option>
+                <option value="testing">Testing Lab</option>
+              </select>
+            </label>
             <label>
               <span>Mode</span>
               <select name="mode">
@@ -213,41 +221,80 @@
             <p id="online-status" class="menu-note">Local lobby data will be saved now; Supabase can sync the same shape later.</p>
           </section>
           <div class="menu-actions">
-            <button id="begin-game" class="primary-action" type="submit">Begin Fight</button>
+            <button id="begin-game" class="primary-action" type="submit">Continue</button>
             <button id="reset-setup" type="button">Reset Setup</button>
           </div>
         </form>
       </section>
-      <div id="game" aria-label="Fight arena"></div>
-      <section class="controls" aria-label="Touch controls" hidden>
-        <div class="control-cluster control-move" aria-label="Movement">
-          <button type="button" class="touch-button touch-button-wide" data-touch-action="left" aria-label="Move left">Left</button>
-          <button type="button" class="touch-button touch-button-wide" data-touch-action="right" aria-label="Move right">Right</button>
-          <button id="control-jump" type="button" class="touch-button" data-touch-action="jump">Jump</button>
-          <button type="button" class="touch-button" data-touch-action="dash">Dodge</button>
+      <section id="lobby-screen" class="app-screen lobby-screen" aria-label="Online lobby" hidden>
+        <div class="lobby-header">
+          <div>
+            <p class="eyebrow">Online waiting room</p>
+            <h2>Lobby</h2>
+          </div>
+          <button id="leave-lobby" class="menu-button" type="button">Back to Menu</button>
         </div>
-        <div class="control-cluster control-utility" aria-label="Defense and pickup">
-          <button type="button" class="touch-button touch-button-guard" data-touch-action="block">Hold Block</button>
-          <button type="button" class="touch-button" data-touch-action="reattach">Attach</button>
+        <div class="lobby-grid">
+          <article class="lobby-card">
+            <span>Room Code</span>
+            <strong id="lobby-room-code">------</strong>
+            <p id="lobby-status">Create or join a room to fight another player online.</p>
+          </article>
+          <article class="lobby-card">
+            <span>Players Online</span>
+            <strong id="lobby-player-count">0 / 2</strong>
+            <p id="lobby-player-list">Waiting for players...</p>
+          </article>
+          <article class="lobby-card">
+            <span>Match</span>
+            <strong id="lobby-match-summary">Online versus</strong>
+            <p>Realtime presence is connected here; the fight stage is launched from this room.</p>
+          </article>
         </div>
-        <div class="control-cluster control-strikes" aria-label="Strikes">
-          <button type="button" class="touch-button" data-touch-action="light">Light</button>
-          <button type="button" class="touch-button" data-touch-action="heavy">Heavy</button>
-          <button type="button" class="touch-button" data-touch-action="kick">Kick</button>
-          <button type="button" class="touch-button" data-touch-action="powerKick">Spin</button>
-          <button type="button" class="touch-button" data-touch-action="low">Low</button>
-          <button type="button" class="touch-button" data-touch-action="high">High</button>
-          <button id="control-chomp" type="button" class="touch-button ability-control" data-touch-action="chomp" hidden>Chomp</button>
-          <button id="control-tail" type="button" class="touch-button ability-control" data-touch-action="tail" hidden>Tail</button>
-          <button id="control-claws" type="button" class="touch-button ability-control" data-touch-action="claw" hidden>Claws</button>
+        <div class="lobby-actions">
+          <button id="start-online-fight" class="primary-action" type="button">Start Online Fight</button>
+          <button id="refresh-lobby" type="button">Refresh Lobby</button>
         </div>
       </section>
-      <section class="training-tools" aria-label="Local testing tools" hidden>
-        <span>Local spawns</span>
-        <button type="button" data-training-drop="crocodileHead">Croc head</button>
-        <button type="button" data-training-drop="tail">Tail</button>
-        <button type="button" data-training-drop="claws">Claws</button>
-        <button type="button" data-training-drop="wings">Wings</button>
+      <section id="fight-screen" class="app-screen fight-screen" aria-label="Fight stage" hidden>
+        <div class="fight-header">
+          <div>
+            <p id="fight-mode-label" class="eyebrow">Fight stage</p>
+            <h2 id="fight-title">Arena</h2>
+          </div>
+          <button id="exit-fight" class="menu-button" type="button">Exit to Menu</button>
+        </div>
+        <div id="game" aria-label="Fight arena"></div>
+        <section class="controls" aria-label="Touch controls" hidden>
+          <div class="control-cluster control-move" aria-label="Movement">
+            <button type="button" class="touch-button touch-button-wide" data-touch-action="left" aria-label="Move left">Left</button>
+            <button type="button" class="touch-button touch-button-wide" data-touch-action="right" aria-label="Move right">Right</button>
+            <button id="control-jump" type="button" class="touch-button" data-touch-action="jump">Jump</button>
+            <button type="button" class="touch-button" data-touch-action="dash">Dodge</button>
+          </div>
+          <div class="control-cluster control-utility" aria-label="Defense and pickup">
+            <button type="button" class="touch-button touch-button-guard" data-touch-action="block">Hold Block</button>
+            <button type="button" class="touch-button" data-touch-action="reattach">Attach</button>
+          </div>
+          <div class="control-cluster control-strikes" aria-label="Strikes">
+            <button type="button" class="touch-button" data-touch-action="light">Light</button>
+            <button type="button" class="touch-button" data-touch-action="heavy">Heavy</button>
+            <button type="button" class="touch-button" data-touch-action="kick">Kick</button>
+            <button type="button" class="touch-button" data-touch-action="powerKick">Spin</button>
+            <button type="button" class="touch-button" data-touch-action="low">Low</button>
+            <button type="button" class="touch-button" data-touch-action="high">High</button>
+            <button id="control-chomp" type="button" class="touch-button ability-control" data-touch-action="chomp" hidden>Chomp</button>
+            <button id="control-tail" type="button" class="touch-button ability-control" data-touch-action="tail" hidden>Tail</button>
+            <button id="control-claws" type="button" class="touch-button ability-control" data-touch-action="claw" hidden>Claws</button>
+          </div>
+        </section>
+        <section class="training-tools" aria-label="Local testing tools" hidden>
+          <span>Testing Lab Spawns</span>
+          <button type="button" data-training-drop="crocodileHead">Croc head</button>
+          <button type="button" data-training-drop="tail">Tail</button>
+          <button type="button" data-training-drop="claws">Claws</button>
+          <button type="button" data-training-drop="wings">Wings</button>
+        </section>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>

@@ -6,6 +6,7 @@ import {
   type User
 } from "@supabase/supabase-js";
 import type { BaseFighterKey } from "../game/fighterCatalog";
+import type { EncodedPlayerInput } from "../game/combatSimulation";
 import type { LevelKey } from "../game/levels";
 import type {
   GameLobby,
@@ -61,6 +62,21 @@ export type RealtimeRoomState = {
   lobbyId: string;
   onlineCount: number;
   status: "subscribing" | "online" | "closed" | "error";
+  participants: RealtimeParticipant[];
+};
+
+export type RealtimeParticipant = {
+  profileId: string;
+  displayName: string;
+  fighterKey: BaseFighterKey;
+};
+
+export type RealtimeInputFrame = {
+  profileId: string;
+  frame: number;
+  side: "player" | "opponent";
+  input: EncodedPlayerInput;
+  sentAt: number;
 };
 
 let activeRealtimeChannel: RealtimeChannel | null = null;
@@ -597,12 +613,20 @@ export async function joinRealtimeRoom(input: {
   avatar: PlayerAvatar;
   fighterKey: BaseFighterKey;
   onState: (state: RealtimeRoomState) => void;
+  onInputFrame?: (frame: RealtimeInputFrame) => void;
 }) {
   if (!supabase) {
     input.onState({
       lobbyId: input.lobby.id,
       onlineCount: 1,
-      status: "closed"
+      status: "closed",
+      participants: [
+        {
+          profileId: "local-player",
+          displayName: input.avatar.displayName,
+          fighterKey: input.fighterKey
+        }
+      ]
     });
     return () => undefined;
   }
@@ -616,7 +640,8 @@ export async function joinRealtimeRoom(input: {
     input.onState({
       lobbyId: input.lobby.id,
       onlineCount: 1,
-      status: "closed"
+      status: "closed",
+      participants: []
     });
     return () => undefined;
   }
@@ -637,33 +662,42 @@ export async function joinRealtimeRoom(input: {
   input.onState({
     lobbyId: input.lobby.id,
     onlineCount: 1,
-    status: "subscribing"
+    status: "subscribing",
+    participants: []
   });
 
   channel.on("presence", { event: "sync" }, () => {
+    const participants = readPresenceParticipants(channel);
     input.onState({
       lobbyId: input.lobby.id,
-      onlineCount: Object.keys(channel.presenceState()).length,
-      status: "online"
+      onlineCount: participants.length,
+      status: "online",
+      participants
     });
   });
 
-  channel.on("broadcast", { event: "input-frame" }, () => {
-    // Match input packets land here once remote-player simulation is enabled.
+  channel.on("broadcast", { event: "input-frame" }, (message) => {
+    const frame = message.payload as RealtimeInputFrame;
+    if (frame.profileId !== user.id) {
+      input.onInputFrame?.(frame);
+    }
   });
 
   channel.subscribe(async (status) => {
     if (status === "SUBSCRIBED") {
       await channel.track({
+        profileId: user.id,
         displayName: input.avatar.displayName,
         fighterKey: input.fighterKey,
         avatar: input.avatar,
         joinedAt: new Date().toISOString()
       });
+      const participants = readPresenceParticipants(channel);
       input.onState({
         lobbyId: input.lobby.id,
-        onlineCount: Object.keys(channel.presenceState()).length || 1,
-        status: "online"
+        onlineCount: participants.length || 1,
+        status: "online",
+        participants
       });
       return;
     }
@@ -672,7 +706,8 @@ export async function joinRealtimeRoom(input: {
       input.onState({
         lobbyId: input.lobby.id,
         onlineCount: 1,
-        status: "error"
+        status: "error",
+        participants: readPresenceParticipants(channel)
       });
     }
   });
@@ -685,6 +720,39 @@ export function leaveRealtimeRoom() {
     void supabase.removeChannel(activeRealtimeChannel);
   }
   activeRealtimeChannel = null;
+}
+
+export async function broadcastRealtimeInputFrame(frame: RealtimeInputFrame) {
+  if (!activeRealtimeChannel) {
+    return;
+  }
+
+  await activeRealtimeChannel.send({
+    type: "broadcast",
+    event: "input-frame",
+    payload: frame
+  });
+}
+
+function readPresenceParticipants(channel: RealtimeChannel): RealtimeParticipant[] {
+  return Object.values(channel.presenceState()).flatMap((entries) =>
+    entries
+      .map((entry) => {
+        const participant = entry as Record<string, unknown>;
+        const profileId = typeof participant.profileId === "string" ? participant.profileId : "";
+        const displayName = typeof participant.displayName === "string" ? participant.displayName : "Player";
+        const fighterKey = typeof participant.fighterKey === "string" ? (participant.fighterKey as BaseFighterKey) : "david";
+
+        return profileId
+          ? {
+              profileId,
+              displayName,
+              fighterKey
+            }
+          : null;
+      })
+      .filter((participant): participant is RealtimeParticipant => Boolean(participant))
+  );
 }
 
 function createRoomCode() {

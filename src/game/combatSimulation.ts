@@ -133,6 +133,8 @@ export type CombatSimulationOptions = {
   opponentHealth?: number;
   playerFighter?: BaseFighterKey;
   opponentFighter?: BaseFighterKey;
+  noDeath?: boolean;
+  opponentControlled?: boolean;
 };
 
 export type CombatState = {
@@ -534,7 +536,9 @@ export class CombatSimulation {
       playerStartingParts: options.playerStartingParts ?? [],
       opponentHealth: options.opponentHealth ?? baseFighters[options.opponentFighter ?? "guard"].stats.maxHealth,
       playerFighter: options.playerFighter ?? "david",
-      opponentFighter: options.opponentFighter ?? "guard"
+      opponentFighter: options.opponentFighter ?? "guard",
+      noDeath: options.noDeath ?? false,
+      opponentControlled: options.opponentControlled ?? false
     };
     this.state = {
       frameNumber: 0,
@@ -626,7 +630,7 @@ export class CombatSimulation {
     };
   }
 
-  step(input: PlayerInput, delta = fixedStep): CombatEvent[] {
+  step(input: PlayerInput, delta = fixedStep, opponentInput: PlayerInput = createEmptyInput()): CombatEvent[] {
     const events: CombatEvent[] = [];
 
     if (this.hitStopTimer > 0) {
@@ -649,17 +653,30 @@ export class CombatSimulation {
     if (drop) {
       events.push(drop);
     }
-    this.updatePlayer(input, delta);
-    this.updateOpponent(delta);
+    this.updateControlledFighter(this.state.player, this.state.opponent, input, delta);
+    if (this.options.opponentControlled) {
+      this.updateControlledFighter(this.state.opponent, this.state.player, opponentInput, delta);
+    } else {
+      this.updateOpponent(delta);
+    }
     if (input.reattachPressed) {
       const attach = this.tryAttachPart(this.state.player, "player");
       if (attach) {
         events.push(attach);
       }
     }
-    const cpuAttach = this.tryCpuAttachPart();
-    if (cpuAttach) {
-      events.push(cpuAttach);
+    if (this.options.opponentControlled) {
+      if (opponentInput.reattachPressed) {
+        const attach = this.tryAttachPart(this.state.opponent, "opponent");
+        if (attach) {
+          events.push(attach);
+        }
+      }
+    } else {
+      const cpuAttach = this.tryCpuAttachPart();
+      if (cpuAttach) {
+        events.push(cpuAttach);
+      }
     }
     this.updateFighter(this.state.player, delta);
     this.updateFighter(this.state.opponent, delta);
@@ -683,8 +700,12 @@ export class CombatSimulation {
     return events;
   }
 
-  private updatePlayer(input: PlayerInput, delta: number) {
-    const fighter = this.state.player;
+  private updateControlledFighter(
+    fighter: FighterSnapshot,
+    opponent: FighterSnapshot,
+    input: PlayerInput,
+    delta: number
+  ) {
     const attacking = fighter.state === "attack";
     const grounded = fighter.y >= groundY;
 
@@ -775,8 +796,8 @@ export class CombatSimulation {
     }
 
     if (input.block && grounded && !attacking && fighter.stamina > 4 && canGuard(fighter)) {
-      fighter.facing = this.state.opponent.x >= fighter.x ? 1 : -1;
-      fighter.guardLockTimer = Math.max(fighter.guardLockTimer, this.getGuardLockTime(fighter, this.state.opponent));
+      fighter.facing = opponent.x >= fighter.x ? 1 : -1;
+      fighter.guardLockTimer = Math.max(fighter.guardLockTimer, this.getGuardLockTime(fighter, opponent));
       fighter.state = "block";
       fighter.vx = approach(fighter.vx, 0, groundDeceleration * delta);
       fighter.stamina = Math.max(0, fighter.stamina - 16 * getGuardDrainMultiplier(fighter) * delta);
@@ -1290,6 +1311,12 @@ export class CombatSimulation {
   }
 
   private checkRoundEnd(): CombatEvent | null {
+    if (this.options.noDeath) {
+      this.state.player.health = Math.max(1, this.state.player.health);
+      this.state.opponent.health = Math.max(1, this.state.opponent.health);
+      return null;
+    }
+
     if (this.state.player.health > 0 && this.state.opponent.health > 0) {
       return null;
     }
@@ -1328,6 +1355,26 @@ export function encodePlayerInput(input: PlayerInput): EncodedPlayerInput {
     (bits, key) => (input[key] ? bits | inputFlags[key] : bits),
     0
   );
+}
+
+export function createEmptyInput(): PlayerInput {
+  return {
+    left: false,
+    right: false,
+    block: false,
+    jumpPressed: false,
+    lightPressed: false,
+    heavyPressed: false,
+    lowPressed: false,
+    highPressed: false,
+    kickPressed: false,
+    powerKickPressed: false,
+    chompPressed: false,
+    tailPressed: false,
+    clawPressed: false,
+    dashPressed: false,
+    reattachPressed: false
+  };
 }
 
 export function decodePlayerInput(bits: EncodedPlayerInput): PlayerInput {

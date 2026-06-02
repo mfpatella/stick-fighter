@@ -1,10 +1,17 @@
 import Phaser from "phaser";
-import { TrainingScene } from "./game/TrainingScene";
+import { TrainingScene, type OnlineInputBridge } from "./game/TrainingScene";
+import {
+  createEmptyInput,
+  decodePlayerInput,
+  encodePlayerInput,
+  type PlayerInput
+} from "./game/combatSimulation";
 import { baseFighters, playerFighterKeys, opponentFighterKeys, type BaseFighterKey } from "./game/fighterCatalog";
 import { defaultGameSettings, type GameLaunchSettings } from "./game/gameSettings";
 import { levelKeys, type LevelKey } from "./game/levels";
 import {
   backendModeLabel,
+  broadcastRealtimeInputFrame,
   createGameLobby,
   createMatchmakingTicket,
   getAuthSnapshot,
@@ -17,17 +24,33 @@ import {
   signInWithEmail,
   signOutOnline,
   signUpWithEmail,
-  type AuthSnapshot
+  type AuthSnapshot,
+  type RealtimeInputFrame,
+  type RealtimeParticipant
 } from "./services/backend";
+import type { GameLobby, PlayerAvatar } from "./game/multiplayerTypes";
 import "./styles.css";
 
 const modeElement = document.querySelector<HTMLDivElement>("#backend-mode");
 const menuOverlay = document.querySelector<HTMLElement>("#menu-overlay");
+const lobbyScreen = document.querySelector<HTMLElement>("#lobby-screen");
+const fightScreen = document.querySelector<HTMLElement>("#fight-screen");
 const openMenuButton = document.querySelector<HTMLButtonElement>("#open-menu");
 const closeMenuButton = document.querySelector<HTMLButtonElement>("#close-menu");
 const setupForm = document.querySelector<HTMLFormElement>("#game-setup");
 const beginButton = document.querySelector<HTMLButtonElement>("#begin-game");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset-setup");
+const leaveLobbyButton = document.querySelector<HTMLButtonElement>("#leave-lobby");
+const refreshLobbyButton = document.querySelector<HTMLButtonElement>("#refresh-lobby");
+const startOnlineFightButton = document.querySelector<HTMLButtonElement>("#start-online-fight");
+const exitFightButton = document.querySelector<HTMLButtonElement>("#exit-fight");
+const lobbyRoomCode = document.querySelector<HTMLElement>("#lobby-room-code");
+const lobbyStatus = document.querySelector<HTMLElement>("#lobby-status");
+const lobbyPlayerCount = document.querySelector<HTMLElement>("#lobby-player-count");
+const lobbyPlayerList = document.querySelector<HTMLElement>("#lobby-player-list");
+const lobbyMatchSummary = document.querySelector<HTMLElement>("#lobby-match-summary");
+const fightModeLabel = document.querySelector<HTMLElement>("#fight-mode-label");
+const fightTitle = document.querySelector<HTMLElement>("#fight-title");
 const guardHealthOutput = document.querySelector<HTMLOutputElement>("#guard-health-value");
 const onlineStatus = document.querySelector<HTMLElement>("#online-status");
 const authStatus = document.querySelector<HTMLElement>("#auth-status");
@@ -49,6 +72,13 @@ let authSnapshot: AuthSnapshot = {
   session: null
 };
 let leaveRoom: (() => void) | null = null;
+let currentLobby: GameLobby | null = null;
+let currentLobbySettings: GameLaunchSettings | null = null;
+let currentLobbySource: "supabase" | "local" | null = null;
+let currentLobbyOnlineCount = 0;
+let currentParticipants: RealtimeParticipant[] = [];
+let latestRemoteFrame: RealtimeInputFrame | null = null;
+let consumedRemoteFrame = -1;
 
 if (modeElement) {
   modeElement.textContent = backendModeLabel;
@@ -100,7 +130,7 @@ setupForm?.addEventListener("input", () => {
 
 setupForm?.addEventListener("submit", (event) => {
   event.preventDefault();
-  void startGame(readSettings());
+  void handleSetupSubmit(readSettings());
 });
 
 resetButton?.addEventListener("click", () => {
@@ -129,6 +159,18 @@ joinLobbyButton?.addEventListener("click", () => {
   void handleJoinLobby();
 });
 
+startOnlineFightButton?.addEventListener("click", () => {
+  void handleStartOnlineFight();
+});
+
+refreshLobbyButton?.addEventListener("click", () => {
+  renderLobbyState();
+});
+
+leaveLobbyButton?.addEventListener("click", () => {
+  returnToMenu();
+});
+
 onAuthChanged((snapshot) => {
   authSnapshot = snapshot;
   renderAuthState();
@@ -136,90 +178,56 @@ onAuthChanged((snapshot) => {
 });
 
 openMenuButton?.addEventListener("click", () => {
-  setMenuOpen(true);
+  returnToMenu();
 });
 
 closeMenuButton?.addEventListener("click", () => {
-  setMenuOpen(false);
+  if (hasStarted) {
+    showAppScreen("fight");
+  }
+});
+
+exitFightButton?.addEventListener("click", () => {
+  returnToMenu();
 });
 
 getGuardHealthInput()?.addEventListener("input", updateGuardHealthOutput);
 updateGuardHealthOutput();
-setMenuOpen(true);
+showAppScreen("menu");
 
-async function startGame(settings: GameLaunchSettings) {
-  hasStarted = true;
-  const avatar = {
-    displayName: settings.displayName,
-    frame: settings.avatarFrame,
-    color: settings.avatarColor,
-    favoriteFighter: settings.playerFighter
-  };
-
-  try {
-    await savePlayerProfile(avatar);
-    const { lobby, source } = await createGameLobby({
-      avatar,
-      fighterKey: settings.playerFighter,
-      levelKey: settings.level,
-      matchmakingMode: settings.matchmakingMode,
-      maxPlayers: settings.maxPlayers
-    });
-
-    if (settings.matchmakingMode !== "private") {
-      await createMatchmakingTicket({
-        fighterKey: settings.playerFighter,
-        levelKey: settings.level,
-        mode: settings.matchmakingMode
-      });
-    }
-
-    leaveRoom?.();
-    leaveRoom = await joinRealtimeRoom({
-      lobby,
-      avatar,
-      fighterKey: settings.playerFighter,
-      onState: (state) => {
-        if (!onlineStatus) {
-          return;
-        }
-
-        if (state.status === "online") {
-          onlineStatus.textContent = `Lobby ${lobby.roomCode} online with ${state.onlineCount} player${state.onlineCount === 1 ? "" : "s"}.`;
-          return;
-        }
-
-        if (state.status === "error") {
-          onlineStatus.textContent = `Lobby ${lobby.roomCode} saved, but realtime connection needs a retry.`;
-          return;
-        }
-
-        onlineStatus.textContent = `Lobby ${lobby.roomCode} ${state.status}.`;
-      }
-    });
-
-    if (onlineStatus) {
-      const modeLabel = source === "supabase" ? "online" : "local";
-      onlineStatus.textContent =
-        settings.matchmakingMode === "private"
-          ? `Private ${modeLabel} lobby ${lobby.roomCode} ready for ${settings.displayName}.`
-          : `${settings.matchmakingMode} ${modeLabel} lobby ${lobby.roomCode} ready.`;
-    }
-  } catch (error) {
-    if (onlineStatus) {
-      onlineStatus.textContent = `Online setup failed: ${formatError(error)} Local fight is still starting.`;
-    }
-    await savePlayerProfile(avatar);
+async function handleSetupSubmit(settings: GameLaunchSettings) {
+  if (settings.matchType === "online") {
+    await openOnlineLobby(settings);
+    return;
   }
+
+  await startFight(settings);
+}
+
+async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInputBridge | null = null) {
+  hasStarted = true;
+  if (settings.matchType !== "online") {
+    currentLobby = null;
+    currentLobbySettings = null;
+    currentLobbySource = null;
+    currentLobbyOnlineCount = 0;
+    currentParticipants = [];
+    latestRemoteFrame = null;
+    consumedRemoteFrame = -1;
+    leaveRoom?.();
+    leaveRoom = null;
+  }
+
+  await savePlayerProfile(createAvatar(settings));
 
   game.scene.stop("training");
-  game.scene.start("training", { settings });
+  game.scene.start("training", { settings, onlineBridge });
   controls?.removeAttribute("hidden");
   if (trainingTools) {
-    trainingTools.hidden = !settings.trainingTools;
+    trainingTools.hidden = settings.matchType !== "testing" && !settings.trainingTools;
   }
   if (beginButton) {
-    beginButton.textContent = "Restart Fight";
+    beginButton.textContent = "Continue";
   }
   if (openMenuButton) {
     openMenuButton.hidden = false;
@@ -227,7 +235,113 @@ async function startGame(settings: GameLaunchSettings) {
   if (closeMenuButton) {
     closeMenuButton.hidden = false;
   }
-  setMenuOpen(false);
+  renderFightHeading(settings);
+  showAppScreen("fight");
+}
+
+async function openOnlineLobby(settings: GameLaunchSettings) {
+  const lobbySettings: GameLaunchSettings = {
+    ...settings,
+    matchType: "online"
+  };
+  const avatar = createAvatar(lobbySettings);
+
+  try {
+    await savePlayerProfile(avatar);
+    const { lobby, source } = await createGameLobby({
+      avatar,
+      fighterKey: lobbySettings.playerFighter,
+      levelKey: lobbySettings.level,
+      matchmakingMode: lobbySettings.matchmakingMode,
+      maxPlayers: lobbySettings.maxPlayers
+    });
+
+    if (lobbySettings.matchmakingMode !== "private") {
+      await createMatchmakingTicket({
+        fighterKey: lobbySettings.playerFighter,
+        levelKey: lobbySettings.level,
+        mode: lobbySettings.matchmakingMode
+      });
+    }
+
+    await enterLobby(lobby, lobbySettings, avatar, source);
+    if (onlineStatus) {
+      const modeLabel = source === "supabase" ? "online" : "local";
+      onlineStatus.textContent =
+        lobbySettings.matchmakingMode === "private"
+          ? `Private ${modeLabel} lobby ${lobby.roomCode} ready for ${lobbySettings.displayName}.`
+          : `${lobbySettings.matchmakingMode} ${modeLabel} lobby ${lobby.roomCode} ready.`;
+    }
+  } catch (error) {
+    if (onlineStatus) {
+      onlineStatus.textContent = `Online lobby failed: ${formatError(error)}`;
+    }
+  }
+}
+
+async function enterLobby(
+  lobby: GameLobby,
+  settings: GameLaunchSettings,
+  avatar: PlayerAvatar,
+  source: "supabase" | "local"
+) {
+  currentLobby = lobby;
+  currentLobbySettings = settings;
+  currentLobbySource = source;
+  currentLobbyOnlineCount = Math.max(1, lobby.members.length);
+  currentParticipants = lobby.members.map((member) => ({
+    profileId: member.profileId,
+    displayName: member.displayName,
+    fighterKey: member.fighterKey
+  }));
+  latestRemoteFrame = null;
+  consumedRemoteFrame = -1;
+  showAppScreen("lobby");
+  renderLobbyState();
+
+  leaveRoom?.();
+  leaveRoom = await joinRealtimeRoom({
+    lobby,
+    avatar,
+    fighterKey: settings.playerFighter,
+    onState: (state) => {
+      currentLobbyOnlineCount = state.onlineCount;
+      currentParticipants = mergeParticipants(lobby, state.participants);
+      if (state.status === "error" && lobbyStatus) {
+        lobbyStatus.textContent = `Lobby ${lobby.roomCode} saved, but realtime connection needs a retry.`;
+      }
+      renderLobbyState(state.status);
+
+      if (onlineStatus) {
+        onlineStatus.textContent =
+          state.status === "online"
+            ? `Lobby ${lobby.roomCode} online with ${state.onlineCount} player${state.onlineCount === 1 ? "" : "s"}.`
+            : `Lobby ${lobby.roomCode} ${state.status}.`;
+      }
+    },
+    onInputFrame: (frame) => {
+      latestRemoteFrame = frame;
+    }
+  });
+}
+
+async function handleStartOnlineFight() {
+  if (!currentLobbySettings) {
+    await openOnlineLobby({
+      ...readSettings(),
+      matchType: "online"
+    });
+    return;
+  }
+
+  const localSide = getLocalOnlineSide();
+  const onlineSettings = resolveOnlineFightSettings({
+    ...currentLobbySettings,
+    matchType: "online"
+  });
+  const bridge = createOnlineInputBridge(localSide);
+
+  await startFight(onlineSettings, bridge);
 }
 
 async function refreshAuthState() {
@@ -290,7 +404,10 @@ async function handleSignOut() {
 }
 
 async function handleJoinLobby() {
-  const settings = readSettings();
+  const settings: GameLaunchSettings = {
+    ...readSettings(),
+    matchType: "online"
+  };
   const roomCode = readRoomCode();
   if (!roomCode) {
     if (onlineStatus) {
@@ -299,12 +416,7 @@ async function handleJoinLobby() {
     return;
   }
 
-  const avatar = {
-    displayName: settings.displayName,
-    frame: settings.avatarFrame,
-    color: settings.avatarColor,
-    favoriteFighter: settings.playerFighter
-  };
+  const avatar = createAvatar(settings);
 
   try {
     const lobby = await joinLobbyByRoomCode({
@@ -313,20 +425,10 @@ async function handleJoinLobby() {
       fighterKey: settings.playerFighter
     });
 
-    leaveRoom?.();
-    leaveRoom = await joinRealtimeRoom({
-      lobby,
-      avatar,
-      fighterKey: settings.playerFighter,
-      onState: (state) => {
-        if (onlineStatus) {
-          onlineStatus.textContent = `Joined lobby ${lobby.roomCode}: ${state.onlineCount} player${state.onlineCount === 1 ? "" : "s"} online.`;
-        }
-      }
-    });
+    await enterLobby(lobby, settings, avatar, "supabase");
 
     if (onlineStatus) {
-      onlineStatus.textContent = `Joined lobby ${lobby.roomCode}. Press Begin Fight when ready.`;
+      onlineStatus.textContent = `Joined lobby ${lobby.roomCode}. Start the online fight from the lobby.`;
     }
   } catch (error) {
     if (onlineStatus) {
@@ -396,23 +498,204 @@ function readRoomCode() {
   return String(data.get("roomCode") ?? "").trim().toUpperCase();
 }
 
-function setMenuOpen(open: boolean) {
-  if (!menuOverlay) {
-    return;
-  }
+function createAvatar(settings: GameLaunchSettings): PlayerAvatar {
+  return {
+    displayName: settings.displayName,
+    frame: settings.avatarFrame,
+    color: settings.avatarColor,
+    favoriteFighter: settings.playerFighter
+  };
+}
 
-  menuOverlay.hidden = !open;
-  menuOverlay.classList.toggle("is-hidden", !open);
-  if (hasStarted) {
-    if (open) {
-      game.scene.pause("training");
-    } else {
-      game.scene.resume("training");
-    }
+function showAppScreen(screen: "menu" | "lobby" | "fight") {
+  if (menuOverlay) {
+    menuOverlay.hidden = screen !== "menu";
+  }
+  if (lobbyScreen) {
+    lobbyScreen.hidden = screen !== "lobby";
+  }
+  if (fightScreen) {
+    fightScreen.hidden = screen !== "fight";
+  }
+  if (controls) {
+    controls.hidden = screen !== "fight";
+  }
+  if (trainingTools && screen !== "fight") {
+    trainingTools.hidden = true;
   }
   if (openMenuButton) {
-    openMenuButton.hidden = open || !hasStarted;
+    openMenuButton.hidden = screen === "menu";
   }
+  if (closeMenuButton) {
+    closeMenuButton.hidden = true;
+  }
+}
+
+function returnToMenu() {
+  game.scene.stop("training");
+  hasStarted = false;
+  currentLobby = null;
+  currentLobbySettings = null;
+  currentLobbySource = null;
+  currentLobbyOnlineCount = 0;
+  currentParticipants = [];
+  latestRemoteFrame = null;
+  consumedRemoteFrame = -1;
+  leaveRoom?.();
+  leaveRoom = null;
+  renderLobbyState();
+  showAppScreen("menu");
+}
+
+function renderFightHeading(settings: GameLaunchSettings) {
+  if (fightModeLabel) {
+    fightModeLabel.textContent =
+      settings.matchType === "testing"
+        ? "Testing lab"
+        : settings.matchType === "online"
+          ? "Online player fight"
+          : "Single player bot fight";
+  }
+
+  if (fightTitle) {
+    fightTitle.textContent =
+      settings.matchType === "testing"
+        ? "Parts Testing Lab"
+        : settings.matchType === "online"
+          ? "Online Arena"
+          : "Bot Arena";
+  }
+}
+
+function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
+  if (lobbyRoomCode) {
+    lobbyRoomCode.textContent = currentLobby?.roomCode ?? "------";
+  }
+
+  if (lobbyPlayerCount) {
+    const maxPlayers = currentLobby?.maxPlayers ?? currentLobbySettings?.maxPlayers ?? 2;
+    lobbyPlayerCount.textContent = `${currentLobbyOnlineCount} / ${maxPlayers}`;
+  }
+
+  if (lobbyPlayerList) {
+    const visibleParticipants =
+      currentParticipants.length > 0
+        ? currentParticipants
+        : currentLobby?.members.map((member) => ({
+            profileId: member.profileId,
+            displayName: member.displayName,
+            fighterKey: member.fighterKey
+          })) ?? [];
+
+    lobbyPlayerList.textContent =
+      visibleParticipants.length > 0
+        ? visibleParticipants
+            .map((participant) => `${participant.displayName} as ${baseFighters[participant.fighterKey].name}`)
+            .join(", ")
+        : "Waiting for players...";
+  }
+
+  if (lobbyMatchSummary) {
+    const settings = currentLobbySettings ?? readSettings();
+    lobbyMatchSummary.textContent = `${settings.matchmakingMode} ${settings.maxPlayers === 4 ? "2v2" : "1v1"} on ${settings.level}`;
+  }
+
+  if (lobbyStatus) {
+    if (!currentLobby) {
+      lobbyStatus.textContent = "Create or join a room to fight another player online.";
+    } else if (currentLobbySource === "local") {
+      lobbyStatus.textContent = "Local lobby fallback is ready. Sign in to Supabase for remote players.";
+    } else {
+      lobbyStatus.textContent = `Lobby ${currentLobby.roomCode} is ${status}. Share the room code, then start when ready.`;
+    }
+  }
+}
+
+function mergeParticipants(lobby: GameLobby, presenceParticipants: RealtimeParticipant[]): RealtimeParticipant[] {
+  const participants = new Map<string, RealtimeParticipant>();
+
+  lobby.members.forEach((member) => {
+    participants.set(member.profileId, {
+      profileId: member.profileId,
+      displayName: member.displayName,
+      fighterKey: member.fighterKey
+    });
+  });
+
+  presenceParticipants.forEach((participant) => {
+    participants.set(participant.profileId, participant);
+  });
+
+  return [...participants.values()];
+}
+
+function getLocalProfileId() {
+  return authSnapshot.user?.id ?? "local-player";
+}
+
+function getLocalOnlineSide(): "player" | "opponent" {
+  const localProfileId = getLocalProfileId();
+  const localMember = currentLobby?.members.find((member) => member.profileId === localProfileId);
+  return localMember?.slot === 2 ? "opponent" : "player";
+}
+
+function resolveOnlineFightSettings(settings: GameLaunchSettings): GameLaunchSettings {
+  const slotOne = currentLobby?.members.find((member) => member.slot === 1);
+  const slotTwo = currentLobby?.members.find((member) => member.slot === 2);
+  const leftParticipant = slotOne ?? currentParticipants[0];
+  const rightParticipant =
+    slotTwo ??
+    currentParticipants.find((participant) => participant.profileId !== leftParticipant?.profileId) ??
+    null;
+
+  return {
+    ...settings,
+    playerFighter: leftParticipant?.fighterKey ?? settings.playerFighter,
+    opponentFighter: rightParticipant?.fighterKey ?? settings.opponentFighter
+  };
+}
+
+function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputBridge {
+  const profileId = getLocalProfileId();
+
+  return {
+    localSide,
+    sendInput: (input, frame) => {
+      if (!currentLobby || currentLobbySource === "local") {
+        return;
+      }
+
+      void broadcastRealtimeInputFrame({
+        profileId,
+        frame,
+        side: localSide,
+        input: encodePlayerInput(input),
+        sentAt: performance.now()
+      });
+    },
+    readRemoteInput: () => {
+      if (!latestRemoteFrame || latestRemoteFrame.profileId === profileId) {
+        return createEmptyInput();
+      }
+
+      const input = decodePlayerInput(latestRemoteFrame.input);
+      if (latestRemoteFrame.frame === consumedRemoteFrame) {
+        return stripTransientInput(input);
+      }
+
+      consumedRemoteFrame = latestRemoteFrame.frame;
+      return input;
+    }
+  };
+}
+
+function stripTransientInput(input: PlayerInput): PlayerInput {
+  return {
+    ...createEmptyInput(),
+    left: input.left,
+    right: input.right,
+    block: input.block
+  };
 }
 
 function hydrateStoredProfile() {
@@ -479,8 +762,10 @@ function readSettings(): GameLaunchSettings {
   const difficulty = String(data.get("difficulty") ?? defaultGameSettings.difficulty);
   const loadout = String(data.get("loadout") ?? defaultGameSettings.loadout);
   const mode = String(data.get("mode") ?? defaultGameSettings.mode);
+  const matchType = String(data.get("matchType") ?? defaultGameSettings.matchType);
 
   return {
+    matchType: matchType === "online" || matchType === "testing" ? matchType : "singlePlayer",
     mode: mode === "training" || mode === "storySpar" ? mode : "partsBuilder",
     difficulty: difficulty === "gentle" || difficulty === "champion" ? difficulty : "standard",
     loadout:

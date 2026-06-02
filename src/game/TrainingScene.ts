@@ -5,6 +5,7 @@ import {
   type BodyPart,
   CombatSimulation,
   type CombatEvent,
+  createEmptyInput,
   type DetachedPart,
   type FighterSnapshot,
   fixedStep,
@@ -14,6 +15,7 @@ import {
   isAttackActive,
   maxFixedSteps,
   type PartOwner,
+  type PlayerInput,
   type TrainingDropKind
 } from "./combatSimulation";
 import { recordMatch } from "../services/backend";
@@ -48,6 +50,12 @@ type VisualEffect = {
 type RenderState = {
   player: FighterSnapshot;
   opponent: FighterSnapshot;
+};
+
+export type OnlineInputBridge = {
+  localSide: "player" | "opponent";
+  sendInput: (input: PlayerInput, frame: number) => void;
+  readRemoteInput: () => PlayerInput;
 };
 
 type TouchAction =
@@ -99,6 +107,7 @@ export class TrainingScene extends Phaser.Scene {
   private dustTimer = 0;
   private recordedRound = false;
   private settings: GameLaunchSettings = defaultGameSettings;
+  private onlineBridge: OnlineInputBridge | null = null;
   private touchHeld = new Set<TouchAction>();
   private touchPulses = new Set<TouchAction>();
   private touchControlsAbort: AbortController | null = null;
@@ -107,11 +116,12 @@ export class TrainingScene extends Phaser.Scene {
     super("training");
   }
 
-  init(data: { settings?: GameLaunchSettings }) {
+  init(data: { settings?: GameLaunchSettings; onlineBridge?: OnlineInputBridge }) {
     this.settings = {
       ...defaultGameSettings,
       ...data.settings
     };
+    this.onlineBridge = data.onlineBridge ?? null;
   }
 
   preload() {
@@ -127,7 +137,9 @@ export class TrainingScene extends Phaser.Scene {
       playerStartingParts: startingLoadouts[this.settings.loadout],
       opponentHealth: this.settings.guardHealth,
       playerFighter: this.settings.playerFighter,
-      opponentFighter: this.settings.opponentFighter
+      opponentFighter: this.settings.opponentFighter,
+      noDeath: this.settings.matchType === "testing",
+      opponentControlled: this.settings.matchType === "online"
     });
     this.previousRenderState = this.cloneRenderState();
     this.recordedRound = false;
@@ -198,30 +210,13 @@ export class TrainingScene extends Phaser.Scene {
     let steps = 0;
     while (this.accumulator >= fixedStep && steps < maxFixedSteps) {
       this.previousRenderState = this.cloneRenderState();
-      const events = this.simulation.step(
-        {
-          left: this.keys.left.isDown || this.keys.leftAlt.isDown || this.touchHeld.has("left"),
-          right: this.keys.right.isDown || this.keys.rightAlt.isDown || this.touchHeld.has("right"),
-          block:
-            this.keys.block.isDown ||
-            this.keys.blockAlt.isDown ||
-            this.keys.blockArrow.isDown ||
-            this.touchHeld.has("block"),
-          jumpPressed: this.pendingJump,
-          lightPressed: this.pendingLight,
-          heavyPressed: this.pendingHeavy,
-          lowPressed: this.pendingLow,
-          highPressed: this.pendingHigh,
-          kickPressed: this.pendingKick,
-          powerKickPressed: this.pendingPowerKick,
-          chompPressed: this.pendingChomp,
-          tailPressed: this.pendingTail,
-          clawPressed: this.pendingClaw,
-          dashPressed: this.pendingDash,
-          reattachPressed: this.pendingReattach
-        },
-        fixedStep
-      );
+      const localInput = this.readLocalInput();
+      const remoteInput = this.onlineBridge?.readRemoteInput() ?? createEmptyInput();
+      const playerInput = this.onlineBridge?.localSide === "opponent" ? remoteInput : localInput;
+      const opponentInput = this.onlineBridge?.localSide === "opponent" ? localInput : remoteInput;
+
+      this.onlineBridge?.sendInput(localInput, this.simulation.state.frameNumber + 1);
+      const events = this.simulation.step(playerInput, fixedStep, opponentInput);
 
       this.pendingJump = false;
       this.pendingLight = false;
@@ -275,6 +270,30 @@ export class TrainingScene extends Phaser.Scene {
       reattach: Phaser.Input.Keyboard.KeyCodes.E,
       reset: Phaser.Input.Keyboard.KeyCodes.R
     }) as Record<string, Phaser.Input.Keyboard.Key>;
+  }
+
+  private readLocalInput(): PlayerInput {
+    return {
+      left: this.keys.left.isDown || this.keys.leftAlt.isDown || this.touchHeld.has("left"),
+      right: this.keys.right.isDown || this.keys.rightAlt.isDown || this.touchHeld.has("right"),
+      block:
+        this.keys.block.isDown ||
+        this.keys.blockAlt.isDown ||
+        this.keys.blockArrow.isDown ||
+        this.touchHeld.has("block"),
+      jumpPressed: this.pendingJump,
+      lightPressed: this.pendingLight,
+      heavyPressed: this.pendingHeavy,
+      lowPressed: this.pendingLow,
+      highPressed: this.pendingHigh,
+      kickPressed: this.pendingKick,
+      powerKickPressed: this.pendingPowerKick,
+      chompPressed: this.pendingChomp,
+      tailPressed: this.pendingTail,
+      clawPressed: this.pendingClaw,
+      dashPressed: this.pendingDash,
+      reattachPressed: this.pendingReattach
+    };
   }
 
   private bindTouchControls() {
@@ -450,7 +469,7 @@ export class TrainingScene extends Phaser.Scene {
 
     controls?.removeAttribute("hidden");
     if (trainingTools) {
-      trainingTools.hidden = !this.settings.trainingTools;
+      trainingTools.hidden = this.settings.matchType !== "testing" && !this.settings.trainingTools;
     }
   }
 
@@ -549,6 +568,9 @@ export class TrainingScene extends Phaser.Scene {
         this.statusText.setText(
           event.playerWon ? "Round complete: David stands firm" : "Round complete: press R to train again"
         );
+        if (this.settings.matchType === "testing") {
+          continue;
+        }
         void recordMatch({
           result: event.playerWon ? "win" : "loss",
           fighterKey: this.simulation.state.player.key,
@@ -1406,6 +1428,14 @@ function setControlVisible(id: string, visible: boolean) {
 }
 
 function getModeStatus(settings: GameLaunchSettings) {
+  if (settings.matchType === "testing") {
+    return "Testing lab: spawn parts freely, no deaths, exit from the menu button";
+  }
+
+  if (settings.matchType === "online") {
+    return "Online versus: lobby match loaded for a player fight";
+  }
+
   if (settings.mode === "storySpar") {
     return "Story spar: David trains for courage and restraint";
   }

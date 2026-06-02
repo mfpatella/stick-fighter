@@ -4,11 +4,13 @@ import type { LevelKey } from "./levels";
 import type { AvatarColor, AvatarFrame, MatchmakingMode } from "./multiplayerTypes";
 
 export type GameMode = "training" | "partsBuilder" | "storySpar";
+export type MatchType = "singlePlayer" | "online" | "testing";
 export type CpuDifficulty = "gentle" | "standard" | "champion";
 export type StartingLoadout = "classic" | "winged" | "predator" | "beast";
 export type MotionFxLevel = "calm" | "full";
 
 export type GameLaunchSettings = {
+  matchType: MatchType;
   mode: GameMode;
   difficulty: CpuDifficulty;
   loadout: StartingLoadout;
@@ -28,6 +30,7 @@ export type GameLaunchSettings = {
 };
 
 export const defaultGameSettings: GameLaunchSettings = {
+  matchType: "singlePlayer",
   mode: "partsBuilder",
   difficulty: "standard",
   loadout: "classic",

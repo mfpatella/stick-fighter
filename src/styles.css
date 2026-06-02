@@ -110,10 +110,15 @@ h2 {
   line-height: 1;
 }
 
-.menu-overlay {
+.app-screen {
+  margin-bottom: 14px;
+}
+
+.menu-overlay,
+.lobby-screen,
+.fight-screen {
   border: 2px solid var(--line);
   border-radius: 8px;
-  margin-bottom: 14px;
   padding: 18px;
   background:
     linear-gradient(135deg, rgb(255 250 237 / 94%), rgb(229 239 214 / 92%)),
@@ -122,11 +127,74 @@ h2 {
 }
 
 .menu-header,
+.lobby-header,
+.fight-header,
 .menu-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.lobby-screen,
+.fight-screen {
+  display: grid;
+  gap: 14px;
+}
+
+.lobby-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lobby-card {
+  min-height: 138px;
+  border: 1px solid rgb(168 180 170 / 82%);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgb(247 243 232 / 72%);
+}
+
+.lobby-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.lobby-card strong {
+  display: block;
+  margin-top: 8px;
+  font-family: "Kenney Future Narrow", "Kenney Future", sans-serif;
+  font-size: clamp(1.45rem, 3vw, 2.4rem);
+  line-height: 1;
+}
+
+.lobby-card p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lobby-actions button {
+  border: 1px solid #a8b4aa;
+  border-radius: 6px;
+  padding: 9px 12px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .menu-tabs {
@@ -517,6 +585,8 @@ h2 {
 .touch-button:hover,
 .touch-button:focus-visible,
 .touch-button.is-pressed,
+.lobby-actions button:hover,
+.lobby-actions button:focus-visible,
 .auth-actions button:hover,
 .auth-actions button:focus-visible,
 .secondary-action:hover,
@@ -539,6 +609,7 @@ h2 {
 .training-tools button.is-pressed,
 .touch-button:active,
 .touch-button.is-pressed,
+.lobby-actions button:active,
 .auth-actions button:active,
 .secondary-action:active,
 .menu-button:active,
@@ -551,6 +622,7 @@ h2 {
 
 .training-tools button:focus-visible,
 .touch-button:focus-visible,
+.lobby-actions button:focus-visible,
 .auth-actions button:focus-visible,
 .secondary-action:focus-visible,
 .menu-button:focus-visible,
@@ -607,14 +679,31 @@ h2 {
     font-size: 1.42rem;
   }
 
-  .menu-overlay {
+  .menu-overlay,
+  .lobby-screen,
+  .fight-screen {
     padding: 14px;
   }
 
   .menu-header,
+  .lobby-header,
+  .fight-header,
   .menu-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .lobby-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-card {
+    min-height: 104px;
+  }
+
+  .lobby-actions button {
+    flex: 1 1 150px;
+    min-height: 44px;
   }
 
   .menu-panel {
@@ -738,7 +827,9 @@ h2 {
     margin-bottom: 0;
   }
 
-  .menu-overlay {
+  .menu-overlay,
+  .lobby-screen,
+  .fight-screen {
     grid-column: 1 / -1;
   }
 
