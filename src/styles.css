@@ -932,7 +932,7 @@ h2 {
 #game canvas {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 
 .controls,
@@ -2134,5 +2134,214 @@ h2 {
     min-height: 36px;
     padding: 4px 5px;
     font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 820px), (orientation: landscape) and (max-height: 620px) {
+  body.is-fighting {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow: hidden;
+    background: #202820;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body.is-fighting .shell,
+  body.is-fighting .fight-screen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: #202820;
+    box-shadow: none;
+  }
+
+  body.is-fighting #game {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: max(100vw, calc(100dvh * 1.777777)) !important;
+    height: max(100dvh, calc(100vw * 0.5625)) !important;
+    min-height: 0 !important;
+    aspect-ratio: 16 / 9 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--panel-strong);
+    box-shadow: none !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  @supports (height: 100svh) {
+    body.is-fighting #game {
+      width: max(100vw, calc(100svh * 1.777777)) !important;
+      height: max(100svh, calc(100vw * 0.5625)) !important;
+    }
+  }
+
+  body.is-fighting #game canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+  }
+
+  body.is-fighting .controls {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: block;
+    width: 100vw;
+    height: 100svh;
+    height: 100dvh;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  body.is-fighting .control-cluster {
+    position: absolute;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  body.is-fighting .control-move {
+    left: max(12px, env(safe-area-inset-left));
+    bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  body.is-fighting .control-actions {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    display: block;
+  }
+
+  body.is-fighting .joystick {
+    width: clamp(88px, 22vw, 116px) !important;
+    height: clamp(88px, 22vw, 116px) !important;
+    background: rgb(238 243 239 / 34%);
+    backdrop-filter: blur(3px);
+    pointer-events: auto;
+  }
+
+  body.is-fighting .joystick-thumb {
+    width: clamp(34px, 8.5vw, 46px) !important;
+    height: clamp(34px, 8.5vw, 46px) !important;
+  }
+
+  body.is-fighting .attack-diamond {
+    --diamond-size: clamp(170px, 43vw, 218px) !important;
+    --diamond-button: clamp(56px, 14vw, 72px) !important;
+    pointer-events: none;
+  }
+
+  body.is-fighting .bonus-actions {
+    position: absolute;
+    right: 0;
+    bottom: calc(var(--diamond-size) + 8px);
+    display: flex;
+    width: min(50vw, 220px) !important;
+    gap: 6px;
+    justify-content: flex-end;
+    pointer-events: none;
+  }
+
+  body.is-fighting .touch-button {
+    border-color: rgb(32 40 32 / 36%);
+    background: rgb(238 243 239 / 66%);
+    box-shadow: 0 2px 9px rgb(32 40 32 / 20%);
+    backdrop-filter: blur(3px);
+    color: #24381f;
+    pointer-events: auto;
+  }
+
+  body.is-fighting .touch-button.diamond-button {
+    min-height: 0 !important;
+    padding: 0 !important;
+    font-size: clamp(0.62rem, 2.2vw, 0.78rem) !important;
+  }
+
+  body.is-fighting .touch-button-bonus {
+    min-height: 34px !important;
+    padding: 5px 8px !important;
+    font-size: clamp(0.58rem, 2vw, 0.7rem) !important;
+  }
+
+  body.is-fighting .fight-header {
+    position: fixed;
+    z-index: 70;
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    left: auto;
+    width: auto;
+    pointer-events: none;
+  }
+
+  body.is-fighting #exit-fight {
+    min-height: 38px;
+    padding: 7px 10px;
+    background: rgb(238 243 239 / 70%);
+    backdrop-filter: blur(4px);
+    pointer-events: auto;
+  }
+
+  body.is-fighting .round-overlay {
+    z-index: 80;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 820px) {
+  body.is-fighting #game {
+    top: 39%;
+  }
+
+  body.is-fighting .control-move {
+    bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  body.is-fighting .control-actions {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  body.is-fighting #game {
+    top: 50%;
+  }
+
+  body.is-fighting .joystick {
+    width: clamp(82px, 16vh, 104px) !important;
+    height: clamp(82px, 16vh, 104px) !important;
+  }
+
+  body.is-fighting .joystick-thumb {
+    width: clamp(32px, 6.5vh, 42px) !important;
+    height: clamp(32px, 6.5vh, 42px) !important;
+  }
+
+  body.is-fighting .attack-diamond {
+    --diamond-size: clamp(154px, 42vh, 190px) !important;
+    --diamond-button: clamp(50px, 13.4vh, 64px) !important;
+  }
+
+  body.is-fighting .bonus-actions {
+    width: 210px !important;
   }
 }
