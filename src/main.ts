@@ -88,7 +88,7 @@ if (modeElement) {
 }
 
 if (installRoot) {
-  void import("./ui/mountPwaInstallPrompt").then(({ mountPwaInstallPrompt }) => {
+  void import("./ui/pwaInstallPrompt").then(({ mountPwaInstallPrompt }) => {
     mountPwaInstallPrompt(installRoot);
   });
 }
@@ -100,10 +100,26 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: "game",
   backgroundColor: "#f7f3e8",
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 960,
     height: 540
+  },
+  input: {
+    activePointers: 4,
+    smoothFactor: 0.12
+  },
+  fps: {
+    target: 60,
+    min: 45,
+    panicMax: 30,
+    smoothStep: true
+  },
+  render: {
+    antialias: true,
+    pixelArt: false,
+    roundPixels: false,
+    powerPreference: "high-performance"
   },
   physics: {
     default: "arcade",
@@ -231,6 +247,9 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
 
   await savePlayerProfile(createAvatar(settings));
 
+  renderFightHeading(settings);
+  showAppScreen("fight");
+  game.scale.refresh();
   game.scene.stop("training");
   game.scene.start("training", { settings, onlineBridge });
   controls?.removeAttribute("hidden");
@@ -246,8 +265,8 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
   if (closeMenuButton) {
     closeMenuButton.hidden = false;
   }
-  renderFightHeading(settings);
-  showAppScreen("fight");
+  window.requestAnimationFrame(() => game.scale.refresh());
+  window.setTimeout(() => game.scale.refresh(), 80);
 }
 
 async function openOnlineLobby(settings: GameLaunchSettings) {

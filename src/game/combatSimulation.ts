@@ -176,6 +176,7 @@ export type SimulationSnapshot = {
     rngSeed: number;
     nextDetachedPartId: number;
     neutralDropTimer: number;
+    playerAttackMemory: Partial<Record<AttackKind, number>>;
   };
 };
 
@@ -189,7 +190,9 @@ export type CombatEvent =
       detachedPart: BodyPart | null;
       bonusStrikes: number;
       bonusStrikeKind: BonusStrikeKind;
+      perfectBlock: boolean;
     }
+  | { type: "clash"; x: number; y: number; attackKind: AttackKind }
   | { type: "attach"; owner: "player" | "opponent"; part: AttachedBonusPart }
   | { type: "drop"; part: DetachedPart }
   | { type: "roundOver"; playerWon: boolean; durationSeconds: number };
@@ -527,7 +530,8 @@ export class CombatSimulation {
   private hitStopTimer = 0;
   private rngSeed = 0x1da71d;
   private nextDetachedPartId = 1;
-  private neutralDropTimer = 6.2;
+  private neutralDropTimer = 4.8;
+  private playerAttackMemory: Partial<Record<AttackKind, number>> = {};
 
   constructor(options: CombatSimulationOptions = {}) {
     this.options = {
@@ -566,7 +570,8 @@ export class CombatSimulation {
         hitStopTimer: this.hitStopTimer,
         rngSeed: this.rngSeed,
         nextDetachedPartId: this.nextDetachedPartId,
-        neutralDropTimer: this.neutralDropTimer
+        neutralDropTimer: this.neutralDropTimer,
+        playerAttackMemory: { ...this.playerAttackMemory }
       }
     };
   }
@@ -586,6 +591,7 @@ export class CombatSimulation {
     this.rngSeed = snapshot.internal.rngSeed;
     this.nextDetachedPartId = snapshot.internal.nextDetachedPartId;
     this.neutralDropTimer = snapshot.internal.neutralDropTimer;
+    this.playerAttackMemory = { ...snapshot.internal.playerAttackMemory };
   }
 
   grantTrainingPart(kind: TrainingDropKind, owner: "player" | "opponent" = "player"): CombatEvent | null {
@@ -860,8 +866,15 @@ export class CombatSimulation {
       }
 
       const roll = this.random();
+      const playerHabit = getMostUsedAttack(this.playerAttackMemory);
       const nextAttack: AttackKind =
-        animalMoves.length > 0 && roll > 0.72
+        playerHabit === "low" && roll > 0.64 && attachedLegCount(fighter) > 0
+          ? "kick"
+          : (playerHabit === "heavy" || playerHabit === "high") && roll > 0.62 && canGuard(fighter)
+            ? "light"
+            : playerHabit === "kick" && roll > 0.66
+              ? "low"
+              : animalMoves.length > 0 && roll > 0.72
           ? animalMoves[Math.floor(this.random() * animalMoves.length)]
           : roll > 0.9
             ? "spinKick"
@@ -1019,7 +1032,7 @@ export class CombatSimulation {
 
     const drop = this.createNeutralDrop();
     this.state.detachedParts.push(drop);
-    this.neutralDropTimer = this.randomBetween(6.5, 10.5);
+    this.neutralDropTimer = this.randomBetween(4.8, 8.4);
 
     return {
       type: "drop",
@@ -1088,7 +1101,7 @@ export class CombatSimulation {
     }
 
     if (fighter.state === "attack") {
-      if (this.canCancelAttack(fighter)) {
+      if (this.canCancelAttack(fighter, fighter.queuedAttack)) {
         this.startAttack(fighter, fighter.queuedAttack);
         return true;
       }
@@ -1103,13 +1116,30 @@ export class CombatSimulation {
     return true;
   }
 
-  private canCancelAttack(fighter: FighterSnapshot) {
-    if (fighter.attackKind !== "light") {
+  private canCancelAttack(fighter: FighterSnapshot, nextAttack: AttackKind) {
+    if (!fighter.attackKind) {
       return false;
     }
 
     const spec = attackSpecs[fighter.attackKind];
-    return fighter.attackElapsed >= spec.startup + spec.active + frames(2);
+    const postActive = fighter.attackElapsed >= spec.startup + spec.active + frames(1);
+    if (!postActive) {
+      return false;
+    }
+
+    if (fighter.attackKind === "light") {
+      return nextAttack !== "light";
+    }
+
+    if (fighter.attackKind === "kick") {
+      return nextAttack === "spinKick" || nextAttack === "tailStrike";
+    }
+
+    if (fighter.attackKind === "clawSwipe") {
+      return nextAttack === "chomp" || nextAttack === "heavy";
+    }
+
+    return fighter.attackKind === "low" && nextAttack === "kick";
   }
 
   private resolveAttack(
@@ -1128,16 +1158,46 @@ export class CombatSimulation {
       return null;
     }
 
-    if (!rectsIntersect(getAttackBox(attacker), getHurtBox(defender))) {
+    const attackerBox = getAttackBox(attacker);
+    if (
+      defender.state === "attack" &&
+      defender.attackKind &&
+      isAttackActive(defender) &&
+      !defender.hasHitDuringAttack &&
+      rectsIntersect(attackerBox, getAttackBox(defender))
+    ) {
+      attacker.hasHitDuringAttack = true;
+      defender.hasHitDuringAttack = true;
+      attacker.vx = -attacker.facing * 120;
+      defender.vx = -defender.facing * 120;
+      attacker.stunTimer = frames(8);
+      defender.stunTimer = frames(8);
+      attacker.state = "blockstun";
+      defender.state = "blockstun";
+      this.hitStopTimer = frames(5);
+      return {
+        type: "clash",
+        x: (attacker.x + defender.x) / 2,
+        y: Math.min(attacker.y, defender.y) - 78,
+        attackKind: attacker.attackKind
+      };
+    }
+
+    if (!rectsIntersect(attackerBox, getHurtBox(defender))) {
       return null;
     }
 
     const spec = attackSpecs[attacker.attackKind];
-    if (!rectsIntersect(getAttackBox(attacker), getTargetHurtBox(defender, spec.target))) {
+    if (!rectsIntersect(attackerBox, getTargetHurtBox(defender, spec.target))) {
       return null;
     }
 
+    if (attackerId === "player") {
+      this.playerAttackMemory[spec.kind] = (this.playerAttackMemory[spec.kind] ?? 0) + 1;
+    }
+
     const blocked = isBlockingAttack(defender, attacker);
+    const perfectBlock = blocked && defender.guardLockTimer > frames(7) && defender.stamina > 20;
     const detachedPart = blocked ? null : this.detachTargetPart(attacker, defender, spec.target);
     const bonusStrikes = blocked ? 0 : getBonusStrikeCount(attacker, spec.kind);
 
@@ -1162,10 +1222,17 @@ export class CombatSimulation {
       this.hitStopTimer = spec.hitStop;
     } else {
       defender.state = "blockstun";
-      defender.stunTimer = spec.blockStun;
+      defender.stunTimer = perfectBlock ? frames(5) : spec.blockStun;
       defender.vx = attacker.facing * 58;
-      attacker.vx = -attacker.facing * 70;
-      this.hitStopTimer = frames(2);
+      attacker.vx = -attacker.facing * (perfectBlock ? 210 : 70);
+      if (perfectBlock) {
+        attacker.state = "hit";
+        attacker.stunTimer = frames(14);
+        attacker.attackKind = null;
+        attacker.attackElapsed = 0;
+        defender.stamina = Math.min(100, defender.stamina + 8);
+      }
+      this.hitStopTimer = perfectBlock ? frames(5) : frames(2);
     }
 
     return {
@@ -1176,7 +1243,8 @@ export class CombatSimulation {
       target: spec.target,
       detachedPart,
       bonusStrikes,
-      bonusStrikeKind: getBonusStrikeKind(spec.kind)
+      bonusStrikeKind: getBonusStrikeKind(spec.kind),
+      perfectBlock
     };
   }
 
@@ -1784,6 +1852,20 @@ function getDifficultyProfile(difficulty: CpuDifficulty) {
     chaseSpeed: 0.58,
     retreatSpeed: 0.42
   };
+}
+
+function getMostUsedAttack(memory: Partial<Record<AttackKind, number>>): AttackKind | null {
+  let best: AttackKind | null = null;
+  let bestCount = 0;
+
+  for (const [kind, count] of Object.entries(memory) as Array<[AttackKind, number]>) {
+    if (count > bestCount) {
+      best = kind;
+      bestCount = count;
+    }
+  }
+
+  return bestCount >= 3 ? best : null;
 }
 
 function hasAnyHead(fighter: FighterSnapshot) {

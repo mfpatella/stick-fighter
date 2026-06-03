@@ -140,6 +140,10 @@ export class TrainingScene extends Phaser.Scene {
   private touchControlsAbort: AbortController | null = null;
   private joystickPointerId: number | null = null;
   private joystickJumpReady = true;
+  private joystickDashReady = true;
+  private perfText!: Phaser.GameObjects.Text;
+  private perfSampleTimer = 0;
+  private slowFrameCount = 0;
 
   constructor() {
     super("training");
@@ -199,12 +203,17 @@ export class TrainingScene extends Phaser.Scene {
     this.createArena();
     this.graphics = this.add.graphics();
     this.graphics.setDepth(10);
+    this.configureCameraForViewport();
+    this.scale.on("resize", this.configureCameraForViewport, this);
     this.createInput();
     this.createHud();
     this.bindTouchControls();
     this.bindTrainingTools();
     this.updateShellControls();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.releaseTouchControls());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off("resize", this.configureCameraForViewport, this);
+      this.releaseTouchControls();
+    });
   }
 
   update(_time: number, deltaMs: number) {
@@ -239,7 +248,9 @@ export class TrainingScene extends Phaser.Scene {
     this.pendingClaw ||= Phaser.Input.Keyboard.JustDown(this.keys.claw);
     this.pendingDash ||= Phaser.Input.Keyboard.JustDown(this.keys.dash);
     this.pendingReattach ||= Phaser.Input.Keyboard.JustDown(this.keys.reattach);
-    this.accumulator += Math.min(deltaMs / 1000, 0.1);
+    const cappedDelta = Math.min(deltaMs / 1000, 0.085);
+    this.trackPerformance(deltaMs);
+    this.accumulator += cappedDelta;
 
     let steps = 0;
     while (this.accumulator >= fixedStep && steps < maxFixedSteps) {
@@ -268,8 +279,8 @@ export class TrainingScene extends Phaser.Scene {
       this.accumulator = 0;
     }
 
-    this.updateEffects(deltaMs / 1000);
-    this.updateScenery(deltaMs / 1000);
+    this.updateEffects(cappedDelta);
+    this.updateScenery(cappedDelta);
     this.updateHud();
     this.drawFrame();
   }
@@ -485,16 +496,19 @@ export class TrainingScene extends Phaser.Scene {
 
       const press = (event: PointerEvent) => {
         event.preventDefault();
+        button.setPointerCapture?.(event.pointerId);
         if (heldTouchActions.has(action)) {
           this.touchHeld.add(action);
         } else {
           this.touchPulses.add(action);
         }
         button.classList.add("is-pressed");
+        pulseHaptics(action === "block" ? 10 : 6);
       };
 
       const release = (event: PointerEvent) => {
         event.preventDefault();
+        button.releasePointerCapture?.(event.pointerId);
         if (heldTouchActions.has(action)) {
           this.touchHeld.delete(action);
         }
@@ -525,6 +539,7 @@ export class TrainingScene extends Phaser.Scene {
         event.preventDefault();
         this.joystickPointerId = null;
         this.joystickJumpReady = true;
+        this.joystickDashReady = true;
         this.touchHeld.delete("left");
         this.touchHeld.delete("right");
         joystick.classList.remove("is-active");
@@ -539,6 +554,7 @@ export class TrainingScene extends Phaser.Scene {
           event.preventDefault();
           this.joystickPointerId = event.pointerId;
           this.joystickJumpReady = true;
+          this.joystickDashReady = true;
           joystick.classList.add("is-active");
           joystick.setPointerCapture?.(event.pointerId);
           this.updateJoystickInput(joystick, event);
@@ -557,6 +573,7 @@ export class TrainingScene extends Phaser.Scene {
     this.touchControlsAbort = null;
     this.joystickPointerId = null;
     this.joystickJumpReady = true;
+    this.joystickDashReady = true;
     this.touchHeld.clear();
     this.touchPulses.clear();
     document.querySelectorAll<HTMLButtonElement>("[data-touch-action].is-pressed").forEach((button) => {
@@ -586,6 +603,7 @@ export class TrainingScene extends Phaser.Scene {
     joystick.style.setProperty("--stick-y", `${y}px`);
 
     const horizontalDeadZone = rect.width * 0.13;
+    const dashThreshold = radius * 0.88;
     if (x < -horizontalDeadZone) {
       this.touchHeld.add("left");
       this.touchHeld.delete("right");
@@ -595,6 +613,14 @@ export class TrainingScene extends Phaser.Scene {
     } else {
       this.touchHeld.delete("left");
       this.touchHeld.delete("right");
+    }
+
+    if (Math.abs(x) > dashThreshold && Math.abs(y) < rect.height * 0.24 && this.joystickDashReady) {
+      this.touchPulses.add("dash");
+      this.joystickDashReady = false;
+      pulseHaptics(12);
+    } else if (Math.abs(x) < radius * 0.5) {
+      this.joystickDashReady = true;
     }
 
     const jumpThreshold = -rect.height * 0.18;
@@ -708,6 +734,46 @@ export class TrainingScene extends Phaser.Scene {
       fontStyle: "bold"
     });
     this.statusText.setOrigin(0.5);
+
+    this.perfText = this.add.text(24, 96, "", {
+      color: "#334039",
+      fontFamily: "Arial",
+      fontSize: "12px",
+      fontStyle: "bold"
+    });
+    this.perfText.setAlpha(0.72);
+    this.perfText.setVisible(this.settings.matchType === "testing" || this.settings.showHitboxes);
+  }
+
+  private configureCameraForViewport() {
+    const camera = this.cameras.main;
+    camera.setBounds(0, 0, 960, 540);
+    camera.setRoundPixels(false);
+    camera.centerOn(480, 270);
+  }
+
+  private trackPerformance(deltaMs: number) {
+    if (!this.perfText) {
+      return;
+    }
+
+    if (deltaMs > 24) {
+      this.slowFrameCount += 1;
+    }
+
+    this.perfSampleTimer += deltaMs;
+    if (this.perfSampleTimer < 500) {
+      return;
+    }
+
+    this.perfSampleTimer = 0;
+    if (this.perfText.visible) {
+      const fps = Math.round(this.game.loop.actualFps);
+      this.perfText.setText(
+        `FPS ${fps} | frame ${Math.round(deltaMs)}ms | slow ${this.slowFrameCount} | fx ${this.effects.length} | parts ${this.simulation.state.detachedParts.length}`
+      );
+    }
+    this.slowFrameCount = 0;
   }
 
   private bindTrainingTools() {
@@ -750,10 +816,16 @@ export class TrainingScene extends Phaser.Scene {
     for (const event of events) {
       if (event.type === "hit") {
         this.spawnImpactEffects(event);
-        if (event.blocked) {
+        if (event.perfectBlock) {
+          this.blockFlashTimer = 0.24;
+          this.statusHoldTimer = 0.72;
+          this.statusText.setText("Perfect block! Counter window opened.");
+          pulseHaptics([18, 18, 24]);
+        } else if (event.blocked) {
           this.blockFlashTimer = 0.16;
           this.statusHoldTimer = 0.38;
           this.statusText.setText("Blocked!");
+          pulseHaptics(10);
         } else if (event.detachedPart) {
           this.statusHoldTimer = 1.25;
           this.statusText.setText(
@@ -761,11 +833,13 @@ export class TrainingScene extends Phaser.Scene {
               ? `${formatPartName(event.detachedPart)} popped loose. ${event.bonusStrikes} extra ${event.bonusStrikeKind}${event.bonusStrikes === 1 ? "" : "s"} landed.`
               : `${formatPartName(event.detachedPart)} popped loose. Anyone can attach it with E.`
           );
+          pulseHaptics([18, 24, 18]);
         } else if (event.bonusStrikes > 0) {
           this.statusHoldTimer = 0.9;
           this.statusText.setText(
             `${event.bonusStrikes} extra ${event.bonusStrikeKind}${event.bonusStrikes === 1 ? "" : "s"} landed.`
           );
+          pulseHaptics(16);
         }
         if (this.settings.motionFx === "full") {
           this.cameras.main.shake(
@@ -778,6 +852,37 @@ export class TrainingScene extends Phaser.Scene {
             event.blocked ? 0.0025 : 0.0035
           );
         }
+      }
+
+      if (event.type === "clash") {
+        this.statusHoldTimer = 0.66;
+        this.statusText.setText("Clash! Both fighters stagger.");
+        this.effects.push({
+          kind: "burst",
+          x: event.x,
+          y: event.y,
+          vx: 0,
+          vy: 0,
+          life: 0.28,
+          maxLife: 0.28,
+          color: 0xfff3bf,
+          size: 30
+        });
+        this.effects.push({
+          kind: "ring",
+          x: event.x,
+          y: event.y,
+          vx: 0,
+          vy: 0,
+          life: 0.2,
+          maxLife: 0.2,
+          color: 0xd8b45d,
+          size: 24
+        });
+        if (this.settings.motionFx === "full") {
+          this.cameras.main.shake(60, 0.0028);
+        }
+        pulseHaptics([12, 18, 12]);
       }
 
       if (event.type === "attach") {
@@ -807,6 +912,7 @@ export class TrainingScene extends Phaser.Scene {
           color: 0xd8b45d,
           size: 22
         });
+        pulseHaptics(12);
       }
 
       if (event.type === "drop") {
@@ -862,15 +968,21 @@ export class TrainingScene extends Phaser.Scene {
       this.dustTimer = 0.08;
     }
 
-    this.effects = this.effects
-      .map((effect) => ({
-        ...effect,
-        x: effect.x + effect.vx * delta,
-        y: effect.y + effect.vy * delta,
-        vy: effect.vy + (effect.kind === "dust" ? -6 : 120) * delta,
-        life: effect.life - delta
-      }))
-      .filter((effect) => effect.life > 0);
+    for (let index = this.effects.length - 1; index >= 0; index -= 1) {
+      const effect = this.effects[index];
+      effect.x += effect.vx * delta;
+      effect.y += effect.vy * delta;
+      effect.vy += (effect.kind === "dust" ? -6 : 120) * delta;
+      effect.life -= delta;
+
+      if (effect.life <= 0) {
+        this.effects.splice(index, 1);
+      }
+    }
+
+    if (this.effects.length > 90) {
+      this.effects.splice(0, this.effects.length - 90);
+    }
   }
 
   private updateScenery(delta: number) {
@@ -1764,6 +1876,14 @@ function stripTransientInput(input: PlayerInput): PlayerInput {
     right: input.right,
     block: input.block
   };
+}
+
+function pulseHaptics(pattern: number | number[]) {
+  if (!("vibrate" in navigator)) {
+    return;
+  }
+
+  navigator.vibrate(pattern);
 }
 
 function formatPartName(part: BodyPart) {
