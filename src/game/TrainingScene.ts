@@ -138,6 +138,8 @@ export class TrainingScene extends Phaser.Scene {
   private touchHeld = new Set<TouchAction>();
   private touchPulses = new Set<TouchAction>();
   private touchControlsAbort: AbortController | null = null;
+  private joystickPointerId: number | null = null;
+  private joystickJumpReady = true;
 
   constructor() {
     super("training");
@@ -473,6 +475,7 @@ export class TrainingScene extends Phaser.Scene {
     this.touchControlsAbort = new AbortController();
     const { signal } = this.touchControlsAbort;
     const buttons = document.querySelectorAll<HTMLButtonElement>("[data-touch-action]");
+    const joystick = document.querySelector<HTMLElement>("[data-joystick]");
 
     buttons.forEach((button) => {
       const action = button.dataset.touchAction as TouchAction | undefined;
@@ -504,16 +507,103 @@ export class TrainingScene extends Phaser.Scene {
       button.addEventListener("pointerleave", release, { signal });
       button.addEventListener("contextmenu", (event) => event.preventDefault(), { signal });
     });
+
+    if (joystick) {
+      const moveJoystick = (event: PointerEvent) => {
+        if (this.joystickPointerId !== event.pointerId) {
+          return;
+        }
+
+        this.updateJoystickInput(joystick, event);
+      };
+
+      const releaseJoystick = (event: PointerEvent) => {
+        if (this.joystickPointerId !== event.pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        this.joystickPointerId = null;
+        this.joystickJumpReady = true;
+        this.touchHeld.delete("left");
+        this.touchHeld.delete("right");
+        joystick.classList.remove("is-active");
+        joystick.style.setProperty("--stick-x", "0px");
+        joystick.style.setProperty("--stick-y", "0px");
+        joystick.releasePointerCapture?.(event.pointerId);
+      };
+
+      joystick.addEventListener(
+        "pointerdown",
+        (event) => {
+          event.preventDefault();
+          this.joystickPointerId = event.pointerId;
+          this.joystickJumpReady = true;
+          joystick.classList.add("is-active");
+          joystick.setPointerCapture?.(event.pointerId);
+          this.updateJoystickInput(joystick, event);
+        },
+        { signal }
+      );
+      joystick.addEventListener("pointermove", moveJoystick, { signal });
+      joystick.addEventListener("pointerup", releaseJoystick, { signal });
+      joystick.addEventListener("pointercancel", releaseJoystick, { signal });
+      joystick.addEventListener("contextmenu", (event) => event.preventDefault(), { signal });
+    }
   }
 
   private releaseTouchControls() {
     this.touchControlsAbort?.abort();
     this.touchControlsAbort = null;
+    this.joystickPointerId = null;
+    this.joystickJumpReady = true;
     this.touchHeld.clear();
     this.touchPulses.clear();
     document.querySelectorAll<HTMLButtonElement>("[data-touch-action].is-pressed").forEach((button) => {
       button.classList.remove("is-pressed");
     });
+    document.querySelectorAll<HTMLElement>("[data-joystick]").forEach((joystick) => {
+      joystick.classList.remove("is-active");
+      joystick.style.setProperty("--stick-x", "0px");
+      joystick.style.setProperty("--stick-y", "0px");
+    });
+  }
+
+  private updateJoystickInput(joystick: HTMLElement, event: PointerEvent) {
+    event.preventDefault();
+    const rect = joystick.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const radius = Math.min(rect.width, rect.height) * 0.34;
+    const rawX = event.clientX - centerX;
+    const rawY = event.clientY - centerY;
+    const distance = Math.hypot(rawX, rawY);
+    const scale = distance > radius ? radius / distance : 1;
+    const x = rawX * scale;
+    const y = rawY * scale;
+
+    joystick.style.setProperty("--stick-x", `${x}px`);
+    joystick.style.setProperty("--stick-y", `${y}px`);
+
+    const horizontalDeadZone = rect.width * 0.13;
+    if (x < -horizontalDeadZone) {
+      this.touchHeld.add("left");
+      this.touchHeld.delete("right");
+    } else if (x > horizontalDeadZone) {
+      this.touchHeld.add("right");
+      this.touchHeld.delete("left");
+    } else {
+      this.touchHeld.delete("left");
+      this.touchHeld.delete("right");
+    }
+
+    const jumpThreshold = -rect.height * 0.18;
+    if (y < jumpThreshold && this.joystickJumpReady) {
+      this.touchPulses.add("jump");
+      this.joystickJumpReady = false;
+    } else if (y > -rect.height * 0.08) {
+      this.joystickJumpReady = true;
+    }
   }
 
   private consumeTouchPulse(action: TouchAction) {

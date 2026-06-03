@@ -535,7 +535,7 @@ h2 {
 }
 
 .control-move {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  place-items: center;
 }
 
 .control-utility {
@@ -572,6 +572,68 @@ h2 {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.joystick {
+  --stick-x: 0px;
+  --stick-y: 0px;
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border: 1px solid rgb(32 40 32 / 34%);
+  border-radius: 50%;
+  background: rgb(238 243 239 / 48%);
+  box-shadow:
+    inset 0 0 0 2px rgb(255 250 237 / 34%),
+    0 3px 10px rgb(32 40 32 / 18%);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.joystick::before,
+.joystick::after {
+  position: absolute;
+  content: "";
+  background: rgb(32 40 32 / 28%);
+  pointer-events: none;
+}
+
+.joystick::before {
+  top: 50%;
+  right: 18px;
+  left: 18px;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.joystick::after {
+  top: 18px;
+  bottom: 18px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.joystick-thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 38px;
+  height: 38px;
+  border: 2px solid rgb(32 40 32 / 44%);
+  border-radius: 50%;
+  background: rgb(220 235 201 / 82%);
+  box-shadow: 0 2px 8px rgb(32 40 32 / 22%);
+  transform: translate(calc(-50% + var(--stick-x)), calc(-50% + var(--stick-y)));
+  transition: transform 80ms ease;
+  pointer-events: none;
+}
+
+.joystick.is-active .joystick-thumb {
+  transition: none;
 }
 
 .touch-button-wide,
@@ -789,7 +851,7 @@ h2 {
     right: 8px;
     bottom: max(8px, env(safe-area-inset-bottom));
     left: 8px;
-    grid-template-columns: minmax(132px, 0.85fr) minmax(76px, 0.5fr) minmax(168px, 1.15fr);
+    grid-template-columns: 88px 74px minmax(168px, 1fr);
     align-items: end;
     gap: 6px;
     margin-top: 0;
@@ -805,11 +867,11 @@ h2 {
   }
 
   .control-move {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    place-items: center;
   }
 
   .control-utility {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .control-strikes {
@@ -826,9 +888,25 @@ h2 {
     pointer-events: auto;
   }
 
+  .joystick {
+    width: 82px;
+    height: 82px;
+    background: rgb(238 243 239 / 42%);
+  }
+
+  .joystick-thumb {
+    width: 32px;
+    height: 32px;
+  }
+
   .touch-button-wide,
   .touch-button-guard {
     min-height: 42px;
+  }
+
+  .control-utility .touch-button {
+    min-height: 36px;
+    font-size: 0.68rem;
   }
 
   .training-tools span,
@@ -852,7 +930,7 @@ h2 {
   }
 
   .control-strikes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .touch-button {
@@ -889,7 +967,7 @@ h2 {
     right: 8px;
     bottom: max(6px, env(safe-area-inset-bottom));
     left: 8px;
-    grid-template-columns: minmax(130px, 0.82fr) minmax(80px, 0.48fr) minmax(200px, 1.25fr);
+    grid-template-columns: 88px 78px minmax(210px, 1fr);
     gap: 6px;
     margin-top: 0;
     pointer-events: none;
@@ -908,15 +986,15 @@ h2 {
   }
 
   .control-move {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    place-items: center;
   }
 
   .control-utility {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .control-strikes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .touch-button,
@@ -928,5 +1006,21 @@ h2 {
     box-shadow: 0 2px 8px rgb(32 40 32 / 18%);
     font-size: 0.72rem;
     pointer-events: auto;
+  }
+
+  .control-utility .touch-button {
+    min-height: 34px;
+    font-size: 0.66rem;
+  }
+
+  .joystick {
+    width: 78px;
+    height: 78px;
+    background: rgb(238 243 239 / 42%);
+  }
+
+  .joystick-thumb {
+    width: 30px;
+    height: 30px;
   }
 }
