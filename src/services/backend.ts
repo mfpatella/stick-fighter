@@ -94,6 +94,12 @@ export type RealtimeMatchStart = {
   settings: GameLaunchSettings;
 };
 
+export type RealtimeLobbySync = {
+  lobbyId: string;
+  reason: "ready" | "refresh" | "join" | "leave";
+  sentAt: number;
+};
+
 let activeRealtimeChannel: RealtimeChannel | null = null;
 
 export function recordLocalMatch(match: MatchResult): PlayerStats {
@@ -751,6 +757,37 @@ export async function createMatchmakingTicket(input: {
   return ticket;
 }
 
+export async function cancelMatchmakingTicket(ticketId: string | null) {
+  if (!ticketId) {
+    return;
+  }
+
+  window.localStorage.removeItem(localTicketKey);
+
+  if (!supabase) {
+    return;
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("matchmaking_tickets")
+    .update({ status: "cancelled" })
+    .eq("id", ticketId)
+    .eq("profile_id", user.id)
+    .eq("status", "searching");
+
+  if (error) {
+    console.warn("Matchmaking cancel skipped", error);
+  }
+}
+
 export async function tryMatchmaking(ticketId: string, avatar: PlayerAvatar): Promise<GameLobby | null> {
   if (!supabase) {
     return null;
@@ -808,6 +845,7 @@ export async function joinRealtimeRoom(input: {
   onState: (state: RealtimeRoomState) => void;
   onInputFrame?: (frame: RealtimeInputFrame) => void;
   onMatchStart?: (match: RealtimeMatchStart) => void;
+  onLobbySync?: (sync: RealtimeLobbySync) => void;
 }) {
   if (!supabase) {
     input.onState({
@@ -889,6 +927,13 @@ export async function joinRealtimeRoom(input: {
     }
   });
 
+  channel.on("broadcast", { event: "lobby-sync" }, (message) => {
+    const sync = message.payload as RealtimeLobbySync;
+    if (sync.lobbyId === input.lobby.id) {
+      input.onLobbySync?.(sync);
+    }
+  });
+
   channel.subscribe(async (status) => {
     if (status === "SUBSCRIBED") {
       await channel.track({
@@ -951,6 +996,18 @@ export async function broadcastRealtimeMatchStart(match: RealtimeMatchStart) {
     type: "broadcast",
     event: "match-start",
     payload: match
+  });
+}
+
+export async function broadcastRealtimeLobbySync(sync: RealtimeLobbySync) {
+  if (!activeRealtimeChannel) {
+    return;
+  }
+
+  await activeRealtimeChannel.send({
+    type: "broadcast",
+    event: "lobby-sync",
+    payload: sync
   });
 }
 

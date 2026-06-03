@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
   attackSpecs,
+  type AttackKind,
   type AttachedBonusPart,
   type BodyPart,
   CombatSimulation,
@@ -43,7 +44,7 @@ const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
 };
 
 type VisualEffect = {
-  kind: "spark" | "dust" | "ring" | "burst";
+  kind: "spark" | "dust" | "ring" | "burst" | "slash" | "shockwave";
   x: number;
   y: number;
   vx: number;
@@ -52,6 +53,7 @@ type VisualEffect = {
   maxLife: number;
   color: number;
   size: number;
+  angle?: number;
 };
 
 type ObjectiveKind = "none" | "training" | "parts" | "story";
@@ -166,9 +168,14 @@ export class TrainingScene extends Phaser.Scene {
   private touchHeld = new Set<TouchAction>();
   private touchPulses = new Set<TouchAction>();
   private touchControlsAbort: AbortController | null = null;
+  private sceneLifecycleAbort: AbortController | null = null;
+  private trainingToolButtons: HTMLButtonElement[] = [];
   private joystickPointerId: number | null = null;
   private joystickJumpReady = true;
   private joystickDashReady = true;
+  private cameraFocusX = 480;
+  private cameraFocusY = 270;
+  private cameraZoom = 1;
   private perfText!: Phaser.GameObjects.Text;
   private objectiveText!: Phaser.GameObjects.Text;
   private perfSampleTimer = 0;
@@ -248,6 +255,7 @@ export class TrainingScene extends Phaser.Scene {
     this.graphics.setDepth(10);
     this.configureCameraForViewport();
     this.scale.on("resize", this.configureCameraForViewport, this);
+    this.bindSceneLifecycle();
     this.createInput();
     this.createHud();
     this.bindTouchControls();
@@ -256,6 +264,8 @@ export class TrainingScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off("resize", this.configureCameraForViewport, this);
       this.releaseTouchControls();
+      this.releaseTrainingTools();
+      this.releaseSceneLifecycle();
     });
   }
 
@@ -325,6 +335,7 @@ export class TrainingScene extends Phaser.Scene {
     this.updateEffects(cappedDelta);
     this.updateScenery(cappedDelta);
     this.updateLevelEvents(cappedDelta);
+    this.updateCameraPresentation(cappedDelta);
     this.updateHud();
     this.drawFrame();
   }
@@ -618,8 +629,7 @@ export class TrainingScene extends Phaser.Scene {
     this.joystickPointerId = null;
     this.joystickJumpReady = true;
     this.joystickDashReady = true;
-    this.touchHeld.clear();
-    this.touchPulses.clear();
+    this.clearTransientInput();
     document.querySelectorAll<HTMLButtonElement>("[data-touch-action].is-pressed").forEach((button) => {
       button.classList.remove("is-pressed");
     });
@@ -628,6 +638,48 @@ export class TrainingScene extends Phaser.Scene {
       joystick.style.setProperty("--stick-x", "0px");
       joystick.style.setProperty("--stick-y", "0px");
     });
+  }
+
+  private bindSceneLifecycle() {
+    this.releaseSceneLifecycle();
+    this.sceneLifecycleAbort = new AbortController();
+    const { signal } = this.sceneLifecycleAbort;
+
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.visibilityState === "hidden") {
+          this.accumulator = 0;
+          this.clearTransientInput();
+        }
+      },
+      { signal }
+    );
+
+    window.visualViewport?.addEventListener("resize", () => this.configureCameraForViewport(), { signal });
+    window.addEventListener("orientationchange", () => this.configureCameraForViewport(), { signal });
+  }
+
+  private releaseSceneLifecycle() {
+    this.sceneLifecycleAbort?.abort();
+    this.sceneLifecycleAbort = null;
+  }
+
+  private clearTransientInput() {
+    this.touchHeld.clear();
+    this.touchPulses.clear();
+    this.pendingJump = false;
+    this.pendingLight = false;
+    this.pendingHeavy = false;
+    this.pendingLow = false;
+    this.pendingHigh = false;
+    this.pendingKick = false;
+    this.pendingPowerKick = false;
+    this.pendingChomp = false;
+    this.pendingTail = false;
+    this.pendingClaw = false;
+    this.pendingDash = false;
+    this.pendingReattach = false;
   }
 
   private updateJoystickInput(joystick: HTMLElement, event: PointerEvent) {
@@ -874,9 +926,52 @@ export class TrainingScene extends Phaser.Scene {
 
   private configureCameraForViewport() {
     const camera = this.cameras.main;
-    camera.setBounds(0, 0, 960, 540);
+    camera.setBounds(-420, -250, 1800, 1040);
     camera.setRoundPixels(false);
-    camera.centerOn(480, 270);
+    this.updateCameraPresentation(0, true);
+  }
+
+  private updateCameraPresentation(delta: number, immediate = false) {
+    const camera = this.cameras.main;
+    if (!camera || !this.simulation) {
+      return;
+    }
+
+    const { player, opponent } = this.simulation.state;
+    const midpointX = (player.x + opponent.x) / 2;
+    const airborneY = Math.min(player.y, opponent.y);
+    const targetX = Phaser.Math.Clamp(midpointX, 300, 660);
+    const targetY = Phaser.Math.Clamp(airborneY < groundY - 80 ? 232 : 270, 218, 286);
+    const zoom = this.getResponsiveCameraZoom(player, opponent);
+    const ease = immediate ? 1 : Phaser.Math.Clamp(delta * 7.5, 0.08, 0.42);
+
+    this.cameraFocusX = Phaser.Math.Linear(this.cameraFocusX, targetX, ease);
+    this.cameraFocusY = Phaser.Math.Linear(this.cameraFocusY, targetY, ease);
+    this.cameraZoom = Phaser.Math.Linear(this.cameraZoom, zoom, ease);
+    camera.setZoom(this.cameraZoom);
+    camera.centerOn(this.cameraFocusX, this.cameraFocusY);
+  }
+
+  private getResponsiveCameraZoom(player: FighterSnapshot, opponent: FighterSnapshot) {
+    const viewport = window.visualViewport;
+    const viewportWidth = viewport?.width ?? window.innerWidth ?? 960;
+    const viewportHeight = viewport?.height ?? window.innerHeight ?? 540;
+    const viewportAspect = viewportHeight > 0 ? viewportWidth / viewportHeight : 16 / 9;
+    const fighterSpan = Math.abs(player.x - opponent.x);
+    const widestBody = Math.max(player.stats.bodyScale, opponent.stats.bodyScale);
+    const desiredWorldWidth = Phaser.Math.Clamp(fighterSpan + 210 * widestBody, 420, 860);
+
+    if (viewportAspect < 1.02) {
+      const cssCropWorldWidth = viewportAspect * 540;
+      return Phaser.Math.Clamp(cssCropWorldWidth / desiredWorldWidth, 0.42, 0.78);
+    }
+
+    if (viewportAspect < 1.45) {
+      const cssCropWorldWidth = Math.min(960, viewportAspect * 540);
+      return Phaser.Math.Clamp(cssCropWorldWidth / desiredWorldWidth, 0.72, 0.94);
+    }
+
+    return 1;
   }
 
   private trackPerformance(deltaMs: number) {
@@ -905,6 +1000,8 @@ export class TrainingScene extends Phaser.Scene {
 
   private bindTrainingTools() {
     const buttons = document.querySelectorAll<HTMLButtonElement>("[data-training-drop]");
+    this.releaseTrainingTools();
+    this.trainingToolButtons = Array.from(buttons);
     buttons.forEach((button) => {
       button.onclick = () => {
         const kind = button.dataset.trainingDrop as TrainingDropKind | undefined;
@@ -916,6 +1013,14 @@ export class TrainingScene extends Phaser.Scene {
         }
       };
     });
+  }
+
+  private releaseTrainingTools() {
+    this.trainingToolButtons.forEach((button) => {
+      button.onclick = null;
+      button.classList.remove("is-pressed");
+    });
+    this.trainingToolButtons = [];
   }
 
   private updateShellControls() {
@@ -954,12 +1059,14 @@ export class TrainingScene extends Phaser.Scene {
           this.statusHoldTimer = 0.72;
           this.statusText.setText("Perfect block! Counter window opened.");
           this.spawnFloatingText("PERFECT", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#d8b45d");
+          this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 76 : this.simulation.state.player.y - 76, event.attacker === "player" ? -1 : 1, true);
           pulseHaptics([18, 18, 24]);
         } else if (event.blocked) {
           this.blockFlashTimer = 0.16;
           this.statusHoldTimer = 0.38;
           this.statusText.setText("Blocked!");
           this.spawnFloatingText("BLOCK", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 92 : this.simulation.state.player.y - 92, "#f2d06b");
+          this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 66 : this.simulation.state.player.y - 66, event.attacker === "player" ? -1 : 1, false);
           pulseHaptics(10);
         } else if (event.detachedPart) {
           this.statusHoldTimer = 1.25;
@@ -1015,6 +1122,17 @@ export class TrainingScene extends Phaser.Scene {
           maxLife: 0.2,
           color: 0xd8b45d,
           size: 24
+        });
+        this.effects.push({
+          kind: "shockwave",
+          x: event.x,
+          y: event.y + 4,
+          vx: 0,
+          vy: 0,
+          life: 0.26,
+          maxLife: 0.26,
+          color: 0xfff3bf,
+          size: 34
         });
         if (this.settings.motionFx === "full") {
           this.cameras.main.shake(60, 0.0028);
@@ -1378,6 +1496,14 @@ export class TrainingScene extends Phaser.Scene {
         this.spawnDust(opponent.x - opponent.facing * 22, opponent.y + 2);
       }
 
+      if (player.state === "jump" && player.y > groundY - 18 && player.vy > 180) {
+        this.spawnLandingPuff(player.x, groundY + 2, player.stats.bodyScale);
+      }
+
+      if (opponent.state === "jump" && opponent.y > groundY - 18 && opponent.vy > 180) {
+        this.spawnLandingPuff(opponent.x, groundY + 2, opponent.stats.bodyScale);
+      }
+
       this.dustTimer = 0.08;
     }
 
@@ -1385,7 +1511,11 @@ export class TrainingScene extends Phaser.Scene {
       const effect = this.effects[index];
       effect.x += effect.vx * delta;
       effect.y += effect.vy * delta;
-      effect.vy += (effect.kind === "dust" ? -6 : 120) * delta;
+      if (effect.kind === "spark" || effect.kind === "burst") {
+        effect.vy += 120 * delta;
+      } else if (effect.kind === "dust") {
+        effect.vy -= 6 * delta;
+      }
       effect.life -= delta;
 
       if (effect.life <= 0) {
@@ -1393,8 +1523,8 @@ export class TrainingScene extends Phaser.Scene {
       }
     }
 
-    if (this.effects.length > 90) {
-      this.effects.splice(0, this.effects.length - 90);
+    if (this.effects.length > 120) {
+      this.effects.splice(0, this.effects.length - 120);
     }
   }
 
@@ -1442,6 +1572,24 @@ export class TrainingScene extends Phaser.Scene {
       size: event.blocked ? 20 : 14
     });
 
+    if (event.perfectBlock) {
+      this.effects.push({
+        kind: "shockwave",
+        x: impactX,
+        y: impactY,
+        vx: 0,
+        vy: 0,
+        life: 0.34,
+        maxLife: 0.34,
+        color: 0xd8b45d,
+        size: 30
+      });
+    }
+
+    if (!event.blocked) {
+      this.spawnAttackSignature(event.attackKind, impactX, impactY, attacker.facing);
+    }
+
     for (let i = 0; i < (event.attackKind === "heavy" || event.attackKind === "spinKick" ? 12 : 8); i += 1) {
       this.effects.push({
         kind: "spark",
@@ -1454,6 +1602,33 @@ export class TrainingScene extends Phaser.Scene {
         color,
         size: Phaser.Math.FloatBetween(2, event.blocked ? 4 : 6)
       });
+    }
+
+    if (!event.blocked && event.detachedPart) {
+      this.effects.push({
+        kind: "shockwave",
+        x: defender.x,
+        y: impactY + 10,
+        vx: 0,
+        vy: 0,
+        life: 0.38,
+        maxLife: 0.38,
+        color: 0xf07d3b,
+        size: 34
+      });
+      for (let i = 0; i < 7; i += 1) {
+        this.effects.push({
+          kind: "spark",
+          x: impactX,
+          y: impactY,
+          vx: Phaser.Math.Between(-120, 120) + attacker.facing * Phaser.Math.Between(80, 190),
+          vy: Phaser.Math.Between(-240, -40),
+          life: Phaser.Math.FloatBetween(0.22, 0.42),
+          maxLife: 0.42,
+          color: 0xfff3bf,
+          size: Phaser.Math.FloatBetween(2, 5)
+        });
+      }
     }
 
     for (let i = 0; i < event.bonusStrikes; i += 1) {
@@ -1503,6 +1678,90 @@ export class TrainingScene extends Phaser.Scene {
         maxLife: 0.42,
         color: 0xc7b07c,
         size: Phaser.Math.FloatBetween(5, 10)
+      });
+    }
+  }
+
+  private spawnLandingPuff(x: number, y: number, scale: number) {
+    this.effects.push({
+      kind: "shockwave",
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      life: 0.22,
+      maxLife: 0.22,
+      color: 0xc7b07c,
+      size: 18 * scale
+    });
+    this.spawnDust(x - 18 * scale, y);
+    this.spawnDust(x + 18 * scale, y);
+  }
+
+  private spawnGuardShards(x: number, y: number, direction: number, perfect: boolean) {
+    const color = perfect ? 0xfff3bf : 0xf2d06b;
+    const count = perfect ? 9 : 5;
+    for (let i = 0; i < count; i += 1) {
+      this.effects.push({
+        kind: "spark",
+        x,
+        y,
+        vx: Phaser.Math.Between(40, 190) * direction + Phaser.Math.Between(-40, 40),
+        vy: Phaser.Math.Between(-180, 40),
+        life: Phaser.Math.FloatBetween(0.16, perfect ? 0.34 : 0.24),
+        maxLife: perfect ? 0.34 : 0.24,
+        color,
+        size: Phaser.Math.FloatBetween(perfect ? 3 : 2, perfect ? 6 : 4)
+      });
+    }
+  }
+
+  private spawnAttackSignature(kind: AttackKind, x: number, y: number, facing: number) {
+    const slashKinds: AttackKind[] = ["clawSwipe", "high", "heavy", "spinKick", "tailStrike"];
+    if (slashKinds.includes(kind)) {
+      const size =
+        kind === "spinKick" ? 54 : kind === "tailStrike" ? 66 : kind === "clawSwipe" ? 42 : kind === "heavy" ? 48 : 36;
+      const color = kind === "clawSwipe" ? 0xe7d393 : kind === "tailStrike" ? 0x8a5a28 : 0xd8b45d;
+      this.effects.push({
+        kind: "slash",
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+        life: 0.18,
+        maxLife: 0.18,
+        color,
+        size,
+        angle: facing * (kind === "tailStrike" ? 0.15 : -0.55)
+      });
+    }
+
+    if (kind === "chomp") {
+      this.effects.push({
+        kind: "shockwave",
+        x: x + facing * 10,
+        y,
+        vx: 0,
+        vy: 0,
+        life: 0.24,
+        maxLife: 0.24,
+        color: 0x8aaa5d,
+        size: 24
+      });
+    }
+
+    if (kind === "kick" || kind === "low") {
+      this.effects.push({
+        kind: "slash",
+        x,
+        y: y + 8,
+        vx: 0,
+        vy: 0,
+        life: 0.16,
+        maxLife: 0.16,
+        color: 0xfff3bf,
+        size: 34,
+        angle: facing * 0.3
       });
     }
   }
@@ -1947,7 +2206,10 @@ export class TrainingScene extends Phaser.Scene {
     const scale = fighter.stats.bodyScale;
 
     if (fighter.key === "tRex") {
-      const tailLift = fighter.attackKind === "tailStrike" ? Math.sin(attackEase * Math.PI) * 28 : 0;
+      const tailWag = Math.sin(this.time.now / (fighter.state === "run" ? 86 : 210)) * (fighter.state === "idle" ? 5 : 9);
+      const tailLift = fighter.attackKind === "tailStrike" ? Math.sin(attackEase * Math.PI) * 30 : tailWag;
+      g.fillStyle(style.color, 0.16);
+      g.fillEllipse(torsoX - fighter.facing * 4 * scale, shoulderY + 24 * scale, 86 * scale, 74 * scale);
       g.lineStyle(13 * scale, style.color, 0.82);
       g.beginPath();
       g.moveTo(torsoX - fighter.facing * 8 * scale, hipY + 4);
@@ -1956,10 +2218,56 @@ export class TrainingScene extends Phaser.Scene {
       g.strokePath();
       g.lineStyle(4 * scale, style.accent, 0.55);
       g.lineBetween(torsoX - fighter.facing * 40 * scale, hipY + 10 - tailLift, torsoX - fighter.facing * 104 * scale, hipY + 30 - tailLift * 0.3);
+      for (let i = 0; i < 3; i += 1) {
+        const spineX = torsoX - fighter.facing * (24 + i * 14) * scale;
+        g.fillStyle(style.accent, 0.28);
+        g.fillTriangle(spineX, shoulderY - 9 * scale, spineX - fighter.facing * 9 * scale, shoulderY - 22 * scale, spineX + fighter.facing * 6 * scale, shoulderY - 10 * scale);
+      }
+    }
+
+    if (fighter.key === "lion") {
+      const pounce = fighter.state === "dash" || fighter.attackKind === "clawSwipe" || fighter.attackKind === "chomp";
+      const tailCurl = Math.sin(this.time.now / 120) * (pounce ? 9 : 5);
+      g.lineStyle(5 * scale, style.accent, 0.72);
+      g.beginPath();
+      g.moveTo(torsoX - fighter.facing * 16 * scale, hipY + 2);
+      g.lineTo(torsoX - fighter.facing * 48 * scale, hipY - 8 - tailCurl);
+      g.lineTo(torsoX - fighter.facing * 70 * scale, hipY + 10 - tailCurl * 0.4);
+      g.strokePath();
+      if (pounce) {
+        g.lineStyle(3, style.accent, 0.32);
+        g.beginPath();
+        g.arc(torsoX - fighter.facing * 22, hipY + 28, 48 + attackEase * 16, Math.PI * 1.1, Math.PI * 1.82, false);
+        g.strokePath();
+      }
+    }
+
+    if (fighter.key === "hippo") {
+      const stomp = fighter.state === "dash" || fighter.attackKind === "heavy" || fighter.attackKind === "chomp";
+      g.fillStyle(style.color, 0.1);
+      g.fillEllipse(torsoX, hipY + 20 * scale, 124 * scale, 52 * scale);
+      if (stomp) {
+        const pulse = fighter.state === "dash" ? Math.sin(this.time.now / 70) * 0.5 + 0.5 : attackEase;
+        g.lineStyle(4 * scale, style.accent, 0.24 + pulse * 0.18);
+        g.strokeEllipse(torsoX, groundY + 3, 90 * scale + pulse * 38, 20 * scale + pulse * 8);
+      }
+    }
+
+    if (fighter.key === "honeyBadger") {
+      const scramble = fighter.state === "run" || fighter.state === "dash" || fighter.attackKind === "clawSwipe";
+      g.fillStyle(style.color, 0.12);
+      g.fillEllipse(torsoX, hipY + 8 * scale, 82 * scale, 34 * scale);
+      if (scramble) {
+        const direction = Math.sign(fighter.vx || fighter.facing);
+        g.lineStyle(3, style.accent, 0.3);
+        g.lineBetween(torsoX - direction * 18, hipY + 18, torsoX - direction * 58, hipY + 25);
+        g.lineBetween(torsoX - direction * 4, hipY + 27, torsoX - direction * 44, hipY + 35);
+      }
     }
 
     if (fighter.key === "eagle") {
       const flap = Math.sin(this.time.now / 95) * (fighter.y < groundY ? 20 : 10);
+      const liftAlpha = fighter.y < groundY ? 0.24 : 0.12;
       g.fillStyle(style.accent, 0.16);
       g.fillTriangle(
         torsoX - fighter.facing * 4,
@@ -1980,6 +2288,17 @@ export class TrainingScene extends Phaser.Scene {
       g.lineStyle(5 * scale, style.color, 0.82);
       g.lineBetween(torsoX, shoulderY + 4, torsoX - fighter.facing * 88 * scale, shoulderY - 20 * scale - flap);
       g.lineBetween(torsoX, shoulderY + 4, torsoX + fighter.facing * 88 * scale, shoulderY - 20 * scale + flap);
+      g.lineStyle(2 * scale, style.accent, liftAlpha);
+      for (let i = 0; i < 3; i += 1) {
+        const featherOffset = (i + 1) * 22 * scale;
+        g.lineBetween(torsoX - fighter.facing * featherOffset, shoulderY - 8 * scale - flap * 0.35, torsoX - fighter.facing * (featherOffset + 26 * scale), shoulderY + 18 * scale);
+        g.lineBetween(torsoX + fighter.facing * featherOffset, shoulderY - 8 * scale + flap * 0.35, torsoX + fighter.facing * (featherOffset + 26 * scale), shoulderY + 18 * scale);
+      }
+      if (fighter.y < groundY - 10 || fighter.state === "dash") {
+        g.lineStyle(3, 0xfff3bf, 0.18);
+        g.lineBetween(torsoX - fighter.facing * 18, hipY + 16, torsoX - fighter.facing * 72, hipY + 34);
+        g.lineBetween(torsoX + fighter.facing * 18, hipY + 16, torsoX + fighter.facing * 72, hipY + 34);
+      }
     }
   }
 
@@ -1997,25 +2316,42 @@ export class TrainingScene extends Phaser.Scene {
 
     if (fighter.key === "tRex") {
       const jawX = torsoX + fighter.facing * (28 + attackEase * 24) * scale;
+      const biteOpen = fighter.attackKind === "chomp" ? 1 + Math.sin(attackEase * Math.PI) * 0.35 : 1;
       g.lineStyle(6 * scale, style.accent, 0.94);
-      g.strokeTriangle(jawX, headY - 12 * scale, jawX + fighter.facing * 42 * scale, headY - 2 * scale, jawX, headY + 8 * scale);
+      g.strokeTriangle(jawX, headY - 13 * scale * biteOpen, jawX + fighter.facing * 44 * scale, headY - 2 * scale, jawX, headY + 9 * scale * biteOpen);
       g.lineStyle(2, 0xf7f3e8, 0.95);
       g.lineBetween(jawX + fighter.facing * 14 * scale, headY - 6 * scale, jawX + fighter.facing * 20 * scale, headY - 1 * scale);
       g.lineBetween(jawX + fighter.facing * 14 * scale, headY + 6 * scale, jawX + fighter.facing * 20 * scale, headY + 1 * scale);
+      g.fillStyle(0x202820, 0.9);
+      g.fillCircle(jawX + fighter.facing * 15 * scale, headY - 8 * scale, 2.4 * scale);
+      g.lineStyle(4 * scale, style.color, 0.92);
+      g.lineBetween(torsoX + fighter.facing * 4 * scale, shoulderY + 6, torsoX + fighter.facing * 24 * scale, shoulderY + 24 * scale);
       g.lineStyle(5 * scale, style.color, 0.9);
-      g.lineBetween(torsoX - fighter.facing * 10 * scale, shoulderY + 4, torsoX + fighter.facing * 20 * scale, shoulderY + 30 * scale);
+      g.lineBetween(torsoX - fighter.facing * 10 * scale, shoulderY + 4, torsoX + fighter.facing * 16 * scale, shoulderY + 30 * scale);
+      if (fighter.state === "attack" && fighter.attackKind === "chomp") {
+        g.lineStyle(3, 0xfff3bf, 0.36);
+        g.strokeEllipse(jawX + fighter.facing * 24 * scale, headY, 58 * scale * attackEase, 34 * scale * attackEase);
+      }
       return;
     }
 
     if (fighter.key === "lion") {
+      const manePulse = 1 + Math.sin(this.time.now / 110) * 0.045;
       g.fillStyle(0x6a3f20, 0.34);
-      g.fillCircle(torsoX - fighter.facing * 3 * scale, headY + 1, 30 * scale);
+      g.fillCircle(torsoX - fighter.facing * 3 * scale, headY + 1, 31 * scale * manePulse);
       g.lineStyle(4 * scale, style.accent, 0.95);
       g.strokeCircle(torsoX, headY, 22 * scale);
+      g.fillStyle(style.accent, 0.8);
+      g.fillTriangle(torsoX - fighter.facing * 12 * scale, headY - 19 * scale, torsoX - fighter.facing * 18 * scale, headY - 36 * scale, torsoX, headY - 23 * scale);
+      g.fillTriangle(torsoX + fighter.facing * 12 * scale, headY - 19 * scale, torsoX + fighter.facing * 18 * scale, headY - 36 * scale, torsoX, headY - 23 * scale);
       g.lineStyle(3, 0xe7d393, 0.9);
       for (let i = -1; i <= 1; i += 1) {
         const clawY = shoulderY + 22 + i * 7;
         g.lineBetween(torsoX + fighter.facing * 33 * scale, clawY, torsoX + fighter.facing * 52 * scale, clawY - 5);
+      }
+      if (fighter.state === "dash" || fighter.attackKind === "clawSwipe") {
+        g.lineStyle(3, style.accent, 0.26);
+        g.lineBetween(torsoX - fighter.facing * 8, shoulderY + 40, torsoX - fighter.facing * 54, shoulderY + 60);
       }
       return;
     }
@@ -2029,6 +2365,14 @@ export class TrainingScene extends Phaser.Scene {
       g.strokeEllipse(torsoX + fighter.facing * 24 * scale, headY + 9 * scale, 52 * scale, 32 * scale);
       g.fillStyle(0x202820, 0.9);
       g.fillCircle(torsoX + fighter.facing * 35 * scale, headY + 3 * scale, 2.5 * scale);
+      g.fillCircle(torsoX + fighter.facing * 42 * scale, headY + 13 * scale, 2.2 * scale);
+      g.lineStyle(3, 0xfff3bf, 0.88);
+      g.lineBetween(torsoX + fighter.facing * 42 * scale, headY + 18 * scale, torsoX + fighter.facing * 48 * scale, headY + 28 * scale);
+      g.lineBetween(torsoX + fighter.facing * 25 * scale, headY + 18 * scale, torsoX + fighter.facing * 22 * scale, headY + 28 * scale);
+      if (fighter.state === "block" || fighter.state === "blockstun") {
+        g.lineStyle(4, style.accent, 0.34);
+        g.strokeEllipse(torsoX, shoulderY + 16, 110 * scale, 78 * scale);
+      }
       return;
     }
 
@@ -2037,8 +2381,12 @@ export class TrainingScene extends Phaser.Scene {
       g.lineBetween(torsoX - fighter.facing * 18 * scale, headY - 21 * scale, torsoX - fighter.facing * 8 * scale, hipY + 2);
       g.lineBetween(torsoX + fighter.facing * 4 * scale, shoulderY - 28 * scale, torsoX + fighter.facing * 18 * scale, hipY + 2);
       g.lineStyle(3, 0xe7d393, 0.92);
-      g.lineBetween(torsoX + fighter.facing * 34 * scale, shoulderY + 22, torsoX + fighter.facing * 51 * scale, shoulderY + 14);
-      g.lineBetween(torsoX + fighter.facing * 34 * scale, shoulderY + 30, torsoX + fighter.facing * 52 * scale, shoulderY + 30);
+      const clawReach = fighter.attackKind === "clawSwipe" ? attackEase * 18 : 0;
+      g.lineBetween(torsoX + fighter.facing * 34 * scale, shoulderY + 22, torsoX + fighter.facing * (51 + clawReach) * scale, shoulderY + 14);
+      g.lineBetween(torsoX + fighter.facing * 34 * scale, shoulderY + 30, torsoX + fighter.facing * (52 + clawReach) * scale, shoulderY + 30);
+      g.fillStyle(style.accent, 0.72);
+      g.fillTriangle(torsoX - fighter.facing * 11 * scale, headY - 16 * scale, torsoX - fighter.facing * 17 * scale, headY - 25 * scale, torsoX - fighter.facing * 4 * scale, headY - 19 * scale);
+      g.fillTriangle(torsoX + fighter.facing * 11 * scale, headY - 16 * scale, torsoX + fighter.facing * 17 * scale, headY - 25 * scale, torsoX + fighter.facing * 4 * scale, headY - 19 * scale);
       return;
     }
 
@@ -2052,9 +2400,15 @@ export class TrainingScene extends Phaser.Scene {
         torsoX + fighter.facing * 17 * scale,
         headY + 8 * scale
       );
+      g.fillStyle(0x202820, 0.92);
+      g.fillCircle(torsoX + fighter.facing * 10 * scale, headY - 7 * scale, 2.2 * scale);
       g.lineStyle(3, 0xe7d393, 0.9);
       g.lineBetween(torsoX + fighter.facing * 24 * scale, hipY + 4, torsoX + fighter.facing * 38 * scale, hipY + 23);
       g.lineBetween(torsoX - fighter.facing * 24 * scale, hipY + 4, torsoX - fighter.facing * 38 * scale, hipY + 23);
+      if (fighter.y < groundY - 8) {
+        g.lineStyle(2, 0xfff3bf, 0.36);
+        g.strokeCircle(torsoX, hipY + 32, 24 * scale + Math.sin(this.time.now / 80) * 3);
+      }
     }
   }
 
@@ -2304,6 +2658,28 @@ export class TrainingScene extends Phaser.Scene {
       if (effect.kind === "ring") {
         this.graphics.lineStyle(3, effect.color, alpha);
         this.graphics.strokeCircle(effect.x, effect.y, effect.size + progress * 28);
+        continue;
+      }
+
+      if (effect.kind === "shockwave") {
+        this.graphics.lineStyle(4, effect.color, alpha * 0.58);
+        this.graphics.strokeEllipse(effect.x, effect.y, effect.size * (1.2 + progress * 2.4), effect.size * (0.24 + progress * 0.55));
+        this.graphics.lineStyle(2, 0xfff3bf, alpha * 0.2);
+        this.graphics.strokeEllipse(effect.x, effect.y, effect.size * (0.7 + progress * 1.7), effect.size * (0.16 + progress * 0.38));
+        continue;
+      }
+
+      if (effect.kind === "slash") {
+        const radius = effect.size * (0.75 + progress * 0.45);
+        const angle = effect.angle ?? 0;
+        this.graphics.lineStyle(6, effect.color, alpha * 0.72);
+        this.graphics.beginPath();
+        this.graphics.arc(effect.x, effect.y, radius, angle - 0.92, angle + 0.92, false);
+        this.graphics.strokePath();
+        this.graphics.lineStyle(2, 0xfff3bf, alpha * 0.64);
+        this.graphics.beginPath();
+        this.graphics.arc(effect.x, effect.y, radius + 8, angle - 0.72, angle + 0.72, false);
+        this.graphics.strokePath();
         continue;
       }
 

@@ -10,7 +10,9 @@ import { levelKeys, type LevelKey } from "./game/levels";
 import {
   backendModeLabel,
   broadcastRealtimeInputFrame,
+  broadcastRealtimeLobbySync,
   broadcastRealtimeMatchStart,
+  cancelMatchmakingTicket,
   createGameLobby,
   createMatchmakingTicket,
   fetchLobbyById,
@@ -103,6 +105,9 @@ let remoteInputFrames = new Map<number, RealtimeInputFrame>();
 let activeMatchStartId: string | null = null;
 let lastFightSettings: GameLaunchSettings | null = null;
 let currentMatchmakingTicketId: string | null = null;
+let matchmakingStartedAt = 0;
+let matchmakingPollTimer: number | null = null;
+let matchmakingPulseTimer: number | null = null;
 let dynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
 let lastNetplayStats: OnlineNetplayStats | null = null;
 const remotePacketAges: number[] = [];
@@ -350,6 +355,7 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
 }
 
 async function openOnlineLobby(settings: GameLaunchSettings) {
+  stopMatchmakingSearch(true);
   const lobbySettings: GameLaunchSettings = {
     ...settings,
     matchType: "online"
@@ -368,8 +374,10 @@ async function openOnlineLobby(settings: GameLaunchSettings) {
       currentMatchmakingTicketId = ticket?.id ?? null;
 
       if (ticket) {
+        startMatchmakingSearch(ticket.id, lobbySettings, avatar);
         const matchedLobby = await tryMatchmaking(ticket.id, avatar);
         if (matchedLobby) {
+          stopMatchmakingSearch(false);
           await enterLobby(matchedLobby, lobbySettings, avatar, "supabase");
           if (onlineStatus) {
             onlineStatus.textContent = `Matched into lobby ${matchedLobby.roomCode}. Ready up, then the host can start.`;
@@ -386,6 +394,10 @@ async function openOnlineLobby(settings: GameLaunchSettings) {
       matchmakingMode: lobbySettings.matchmakingMode,
       maxPlayers: lobbySettings.maxPlayers
     });
+
+    if (source === "local") {
+      stopMatchmakingSearch(false);
+    }
 
     await enterLobby(lobby, lobbySettings, avatar, source);
     if (onlineStatus) {
@@ -458,8 +470,19 @@ async function enterLobby(
     },
     onMatchStart: (match) => {
       void handleRealtimeMatchStart(match);
+    },
+    onLobbySync: () => {
+      void refreshCurrentLobby("Lobby updated.");
     }
   });
+
+  if (source === "supabase") {
+    void broadcastRealtimeLobbySync({
+      lobbyId: lobby.id,
+      reason: "join",
+      sentAt: Date.now()
+    });
+  }
 }
 
 async function handleStartOnlineFight() {
@@ -499,6 +522,7 @@ async function handleStartOnlineFight() {
     ...currentLobbySettings,
     matchType: "online"
   });
+  stopMatchmakingSearch(true);
 
   if (!currentLobby || currentLobbySource === "local") {
     await startOnlineFightFromMatchStart({
@@ -648,6 +672,7 @@ async function handleJoinLobby() {
     });
 
     await enterLobby(lobby, settings, avatar, "supabase");
+    stopMatchmakingSearch(true);
 
     if (onlineStatus) {
       onlineStatus.textContent = `Joined lobby ${lobby.roomCode}. Start the online fight from the lobby.`;
@@ -661,19 +686,19 @@ async function handleJoinLobby() {
 
 async function handleRefreshLobby() {
   if (currentMatchmakingTicketId) {
-    const matchedLobby = await tryMatchmaking(currentMatchmakingTicketId, createAvatar(readSettings()));
-    if (matchedLobby) {
-      await enterLobby(matchedLobby, {
+    await pollMatchmakingTicket(
+      {
         ...readSettings(),
         matchType: "online"
-      }, createAvatar(readSettings()), "supabase");
-      if (onlineStatus) {
-        onlineStatus.textContent = `Matched into lobby ${matchedLobby.roomCode}.`;
-      }
-      return;
-    }
+      },
+      createAvatar(readSettings())
+    );
   }
 
+  await refreshCurrentLobby(currentMatchmakingTicketId ? "Still searching." : "Lobby refreshed.");
+}
+
+async function refreshCurrentLobby(message?: string) {
   if (currentLobby) {
     const refreshedLobby = await fetchLobbyById(currentLobby.id);
     if (refreshedLobby) {
@@ -683,7 +708,10 @@ async function handleRefreshLobby() {
     }
   }
 
-  renderLobbyState();
+  renderLobbyState(currentMatchmakingTicketId ? "searching" : "online");
+  if (message && onlineStatus && currentLobby) {
+    onlineStatus.textContent = `${message} Lobby ${currentLobby.roomCode} has ${currentLobbyOnlineCount} player${currentLobbyOnlineCount === 1 ? "" : "s"}.`;
+  }
 }
 
 async function handleToggleLobbyReady() {
@@ -698,6 +726,13 @@ async function handleToggleLobbyReady() {
   if (refreshedLobby) {
     currentLobby = refreshedLobby;
     currentParticipants = mergeParticipants(refreshedLobby, currentParticipants);
+  }
+  if (currentLobby && currentLobbySource === "supabase") {
+    void broadcastRealtimeLobbySync({
+      lobbyId: currentLobby.id,
+      reason: "ready",
+      sentAt: Date.now()
+    });
   }
   renderLobbyState();
 }
@@ -800,6 +835,7 @@ function showAppScreen(screen: "menu" | "lobby" | "fight") {
 function returnToMenu() {
   game.scene.stop("training");
   void leaveCurrentOnlineLobby();
+  stopMatchmakingSearch(true);
   hasStarted = false;
   hideRoundOverlay();
   currentLobby = null;
@@ -809,12 +845,63 @@ function returnToMenu() {
   currentParticipants = [];
   remoteInputFrames = new Map();
   activeMatchStartId = null;
-  currentMatchmakingTicketId = null;
   remotePacketAges.length = 0;
   leaveRoom?.();
   leaveRoom = null;
   renderLobbyState();
   showAppScreen("menu");
+}
+
+function startMatchmakingSearch(ticketId: string, settings: GameLaunchSettings, avatar: PlayerAvatar) {
+  stopMatchmakingSearch(false);
+  currentMatchmakingTicketId = ticketId;
+  matchmakingStartedAt = Date.now();
+
+  matchmakingPulseTimer = window.setInterval(() => {
+    renderLobbyState("searching");
+  }, 1000);
+
+  matchmakingPollTimer = window.setInterval(() => {
+    void pollMatchmakingTicket(settings, avatar);
+  }, 2600);
+}
+
+function stopMatchmakingSearch(cancelTicket: boolean) {
+  if (matchmakingPollTimer !== null) {
+    window.clearInterval(matchmakingPollTimer);
+    matchmakingPollTimer = null;
+  }
+
+  if (matchmakingPulseTimer !== null) {
+    window.clearInterval(matchmakingPulseTimer);
+    matchmakingPulseTimer = null;
+  }
+
+  const ticketId = currentMatchmakingTicketId;
+  currentMatchmakingTicketId = null;
+  matchmakingStartedAt = 0;
+
+  if (cancelTicket) {
+    void cancelMatchmakingTicket(ticketId);
+  }
+}
+
+async function pollMatchmakingTicket(settings: GameLaunchSettings, avatar: PlayerAvatar) {
+  if (!currentMatchmakingTicketId || currentLobbySource !== "supabase") {
+    return;
+  }
+
+  const matchedLobby = await tryMatchmaking(currentMatchmakingTicketId, avatar);
+  if (!matchedLobby) {
+    renderLobbyState("searching");
+    return;
+  }
+
+  stopMatchmakingSearch(false);
+  await enterLobby(matchedLobby, settings, avatar, "supabase");
+  if (onlineStatus) {
+    onlineStatus.textContent = `Matched into lobby ${matchedLobby.roomCode}. Ready up, then the host can start.`;
+  }
 }
 
 async function handleRoundRematch() {
@@ -998,6 +1085,8 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
       lobbyStatus.textContent = "Create or join a room to fight another player online.";
     } else if (currentLobbySource === "local") {
       lobbyStatus.textContent = "Local lobby fallback is ready. Sign in to Supabase for remote players.";
+    } else if (currentMatchmakingTicketId && status === "searching") {
+      lobbyStatus.textContent = `Searching ${formatMatchmakingElapsed()} for a ${currentLobbySettings?.matchmakingMode ?? "casual"} opponent. Share ${currentLobby.roomCode} or keep matchmaking open.`;
     } else {
       lobbyStatus.textContent = `Lobby ${currentLobby.roomCode} is ${status}. Share the room code, then start when ready.`;
     }
@@ -1023,6 +1112,11 @@ function renderLobbyActions() {
     readyLobbyButton.textContent = localParticipant?.ready === false ? "Ready" : "Not Ready";
   }
 
+  if (refreshLobbyButton) {
+    refreshLobbyButton.disabled = !hasLobby || Boolean(activeMatchStartId);
+    refreshLobbyButton.textContent = currentMatchmakingTicketId ? `Search ${formatMatchmakingElapsed()}` : "Refresh Lobby";
+  }
+
   if (!startOnlineFightButton) {
     return;
   }
@@ -1036,6 +1130,8 @@ function renderLobbyActions() {
     startOnlineFightButton.textContent = "Start Local Netplay Test";
   } else if (!host) {
     startOnlineFightButton.textContent = "Waiting for Host";
+  } else if (currentMatchmakingTicketId && !hasOnlineOpponent) {
+    startOnlineFightButton.textContent = `Searching ${formatMatchmakingElapsed()}`;
   } else if (!hasOnlineOpponent) {
     startOnlineFightButton.textContent = "Waiting for Player";
   } else if (!allReady) {
@@ -1095,6 +1191,17 @@ function areLobbyPlayersReady() {
 
   const participants = currentParticipants.length > 0 ? currentParticipants : currentLobby.members;
   return participants.length >= 2 && participants.every((participant) => participant.ready);
+}
+
+function formatMatchmakingElapsed() {
+  if (!matchmakingStartedAt) {
+    return "0:00";
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - matchmakingStartedAt) / 1000));
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = String(elapsedSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
 }
 
 function getLocalOnlineSide(): "player" | "opponent" {
