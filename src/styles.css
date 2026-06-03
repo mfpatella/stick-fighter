@@ -520,9 +520,9 @@ h2 {
 
 .controls {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(124px, 0.62fr) minmax(260px, 1.25fr);
-  align-items: stretch;
-  gap: 10px;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(260px, 1fr);
+  align-items: end;
+  gap: 14px;
 }
 
 .control-cluster {
@@ -538,12 +538,72 @@ h2 {
   place-items: center;
 }
 
-.control-utility {
-  grid-template-columns: 1fr;
+.control-actions {
+  align-items: center;
+  justify-items: center;
+  gap: 8px;
 }
 
-.control-strikes {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.bonus-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.attack-diamond {
+  --diamond-size: 190px;
+  --diamond-button: 68px;
+  position: relative;
+  width: var(--diamond-size);
+  height: var(--diamond-size);
+}
+
+.diamond-button {
+  position: absolute;
+  display: grid;
+  width: var(--diamond-button);
+  height: var(--diamond-button);
+  min-height: 0;
+  place-items: center;
+  border-radius: 50%;
+  padding: 0;
+}
+
+.diamond-top {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.diamond-left {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.diamond-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.diamond-right {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.diamond-bottom {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.touch-button-bonus {
+  min-height: 34px;
+  padding: 5px 7px;
+  font-size: 0.7rem;
 }
 
 .touch-button,
@@ -699,6 +759,64 @@ h2 {
 .menu-actions button:active {
   transform: translateY(1px);
   box-shadow: 0 1px 0 rgb(32 40 32 / 16%);
+}
+
+.diamond-top:hover,
+.diamond-top:focus-visible,
+.diamond-top.is-pressed {
+  transform: translate(-50%, -1px);
+}
+
+.diamond-left:hover,
+.diamond-left:focus-visible,
+.diamond-left.is-pressed {
+  transform: translateY(calc(-50% - 1px));
+}
+
+.diamond-center:hover,
+.diamond-center:focus-visible,
+.diamond-center.is-pressed {
+  transform: translate(-50%, calc(-50% - 1px));
+}
+
+.diamond-right:hover,
+.diamond-right:focus-visible,
+.diamond-right.is-pressed {
+  transform: translateY(calc(-50% - 1px));
+}
+
+.diamond-bottom:hover,
+.diamond-bottom:focus-visible,
+.diamond-bottom.is-pressed {
+  transform: translate(-50%, -1px);
+}
+
+.diamond-top:active,
+.diamond-left:active,
+.diamond-center:active,
+.diamond-right:active,
+.diamond-bottom:active {
+  box-shadow: 0 1px 0 rgb(32 40 32 / 16%);
+}
+
+.diamond-top:active {
+  transform: translate(-50%, 1px);
+}
+
+.diamond-left:active {
+  transform: translateY(calc(-50% + 1px));
+}
+
+.diamond-center:active {
+  transform: translate(-50%, calc(-50% + 1px));
+}
+
+.diamond-right:active {
+  transform: translateY(calc(-50% + 1px));
+}
+
+.diamond-bottom:active {
+  transform: translate(-50%, 1px);
 }
 
 .training-tools button:focus-visible,
@@ -1208,5 +1326,64 @@ h2 {
     min-height: 36px;
     padding: 4px 5px;
     font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 640px), (orientation: landscape) and (max-height: 560px) {
+  .controls,
+  .shell:has(#fight-screen:not([hidden])) .controls {
+    grid-template-columns: 82px 158px;
+    justify-content: space-between;
+    align-items: end;
+    gap: 0;
+  }
+
+  .control-actions,
+  .shell:has(#fight-screen:not([hidden])) .control-actions {
+    justify-self: end;
+  }
+
+  .attack-diamond,
+  .shell:has(#fight-screen:not([hidden])) .attack-diamond {
+    --diamond-size: 152px;
+    --diamond-button: 52px;
+  }
+
+  .bonus-actions,
+  .shell:has(#fight-screen:not([hidden])) .bonus-actions {
+    width: 158px;
+    gap: 5px;
+    justify-content: flex-end;
+  }
+
+  .touch-button-bonus,
+  .shell:has(#fight-screen:not([hidden])) .touch-button-bonus {
+    min-height: 30px;
+    padding: 4px 6px;
+    font-size: 0.58rem;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .touch-button.diamond-button {
+    min-height: 0;
+    padding: 0;
+    font-size: 0.64rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .controls,
+  .shell:has(#fight-screen:not([hidden])) .controls {
+    grid-template-columns: 70px 144px;
+  }
+
+  .attack-diamond,
+  .shell:has(#fight-screen:not([hidden])) .attack-diamond {
+    --diamond-size: 140px;
+    --diamond-button: 48px;
+  }
+
+  .bonus-actions,
+  .shell:has(#fight-screen:not([hidden])) .bonus-actions {
+    width: 144px;
   }
 }

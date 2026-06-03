@@ -274,21 +274,21 @@
               <div class="joystick-thumb"></div>
             </div>
           </div>
-          <div class="control-cluster control-utility" aria-label="Defense and pickup">
-            <button type="button" class="touch-button touch-button-guard" data-touch-action="block">Block</button>
-            <button type="button" class="touch-button" data-touch-action="reattach">Attach</button>
-            <button type="button" class="touch-button" data-touch-action="dash">Dodge</button>
-          </div>
-          <div class="control-cluster control-strikes" aria-label="Strikes">
-            <button type="button" class="touch-button" data-touch-action="light">Light</button>
-            <button type="button" class="touch-button" data-touch-action="heavy">Heavy</button>
-            <button type="button" class="touch-button" data-touch-action="kick">Kick</button>
-            <button type="button" class="touch-button" data-touch-action="powerKick">Spin</button>
-            <button type="button" class="touch-button" data-touch-action="low">Low</button>
-            <button type="button" class="touch-button" data-touch-action="high">High</button>
-            <button id="control-chomp" type="button" class="touch-button ability-control" data-touch-action="chomp" hidden>Chomp</button>
-            <button id="control-tail" type="button" class="touch-button ability-control" data-touch-action="tail" hidden>Tail</button>
-            <button id="control-claws" type="button" class="touch-button ability-control" data-touch-action="claw" hidden>Claws</button>
+          <div class="control-cluster control-actions" aria-label="Combat actions">
+            <div class="bonus-actions" aria-label="Context actions">
+              <button type="button" class="touch-button touch-button-bonus" data-touch-action="reattach">Attach</button>
+              <button type="button" class="touch-button touch-button-bonus" data-touch-action="dash">Dodge</button>
+              <button id="control-chomp" type="button" class="touch-button touch-button-bonus ability-control" data-touch-action="chomp" hidden>Chomp</button>
+              <button id="control-tail" type="button" class="touch-button touch-button-bonus ability-control" data-touch-action="tail" hidden>Tail</button>
+              <button id="control-claws" type="button" class="touch-button touch-button-bonus ability-control" data-touch-action="claw" hidden>Claws</button>
+            </div>
+            <div class="attack-diamond" aria-label="Attack diamond">
+              <button type="button" class="touch-button diamond-button diamond-top" data-touch-action="heavy">Heavy</button>
+              <button type="button" class="touch-button diamond-button diamond-left" data-touch-action="light">Light</button>
+              <button type="button" class="touch-button diamond-button diamond-center touch-button-guard" data-touch-action="block">Block</button>
+              <button type="button" class="touch-button diamond-button diamond-right" data-touch-action="kick">Kick</button>
+              <button type="button" class="touch-button diamond-button diamond-bottom" data-touch-action="powerKick">Spin</button>
+            </div>
           </div>
         </section>
         <section class="training-tools" aria-label="Local testing tools" hidden>
