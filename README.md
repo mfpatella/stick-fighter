@@ -26,6 +26,19 @@ Cloud services are optional until we are ready:
   and match history.
 - Netlify can build the app with `npm run build` and publish `dist`.
 
+## Phone Install
+
+The app is configured as an installable PWA with a manifest, Android maskable
+icons, iOS touch icon metadata, and a service worker for cached app shell
+loading.
+
+- Android Chrome/Edge: open the deployed HTTPS site and use the in-app
+  "Install" prompt when it appears.
+- iPhone/iPad Safari: open the deployed HTTPS site, tap Share, then Add to Home
+  Screen.
+- Localhost is useful for development, but real phone install testing should use
+  the Netlify HTTPS URL.
+
 ## Planned Stack
 
 - Phaser 3, TypeScript, and Vite for the game client

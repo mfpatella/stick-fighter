@@ -114,6 +114,73 @@ h2 {
   margin-bottom: 14px;
 }
 
+.install-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  border: 1px solid rgb(32 40 32 / 22%);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgb(255 250 237 / 86%);
+  box-shadow: 0 8px 18px rgb(32 40 32 / 12%);
+}
+
+.install-card-icon {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(32 40 32 / 18%);
+}
+
+.install-card-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.install-card-copy strong {
+  font-size: 0.92rem;
+  line-height: 1.05;
+}
+
+.install-card-copy span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.install-action,
+.install-dismiss {
+  border: 1px solid #a8b4aa;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.install-action {
+  min-height: 38px;
+  padding: 7px 10px;
+}
+
+.install-dismiss {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .install-card {
+    display: none;
+  }
+}
+
 .menu-overlay,
 .lobby-screen,
 .fight-screen {
@@ -723,6 +790,10 @@ h2 {
 .training-tools button:hover,
 .training-tools button:focus-visible,
 .training-tools button.is-pressed,
+.install-action:hover,
+.install-action:focus-visible,
+.install-dismiss:hover,
+.install-dismiss:focus-visible,
 .touch-button:hover,
 .touch-button:focus-visible,
 .touch-button.is-pressed,
@@ -748,6 +819,8 @@ h2 {
 
 .training-tools button:active,
 .training-tools button.is-pressed,
+.install-action:active,
+.install-dismiss:active,
 .touch-button:active,
 .touch-button.is-pressed,
 .lobby-actions button:active,
@@ -820,6 +893,8 @@ h2 {
 }
 
 .training-tools button:focus-visible,
+.install-action:focus-visible,
+.install-dismiss:focus-visible,
 .touch-button:focus-visible,
 .lobby-actions button:focus-visible,
 .auth-actions button:focus-visible,
@@ -888,6 +963,29 @@ h2 {
   .lobby-screen,
   .fight-screen {
     padding: 14px;
+  }
+
+  .install-card {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 8px;
+  }
+
+  .install-card-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .install-action {
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 0.78rem;
+  }
+
+  .install-dismiss {
+    width: 30px;
+    height: 30px;
   }
 
   .fight-screen {
@@ -1160,6 +1258,10 @@ h2 {
   }
 
   .shell:has(#fight-screen:not([hidden])) .topbar {
+    display: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .install-card {
     display: none;
   }
 

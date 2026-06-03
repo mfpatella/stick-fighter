@@ -29,6 +29,7 @@ import {
   type RealtimeParticipant
 } from "./services/backend";
 import { defaultNetplayTuning, type GameLobby, type PlayerAvatar } from "./game/multiplayerTypes";
+import { registerPwaServiceWorker } from "./pwaRegistration";
 import "./styles.css";
 
 const modeElement = document.querySelector<HTMLDivElement>("#backend-mode");
@@ -66,6 +67,7 @@ const avatarPreviewMeta = document.querySelector<HTMLElement>("#avatar-preview-m
 const statsSummary = document.querySelector<HTMLElement>("#stats-summary");
 const controls = document.querySelector<HTMLElement>(".controls");
 const trainingTools = document.querySelector<HTMLElement>(".training-tools");
+const installRoot = document.querySelector<HTMLElement>("#install-root");
 
 let hasStarted = false;
 let authSnapshot: AuthSnapshot = {
@@ -84,6 +86,14 @@ let activeMatchStartId: string | null = null;
 if (modeElement) {
   modeElement.textContent = backendModeLabel;
 }
+
+if (installRoot) {
+  void import("./ui/mountPwaInstallPrompt").then(({ mountPwaInstallPrompt }) => {
+    mountPwaInstallPrompt(installRoot);
+  });
+}
+
+registerPwaServiceWorker();
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
