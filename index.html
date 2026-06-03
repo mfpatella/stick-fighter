@@ -266,6 +266,7 @@
           </article>
         </div>
         <div class="lobby-actions">
+          <button id="ready-lobby" type="button">Ready</button>
           <button id="start-online-fight" class="primary-action" type="button">Start Online Fight</button>
           <button id="refresh-lobby" type="button">Refresh Lobby</button>
         </div>
@@ -282,6 +283,18 @@
           </div>
         </div>
         <div id="game" aria-label="Fight arena"></div>
+        <section id="round-overlay" class="round-overlay" aria-live="polite" hidden>
+          <div class="round-panel">
+            <p id="round-kicker" class="eyebrow">Round complete</p>
+            <h2 id="round-title">Victory</h2>
+            <p id="round-detail">Stats saved.</p>
+            <div class="round-actions">
+              <button id="round-rematch" class="primary-action" type="button">Fight Again</button>
+              <button id="round-lobby" type="button">Back to Lobby</button>
+              <button id="round-menu" type="button">Menu</button>
+            </div>
+          </div>
+        </section>
         <section class="controls" aria-label="Touch controls" hidden>
           <div class="control-cluster control-move" aria-label="Movement">
             <div class="joystick" data-joystick aria-label="Move and jump" role="application">

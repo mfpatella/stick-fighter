@@ -13,16 +13,22 @@ import {
   broadcastRealtimeMatchStart,
   createGameLobby,
   createMatchmakingTicket,
+  fetchLobbyById,
   getAuthSnapshot,
   joinRealtimeRoom,
   joinLobbyByRoomCode,
+  leaveLobby,
   loadPlayerStats,
   loadLocalProfile,
+  markLobbyInMatch,
+  markLobbyOpen,
   onAuthChanged,
   savePlayerProfile,
+  setLobbyMemberReady,
   signInWithEmail,
   signOutOnline,
   signUpWithEmail,
+  tryMatchmaking,
   type AuthSnapshot,
   type RealtimeInputFrame,
   type RealtimeMatchStart,
@@ -43,6 +49,7 @@ const beginButton = document.querySelector<HTMLButtonElement>("#begin-game");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset-setup");
 const leaveLobbyButton = document.querySelector<HTMLButtonElement>("#leave-lobby");
 const refreshLobbyButton = document.querySelector<HTMLButtonElement>("#refresh-lobby");
+const readyLobbyButton = document.querySelector<HTMLButtonElement>("#ready-lobby");
 const startOnlineFightButton = document.querySelector<HTMLButtonElement>("#start-online-fight");
 const exitFightButton = document.querySelector<HTMLButtonElement>("#exit-fight");
 const lobbyRoomCode = document.querySelector<HTMLElement>("#lobby-room-code");
@@ -53,6 +60,13 @@ const lobbyMatchSummary = document.querySelector<HTMLElement>("#lobby-match-summ
 const fightModeLabel = document.querySelector<HTMLElement>("#fight-mode-label");
 const fightTitle = document.querySelector<HTMLElement>("#fight-title");
 const netplayStatus = document.querySelector<HTMLElement>("#netplay-status");
+const roundOverlay = document.querySelector<HTMLElement>("#round-overlay");
+const roundKicker = document.querySelector<HTMLElement>("#round-kicker");
+const roundTitle = document.querySelector<HTMLElement>("#round-title");
+const roundDetail = document.querySelector<HTMLElement>("#round-detail");
+const roundRematchButton = document.querySelector<HTMLButtonElement>("#round-rematch");
+const roundLobbyButton = document.querySelector<HTMLButtonElement>("#round-lobby");
+const roundMenuButton = document.querySelector<HTMLButtonElement>("#round-menu");
 const guardHealthOutput = document.querySelector<HTMLOutputElement>("#guard-health-value");
 const onlineStatus = document.querySelector<HTMLElement>("#online-status");
 const authStatus = document.querySelector<HTMLElement>("#auth-status");
@@ -82,6 +96,20 @@ let currentLobbyOnlineCount = 0;
 let currentParticipants: RealtimeParticipant[] = [];
 let remoteInputFrames = new Map<number, RealtimeInputFrame>();
 let activeMatchStartId: string | null = null;
+let lastFightSettings: GameLaunchSettings | null = null;
+let currentMatchmakingTicketId: string | null = null;
+let dynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
+let lastNetplayStats: OnlineNetplayStats | null = null;
+const remotePacketAges: number[] = [];
+
+type RoundOverDetail = {
+  playerWon: boolean;
+  localPlayerWon: boolean;
+  matchType: GameLaunchSettings["matchType"];
+  playerName: string;
+  opponentName: string;
+  durationSeconds: number;
+};
 
 if (modeElement) {
   modeElement.textContent = backendModeLabel;
@@ -191,7 +219,11 @@ startOnlineFightButton?.addEventListener("click", () => {
 });
 
 refreshLobbyButton?.addEventListener("click", () => {
-  renderLobbyState();
+  void handleRefreshLobby();
+});
+
+readyLobbyButton?.addEventListener("click", () => {
+  void handleToggleLobbyReady();
 });
 
 leaveLobbyButton?.addEventListener("click", () => {
@@ -218,6 +250,23 @@ exitFightButton?.addEventListener("click", () => {
   returnToMenu();
 });
 
+roundRematchButton?.addEventListener("click", () => {
+  void handleRoundRematch();
+});
+
+roundLobbyButton?.addEventListener("click", () => {
+  void returnToLobbyAfterFight();
+});
+
+roundMenuButton?.addEventListener("click", () => {
+  returnToMenu();
+});
+
+window.addEventListener("sff:round-over", (event) => {
+  const detail = (event as CustomEvent<RoundOverDetail>).detail;
+  showRoundOverlay(detail);
+});
+
 getGuardHealthInput()?.addEventListener("input", updateGuardHealthOutput);
 updateGuardHealthOutput();
 showAppScreen("menu");
@@ -233,6 +282,8 @@ async function handleSetupSubmit(settings: GameLaunchSettings) {
 
 async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInputBridge | null = null) {
   hasStarted = true;
+  lastFightSettings = settings;
+  hideRoundOverlay();
   if (settings.matchType !== "online") {
     currentLobby = null;
     currentLobbySettings = null;
@@ -278,6 +329,27 @@ async function openOnlineLobby(settings: GameLaunchSettings) {
 
   try {
     await savePlayerProfile(avatar);
+
+    if (lobbySettings.matchmakingMode !== "private") {
+      const ticket = await createMatchmakingTicket({
+        fighterKey: lobbySettings.playerFighter,
+        levelKey: lobbySettings.level,
+        mode: lobbySettings.matchmakingMode
+      });
+      currentMatchmakingTicketId = ticket?.id ?? null;
+
+      if (ticket) {
+        const matchedLobby = await tryMatchmaking(ticket.id, avatar);
+        if (matchedLobby) {
+          await enterLobby(matchedLobby, lobbySettings, avatar, "supabase");
+          if (onlineStatus) {
+            onlineStatus.textContent = `Matched into lobby ${matchedLobby.roomCode}. Ready up, then the host can start.`;
+          }
+          return;
+        }
+      }
+    }
+
     const { lobby, source } = await createGameLobby({
       avatar,
       fighterKey: lobbySettings.playerFighter,
@@ -285,14 +357,6 @@ async function openOnlineLobby(settings: GameLaunchSettings) {
       matchmakingMode: lobbySettings.matchmakingMode,
       maxPlayers: lobbySettings.maxPlayers
     });
-
-    if (lobbySettings.matchmakingMode !== "private") {
-      await createMatchmakingTicket({
-        fighterKey: lobbySettings.playerFighter,
-        levelKey: lobbySettings.level,
-        mode: lobbySettings.matchmakingMode
-      });
-    }
 
     await enterLobby(lobby, lobbySettings, avatar, source);
     if (onlineStatus) {
@@ -322,9 +386,14 @@ async function enterLobby(
   currentParticipants = lobby.members.map((member) => ({
     profileId: member.profileId,
     displayName: member.displayName,
-    fighterKey: member.fighterKey
+    fighterKey: member.fighterKey,
+    ready: member.ready,
+    slot: member.slot
   }));
   remoteInputFrames = new Map();
+  remotePacketAges.length = 0;
+  dynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
+  lastNetplayStats = null;
   activeMatchStartId = null;
   showAppScreen("lobby");
   renderLobbyState();
@@ -351,6 +420,11 @@ async function enterLobby(
     },
     onInputFrame: (frame) => {
       remoteInputFrames.set(frame.frame, frame);
+      const age = Math.max(0, (frame.receivedAt ?? Date.now()) - frame.sentAt);
+      remotePacketAges.push(age);
+      if (remotePacketAges.length > 60) {
+        remotePacketAges.shift();
+      }
       trimRemoteInputFrames();
     },
     onMatchStart: (match) => {
@@ -376,6 +450,22 @@ async function handleStartOnlineFight() {
     return;
   }
 
+  if (currentLobby && currentLobbySource === "supabase" && !isLobbyHost()) {
+    if (lobbyStatus) {
+      lobbyStatus.textContent = "Waiting for the host to start this lobby.";
+    }
+    renderLobbyActions();
+    return;
+  }
+
+  if (currentLobby && currentLobbySource === "supabase" && !areLobbyPlayersReady()) {
+    if (lobbyStatus) {
+      lobbyStatus.textContent = "All online players need to ready up before the fight starts.";
+    }
+    renderLobbyActions();
+    return;
+  }
+
   const onlineSettings = resolveOnlineFightSettings({
     ...currentLobbySettings,
     matchType: "online"
@@ -387,6 +477,7 @@ async function handleStartOnlineFight() {
       lobbyId: currentLobby?.id ?? "local-lobby",
       hostProfileId: getLocalProfileId(),
       startAt: Date.now(),
+      inputDelayFrames: dynamicInputDelayFrames,
       settings: onlineSettings
     });
     return;
@@ -396,10 +487,12 @@ async function handleStartOnlineFight() {
     matchId: crypto.randomUUID(),
     lobbyId: currentLobby.id,
     hostProfileId: getLocalProfileId(),
-    startAt: Date.now() + 900,
+    startAt: Date.now() + calculateMatchStartLeadMs(),
+    inputDelayFrames: dynamicInputDelayFrames,
     settings: onlineSettings
   };
 
+  await markLobbyInMatch(currentLobby.id);
   await broadcastRealtimeMatchStart(matchStart);
   renderLobbyActions();
   await startOnlineFightFromMatchStart(matchStart);
@@ -435,7 +528,10 @@ async function startOnlineFightFromMatchStart(match: RealtimeMatchStart) {
   }
 
   remoteInputFrames = new Map();
+  dynamicInputDelayFrames = match.inputDelayFrames;
   const bridge = createOnlineInputBridge(getLocalOnlineSide());
+  bridge.matchId = match.matchId;
+  bridge.opponentProfileId = getRemoteProfileId();
   await startFight(match.settings, bridge);
 }
 
@@ -530,6 +626,49 @@ async function handleJoinLobby() {
       onlineStatus.textContent = formatError(error);
     }
   }
+}
+
+async function handleRefreshLobby() {
+  if (currentMatchmakingTicketId) {
+    const matchedLobby = await tryMatchmaking(currentMatchmakingTicketId, createAvatar(readSettings()));
+    if (matchedLobby) {
+      await enterLobby(matchedLobby, {
+        ...readSettings(),
+        matchType: "online"
+      }, createAvatar(readSettings()), "supabase");
+      if (onlineStatus) {
+        onlineStatus.textContent = `Matched into lobby ${matchedLobby.roomCode}.`;
+      }
+      return;
+    }
+  }
+
+  if (currentLobby) {
+    const refreshedLobby = await fetchLobbyById(currentLobby.id);
+    if (refreshedLobby) {
+      currentLobby = refreshedLobby;
+      currentLobbyOnlineCount = Math.max(currentLobbyOnlineCount, refreshedLobby.members.length);
+      currentParticipants = mergeParticipants(refreshedLobby, currentParticipants);
+    }
+  }
+
+  renderLobbyState();
+}
+
+async function handleToggleLobbyReady() {
+  if (!currentLobby) {
+    return;
+  }
+
+  const localParticipant = getLocalLobbyParticipant();
+  const nextReady = !(localParticipant?.ready ?? true);
+  await setLobbyMemberReady(currentLobby.id, nextReady);
+  const refreshedLobby = await fetchLobbyById(currentLobby.id);
+  if (refreshedLobby) {
+    currentLobby = refreshedLobby;
+    currentParticipants = mergeParticipants(refreshedLobby, currentParticipants);
+  }
+  renderLobbyState();
 }
 
 function renderAuthState() {
@@ -628,7 +767,9 @@ function showAppScreen(screen: "menu" | "lobby" | "fight") {
 
 function returnToMenu() {
   game.scene.stop("training");
+  void leaveCurrentOnlineLobby();
   hasStarted = false;
+  hideRoundOverlay();
   currentLobby = null;
   currentLobbySettings = null;
   currentLobbySource = null;
@@ -636,10 +777,112 @@ function returnToMenu() {
   currentParticipants = [];
   remoteInputFrames = new Map();
   activeMatchStartId = null;
+  currentMatchmakingTicketId = null;
+  remotePacketAges.length = 0;
   leaveRoom?.();
   leaveRoom = null;
   renderLobbyState();
   showAppScreen("menu");
+}
+
+async function handleRoundRematch() {
+  if (!lastFightSettings) {
+    returnToMenu();
+    return;
+  }
+
+  if (lastFightSettings.matchType === "online") {
+    await returnToLobbyAfterFight();
+    return;
+  }
+
+  await startFight(lastFightSettings);
+}
+
+async function returnToLobbyAfterFight() {
+  if (!currentLobby || !currentLobbySettings || currentLobbySource !== "supabase") {
+    returnToMenu();
+    return;
+  }
+
+  game.scene.stop("training");
+  hideRoundOverlay();
+  activeMatchStartId = null;
+  remoteInputFrames = new Map();
+  remotePacketAges.length = 0;
+  lastNetplayStats = null;
+  hasStarted = false;
+
+  try {
+    await markLobbyOpen(currentLobby.id);
+    await setLobbyMemberReady(currentLobby.id, false);
+    const refreshedLobby = await fetchLobbyById(currentLobby.id);
+    if (refreshedLobby) {
+      currentLobby = refreshedLobby;
+      currentParticipants = mergeParticipants(refreshedLobby, currentParticipants);
+      currentLobbyOnlineCount = Math.max(1, currentParticipants.length);
+    }
+  } catch (error) {
+    console.warn("Lobby return skipped", error);
+  }
+
+  renderLobbyState("rematch");
+  showAppScreen("lobby");
+}
+
+function showRoundOverlay(detail: RoundOverDetail) {
+  if (!roundOverlay) {
+    return;
+  }
+
+  const localName = detail.localPlayerWon ? detail.playerName : detail.opponentName;
+  const winnerName = detail.playerWon ? detail.playerName : detail.opponentName;
+  const title = detail.matchType === "online" ? (detail.localPlayerWon ? "Victory" : "Defeat") : detail.playerWon ? "Victory" : "Defeat";
+
+  if (roundKicker) {
+    roundKicker.textContent = detail.matchType === "online" ? "Online round complete" : "Round complete";
+  }
+
+  if (roundTitle) {
+    roundTitle.textContent = title;
+  }
+
+  if (roundDetail) {
+    roundDetail.textContent =
+      detail.matchType === "online"
+        ? `${winnerName} won in ${detail.durationSeconds}s. ${localName}'s result was saved.`
+        : `${winnerName} won in ${detail.durationSeconds}s. Stats saved locally and online if signed in.`;
+  }
+
+  if (roundRematchButton) {
+    roundRematchButton.textContent = detail.matchType === "online" ? "Back to Lobby" : "Fight Again";
+  }
+
+  if (roundLobbyButton) {
+    roundLobbyButton.hidden = detail.matchType !== "online";
+  }
+
+  roundOverlay.hidden = false;
+}
+
+function hideRoundOverlay() {
+  if (roundOverlay) {
+    roundOverlay.hidden = true;
+  }
+}
+
+async function leaveCurrentOnlineLobby() {
+  const lobby = currentLobby;
+  const source = currentLobbySource;
+  if (!lobby || source !== "supabase") {
+    return;
+  }
+
+  try {
+    await leaveLobby(lobby.id);
+  } catch (error) {
+    console.warn("Lobby leave skipped", error);
+  }
 }
 
 function renderFightHeading(settings: GameLaunchSettings) {
@@ -684,13 +927,21 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
         : currentLobby?.members.map((member) => ({
             profileId: member.profileId,
             displayName: member.displayName,
-            fighterKey: member.fighterKey
+            fighterKey: member.fighterKey,
+            ready: member.ready,
+            slot: member.slot
           })) ?? [];
 
     lobbyPlayerList.textContent =
       visibleParticipants.length > 0
         ? visibleParticipants
-            .map((participant) => `${participant.displayName} as ${baseFighters[participant.fighterKey].name}`)
+            .sort((a, b) => a.slot - b.slot)
+            .map(
+              (participant) =>
+                `P${participant.slot} ${participant.displayName} as ${baseFighters[participant.fighterKey].name} - ${
+                  participant.ready ? "ready" : "not ready"
+                }`
+            )
             .join(", ")
         : "Waiting for players...";
   }
@@ -714,21 +965,39 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
 }
 
 function renderLobbyActions() {
-  if (!startOnlineFightButton) {
+  if (!startOnlineFightButton && !readyLobbyButton) {
     return;
   }
 
   const hasLobby = Boolean(currentLobby);
   const isLocalFallback = currentLobbySource === "local";
   const hasOnlineOpponent = currentLobbyOnlineCount >= 2;
-  startOnlineFightButton.disabled = !hasLobby || (!isLocalFallback && !hasOnlineOpponent) || Boolean(activeMatchStartId);
+  const allReady = areLobbyPlayersReady();
+  const host = isLobbyHost();
+
+  if (readyLobbyButton) {
+    const localParticipant = getLocalLobbyParticipant();
+    readyLobbyButton.disabled = !hasLobby || Boolean(activeMatchStartId);
+    readyLobbyButton.textContent = localParticipant?.ready === false ? "Ready" : "Not Ready";
+  }
+
+  if (!startOnlineFightButton) {
+    return;
+  }
+
+  startOnlineFightButton.disabled =
+    !hasLobby || (!isLocalFallback && (!hasOnlineOpponent || !allReady || !host)) || Boolean(activeMatchStartId);
 
   if (activeMatchStartId) {
     startOnlineFightButton.textContent = "Starting...";
   } else if (isLocalFallback) {
     startOnlineFightButton.textContent = "Start Local Netplay Test";
+  } else if (!host) {
+    startOnlineFightButton.textContent = "Waiting for Host";
   } else if (!hasOnlineOpponent) {
     startOnlineFightButton.textContent = "Waiting for Player";
+  } else if (!allReady) {
+    startOnlineFightButton.textContent = "Waiting for Ready";
   } else {
     startOnlineFightButton.textContent = "Start Synced Fight";
   }
@@ -741,12 +1010,19 @@ function mergeParticipants(lobby: GameLobby, presenceParticipants: RealtimeParti
     participants.set(member.profileId, {
       profileId: member.profileId,
       displayName: member.displayName,
-      fighterKey: member.fighterKey
+      fighterKey: member.fighterKey,
+      ready: member.ready,
+      slot: member.slot
     });
   });
 
   presenceParticipants.forEach((participant) => {
-    participants.set(participant.profileId, participant);
+    const stored = participants.get(participant.profileId);
+    participants.set(participant.profileId, {
+      ...participant,
+      ready: stored?.ready ?? participant.ready,
+      slot: stored?.slot ?? participant.slot
+    });
   });
 
   return [...participants.values()];
@@ -754,6 +1030,29 @@ function mergeParticipants(lobby: GameLobby, presenceParticipants: RealtimeParti
 
 function getLocalProfileId() {
   return authSnapshot.user?.id ?? "local-player";
+}
+
+function getLocalLobbyParticipant() {
+  const localProfileId = getLocalProfileId();
+  return currentParticipants.find((participant) => participant.profileId === localProfileId);
+}
+
+function getRemoteProfileId() {
+  const localProfileId = getLocalProfileId();
+  return currentParticipants.find((participant) => participant.profileId !== localProfileId)?.profileId ?? null;
+}
+
+function isLobbyHost() {
+  return !currentLobby || currentLobby.hostId === getLocalProfileId();
+}
+
+function areLobbyPlayersReady() {
+  if (!currentLobby) {
+    return false;
+  }
+
+  const participants = currentParticipants.length > 0 ? currentParticipants : currentLobby.members;
+  return participants.length >= 2 && participants.every((participant) => participant.ready);
 }
 
 function getLocalOnlineSide(): "player" | "opponent" {
@@ -782,8 +1081,12 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
   const profileId = getLocalProfileId();
 
   return {
+    matchId: activeMatchStartId ?? "local-match",
+    opponentProfileId: getRemoteProfileId(),
     localSide,
-    inputDelayFrames: defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames,
+    get inputDelayFrames() {
+      return dynamicInputDelayFrames;
+    },
     maxRollbackFrames: defaultNetplayTuning.maxRollbackFrames,
     snapshotHistoryFrames: defaultNetplayTuning.snapshotHistoryFrames,
     sendInput: (input, frame) => {
@@ -817,13 +1120,54 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
     return;
   }
 
+  adaptInputDelay(stats);
   const newestRemoteFrame = Math.max(0, ...remoteInputFrames.keys());
   const latestRemote = newestRemoteFrame ? remoteInputFrames.get(newestRemoteFrame) : null;
   const packetAge = latestRemote ? Math.max(0, Date.now() - latestRemote.sentAt) : null;
+  const medianAge = getMedianPacketAge();
   const sideLabel = stats.localSide === "player" ? "P1" : "P2";
   const packetLabel = packetAge === null ? "no remote" : `${packetAge}ms`;
+  const medianLabel = medianAge === null ? "n/a" : `${medianAge}ms med`;
 
-  netplayStatus.textContent = `${sideLabel} delay ${stats.inputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel}`;
+  netplayStatus.textContent = `${sideLabel} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${medianLabel}`;
+}
+
+function adaptInputDelay(stats: OnlineNetplayStats) {
+  const previousStats = lastNetplayStats;
+  lastNetplayStats = stats;
+
+  if (!previousStats) {
+    return;
+  }
+
+  const newPredictions = stats.predictedFrames - previousStats.predictedFrames;
+  const newRollbacks = stats.rollbackCount - previousStats.rollbackCount;
+  const medianAge = getMedianPacketAge();
+  const highPacketAge = medianAge !== null && medianAge > 120;
+  const stablePacketAge = medianAge !== null && medianAge < 65;
+
+  if ((newPredictions > 8 || newRollbacks > 0 || highPacketAge) && dynamicInputDelayFrames < 8) {
+    dynamicInputDelayFrames += 1;
+    return;
+  }
+
+  if (newPredictions === 0 && newRollbacks === 0 && stablePacketAge && dynamicInputDelayFrames > 3) {
+    dynamicInputDelayFrames -= 1;
+  }
+}
+
+function getMedianPacketAge() {
+  if (remotePacketAges.length === 0) {
+    return null;
+  }
+
+  const sorted = [...remotePacketAges].sort((a, b) => a - b);
+  return Math.round(sorted[Math.floor(sorted.length / 2)]);
+}
+
+function calculateMatchStartLeadMs() {
+  const medianAge = getMedianPacketAge() ?? 80;
+  return Math.max(900, Math.min(1800, 700 + medianAge * 4));
 }
 
 function trimRemoteInputFrames() {

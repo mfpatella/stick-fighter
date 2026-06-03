@@ -55,6 +55,8 @@ type RenderState = {
 };
 
 export type OnlineInputBridge = {
+  matchId: string;
+  opponentProfileId: string | null;
   localSide: "player" | "opponent";
   inputDelayFrames: number;
   maxRollbackFrames: number;
@@ -933,23 +935,81 @@ export class TrainingScene extends Phaser.Scene {
 
       if (event.type === "roundOver" && !this.recordedRound) {
         this.recordedRound = true;
+        const localPlayerWon =
+          this.onlineBridge?.localSide === "opponent" ? !event.playerWon : event.playerWon;
         this.statusText.setText(
           event.playerWon ? "Round complete: David stands firm" : "Round complete: press R to train again"
+        );
+        this.spawnRoundEndFeedback(event.playerWon);
+        window.dispatchEvent(
+          new CustomEvent("sff:round-over", {
+            detail: {
+              playerWon: event.playerWon,
+              localPlayerWon,
+              matchType: this.settings.matchType,
+              playerName: this.simulation.state.player.name,
+              opponentName: this.simulation.state.opponent.name,
+              durationSeconds: event.durationSeconds
+            }
+          })
         );
         if (this.settings.matchType === "testing") {
           continue;
         }
         void recordMatch({
-          result: event.playerWon ? "win" : "loss",
-          fighterKey: this.simulation.state.player.key,
-          opponentKind: "cpu",
-          opponentFighterKey: this.simulation.state.opponent.key,
+          matchId: this.onlineBridge?.matchId,
+          result: localPlayerWon ? "win" : "loss",
+          fighterKey:
+            this.onlineBridge?.localSide === "opponent"
+              ? this.simulation.state.opponent.key
+              : this.simulation.state.player.key,
+          opponentKind: this.settings.matchType === "online" ? "online" : "cpu",
+          opponentPlayerId: this.onlineBridge?.opponentProfileId,
+          opponentFighterKey:
+            this.onlineBridge?.localSide === "opponent"
+              ? this.simulation.state.player.key
+              : this.simulation.state.opponent.key,
           levelKey: this.settings.level,
           mode: this.settings.matchmakingMode,
           durationSeconds: event.durationSeconds
         });
       }
     }
+  }
+
+  private spawnRoundEndFeedback(playerWon: boolean) {
+    const winner = playerWon ? this.simulation.state.player : this.simulation.state.opponent;
+    const loser = playerWon ? this.simulation.state.opponent : this.simulation.state.player;
+
+    this.effects.push({
+      kind: "burst",
+      x: loser.x,
+      y: loser.y - 76,
+      vx: 0,
+      vy: 0,
+      life: 0.52,
+      maxLife: 0.52,
+      color: 0x8f2f3f,
+      size: 44
+    });
+    this.effects.push({
+      kind: "ring",
+      x: winner.x,
+      y: winner.y - 72,
+      vx: 0,
+      vy: 0,
+      life: 0.62,
+      maxLife: 0.62,
+      color: 0xd8b45d,
+      size: 28
+    });
+
+    if (this.settings.motionFx === "full") {
+      this.cameras.main.shake(130, 0.0042);
+      this.cameras.main.flash(140, 255, 243, 191, false);
+    }
+
+    pulseHaptics(playerWon ? [28, 36, 42] : [22, 28, 22]);
   }
 
   private updateEffects(delta: number) {

@@ -19,9 +19,11 @@ import type {
 } from "../game/multiplayerTypes";
 
 type MatchResult = {
+  matchId?: string;
   result: MatchResultKind;
   fighterKey: BaseFighterKey;
   opponentKind: string;
+  opponentPlayerId?: string | null;
   opponentFighterKey?: BaseFighterKey;
   levelKey?: LevelKey;
   mode?: MatchmakingMode | "training";
@@ -70,6 +72,8 @@ export type RealtimeParticipant = {
   profileId: string;
   displayName: string;
   fighterKey: BaseFighterKey;
+  ready: boolean;
+  slot: 1 | 2 | 3 | 4;
 };
 
 export type RealtimeInputFrame = {
@@ -78,6 +82,7 @@ export type RealtimeInputFrame = {
   side: "player" | "opponent";
   input: EncodedPlayerInput;
   sentAt: number;
+  receivedAt?: number;
 };
 
 export type RealtimeMatchStart = {
@@ -85,6 +90,7 @@ export type RealtimeMatchStart = {
   lobbyId: string;
   hostProfileId: string;
   startAt: number;
+  inputDelayFrames: number;
   settings: GameLaunchSettings;
 };
 
@@ -126,7 +132,9 @@ export async function recordMatch(match: MatchResult) {
   }
 
   const matchInsert = {
+    match_id: match.matchId ?? crypto.randomUUID(),
     player_id: user.id,
+    opponent_player_id: match.opponentPlayerId ?? null,
     opponent_kind: match.opponentKind,
     fighter_key: match.fighterKey,
     opponent_fighter_key: match.opponentFighterKey ?? null,
@@ -135,6 +143,22 @@ export async function recordMatch(match: MatchResult) {
     result: match.result,
     duration_seconds: match.durationSeconds
   };
+
+  const { error: rpcError } = await supabase.rpc("record_stick_fighter_match", {
+    p_match_id: matchInsert.match_id,
+    p_player_id: matchInsert.player_id,
+    p_opponent_player_id: matchInsert.opponent_player_id,
+    p_opponent_kind: matchInsert.opponent_kind,
+    p_fighter_key: matchInsert.fighter_key,
+    p_opponent_fighter_key: matchInsert.opponent_fighter_key,
+    p_level_key: matchInsert.level_key,
+    p_mode: matchInsert.mode,
+    p_result: matchInsert.result,
+    p_duration_seconds: matchInsert.duration_seconds
+  });
+  if (!rpcError) {
+    return;
+  }
 
   const statsUpsert = {
     profile_id: user.id,
@@ -309,6 +333,28 @@ export async function loadPlayerStats(): Promise<PlayerStats> {
   };
 }
 
+export async function fetchLobbyById(lobbyId: string): Promise<GameLobby | null> {
+  if (!supabase) {
+    return readLocalJson<GameLobby | null>(localLobbyKey, null);
+  }
+
+  const { data: lobbyRow, error: lobbyError } = await supabase
+    .from("lobbies")
+    .select("id, room_code, host_id, status, level_key, mode, max_players, created_at")
+    .eq("id", lobbyId)
+    .maybeSingle();
+
+  if (lobbyError) {
+    throw lobbyError;
+  }
+
+  if (!lobbyRow) {
+    return null;
+  }
+
+  return hydrateLobby(lobbyRow);
+}
+
 export function saveLocalProfile(avatar: PlayerAvatar) {
   window.localStorage.setItem(
     localProfileKey,
@@ -447,6 +493,88 @@ export async function createGameLobby(input: {
   };
 }
 
+export async function setLobbyMemberReady(lobbyId: string, ready: boolean) {
+  if (!supabase) {
+    const lobby = readLocalJson<GameLobby | null>(localLobbyKey, null);
+    if (lobby) {
+      lobby.members = lobby.members.map((member) =>
+        member.profileId === "local-player"
+          ? {
+              ...member,
+              ready
+            }
+          : member
+      );
+      window.localStorage.setItem(localLobbyKey, JSON.stringify(lobby));
+    }
+    return;
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("lobby_members")
+    .update({ ready })
+    .eq("lobby_id", lobbyId)
+    .eq("profile_id", user.id);
+
+  if (error) {
+    throw error;
+  }
+
+  await refreshLobbyStatus(lobbyId);
+}
+
+export async function markLobbyInMatch(lobbyId: string) {
+  await updateHostLobbyStatus(lobbyId, "in_match");
+}
+
+export async function markLobbyOpen(lobbyId: string) {
+  await updateHostLobbyStatus(lobbyId, "open");
+}
+
+export async function closeLobby(lobbyId: string) {
+  await updateHostLobbyStatus(lobbyId, "closed");
+}
+
+export async function leaveLobby(lobbyId: string) {
+  if (!supabase) {
+    window.localStorage.removeItem(localLobbyKey);
+    return;
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const lobby = await fetchLobbyById(lobbyId);
+  const { error } = await supabase
+    .from("lobby_members")
+    .delete()
+    .eq("lobby_id", lobbyId)
+    .eq("profile_id", user.id);
+
+  if (error) {
+    throw error;
+  }
+
+  if (lobby?.hostId === user.id) {
+    await closeLobby(lobbyId);
+  } else {
+    await refreshLobbyStatus(lobbyId);
+  }
+}
+
 export async function joinLobbyByRoomCode(input: {
   roomCode: string;
   avatar: PlayerAvatar;
@@ -509,6 +637,12 @@ export async function joinLobbyByRoomCode(input: {
 
   if (joinError) {
     throw joinError;
+  }
+
+  const hydratedLobby = await fetchLobbyById(lobbyRow.id);
+  if (hydratedLobby) {
+    window.localStorage.setItem(localLobbyKey, JSON.stringify(hydratedLobby));
+    return hydratedLobby;
   }
 
   const lobby: GameLobby = {
@@ -617,6 +751,56 @@ export async function createMatchmakingTicket(input: {
   return ticket;
 }
 
+export async function tryMatchmaking(ticketId: string, avatar: PlayerAvatar): Promise<GameLobby | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase.rpc("matchmake_stick_fighter_ticket", {
+    p_ticket_id: ticketId
+  });
+
+  if (error || typeof data !== "string") {
+    if (error) {
+      console.warn("Matchmaking skipped", error);
+    }
+    return null;
+  }
+
+  const lobby = await fetchLobbyById(data);
+  if (!lobby) {
+    return null;
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (user && !lobby.members.some((member) => member.profileId === user.id)) {
+    const usedSlots = new Set(lobby.members.map((member) => member.slot));
+    const slot = findOpenSlot(usedSlots, lobby.maxPlayers);
+    if (!slot) {
+      return lobby;
+    }
+
+    const { error: joinError } = await supabase.from("lobby_members").upsert({
+      lobby_id: lobby.id,
+      profile_id: user.id,
+      fighter_key: avatar.favoriteFighter,
+      ready: true,
+      slot
+    });
+
+    if (joinError) {
+      throw joinError;
+    }
+
+    return fetchLobbyById(lobby.id);
+  }
+
+  return lobby;
+}
+
 export async function joinRealtimeRoom(input: {
   lobby: GameLobby;
   avatar: PlayerAvatar;
@@ -634,7 +818,9 @@ export async function joinRealtimeRoom(input: {
         {
           profileId: "local-player",
           displayName: input.avatar.displayName,
-          fighterKey: input.fighterKey
+          fighterKey: input.fighterKey,
+          ready: true,
+          slot: 1
         }
       ]
     });
@@ -689,7 +875,10 @@ export async function joinRealtimeRoom(input: {
   channel.on("broadcast", { event: "input-frame" }, (message) => {
     const frame = message.payload as RealtimeInputFrame;
     if (frame.profileId !== user.id) {
-      input.onInputFrame?.(frame);
+      input.onInputFrame?.({
+        ...frame,
+        receivedAt: Date.now()
+      });
     }
   });
 
@@ -706,6 +895,8 @@ export async function joinRealtimeRoom(input: {
         profileId: user.id,
         displayName: input.avatar.displayName,
         fighterKey: input.fighterKey,
+        ready: input.lobby.members.find((member) => member.profileId === user.id)?.ready ?? true,
+        slot: input.lobby.members.find((member) => member.profileId === user.id)?.slot ?? 1,
         avatar: input.avatar,
         joinedAt: new Date().toISOString()
       });
@@ -771,17 +962,126 @@ function readPresenceParticipants(channel: RealtimeChannel): RealtimeParticipant
         const profileId = typeof participant.profileId === "string" ? participant.profileId : "";
         const displayName = typeof participant.displayName === "string" ? participant.displayName : "Player";
         const fighterKey = typeof participant.fighterKey === "string" ? (participant.fighterKey as BaseFighterKey) : "david";
+        const ready = typeof participant.ready === "boolean" ? participant.ready : true;
+        const rawSlot = typeof participant.slot === "number" ? participant.slot : 1;
+        const slot = rawSlot >= 1 && rawSlot <= 4 ? (rawSlot as 1 | 2 | 3 | 4) : 1;
 
         return profileId
           ? {
               profileId,
               displayName,
-              fighterKey
+              fighterKey,
+              ready,
+              slot
             }
           : null;
       })
       .filter((participant): participant is RealtimeParticipant => Boolean(participant))
   );
+}
+
+async function hydrateLobby(lobbyRow: {
+  id: string;
+  room_code: string;
+  host_id: string;
+  status: GameLobby["status"];
+  level_key: string;
+  mode: MatchmakingMode;
+  max_players: 2 | 4;
+  created_at: string;
+}): Promise<GameLobby> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { data: memberRows, error: memberError } = await supabase
+    .from("lobby_members")
+    .select("profile_id, fighter_key, slot, ready")
+    .eq("lobby_id", lobbyRow.id)
+    .order("slot", { ascending: true });
+
+  if (memberError) {
+    throw memberError;
+  }
+
+  const profileIds = memberRows.map((member) => member.profile_id);
+  const { data: profileRows } =
+    profileIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, display_name, favorite_fighter, avatar_frame, avatar_color")
+          .in("id", profileIds)
+      : { data: [] };
+  const profiles = new Map((profileRows ?? []).map((profile) => [profile.id, profile]));
+
+  return {
+    id: lobbyRow.id,
+    roomCode: lobbyRow.room_code,
+    hostId: lobbyRow.host_id,
+    status: lobbyRow.status,
+    levelKey: lobbyRow.level_key,
+    mode: lobbyRow.mode,
+    maxPlayers: lobbyRow.max_players,
+    members: memberRows.map((member) => {
+      const profile = profiles.get(member.profile_id);
+      const fighterKey = member.fighter_key as BaseFighterKey;
+      return {
+        profileId: member.profile_id,
+        displayName: profile?.display_name ?? "Player",
+        fighterKey,
+        avatar: {
+          displayName: profile?.display_name ?? "Player",
+          frame: profile?.avatar_frame ?? "shepherd",
+          color: profile?.avatar_color ?? "olive",
+          favoriteFighter: profile?.favorite_fighter ?? fighterKey
+        },
+        ready: member.ready,
+        slot: member.slot as 1 | 2 | 3 | 4
+      };
+    }),
+    createdAt: lobbyRow.created_at
+  };
+}
+
+async function refreshLobbyStatus(lobbyId: string) {
+  if (!supabase) {
+    return;
+  }
+
+  const lobby = await fetchLobbyById(lobbyId);
+  if (!lobby || lobby.status === "in_match" || lobby.status === "closed") {
+    return;
+  }
+
+  const nextStatus = lobby.members.length >= 2 && lobby.members.every((member) => member.ready) ? "ready" : "open";
+  await updateHostLobbyStatus(lobbyId, nextStatus);
+}
+
+async function updateHostLobbyStatus(lobbyId: string, status: GameLobby["status"]) {
+  if (!supabase) {
+    return;
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("lobbies")
+    .update({
+      status,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", lobbyId)
+    .eq("host_id", user.id);
+
+  if (error) {
+    console.warn("Lobby status update skipped", error);
+  }
 }
 
 function createRoomCode() {
