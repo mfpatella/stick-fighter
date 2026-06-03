@@ -1024,3 +1024,189 @@ h2 {
     height: 30px;
   }
 }
+
+@media (max-width: 640px), (orientation: landscape) and (max-height: 560px) {
+  body:has(#fight-screen:not([hidden])) {
+    overflow: hidden;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .topbar {
+    display: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .fight-screen {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: var(--panel-strong);
+    box-shadow: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .fight-header {
+    position: absolute;
+    z-index: 50;
+    top: max(8px, env(safe-area-inset-top));
+    right: 8px;
+    left: 8px;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    pointer-events: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .fight-header > div:first-child,
+  .shell:has(#fight-screen:not([hidden])) .netplay-status {
+    display: none !important;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .fight-actions {
+    width: auto;
+    margin-left: auto;
+    pointer-events: auto;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) #exit-fight {
+    min-height: 38px;
+    padding: 7px 9px;
+    border-color: rgb(32 40 32 / 34%);
+    background: rgb(238 243 239 / 78%);
+    box-shadow: 0 2px 8px rgb(32 40 32 / 18%);
+    font-size: 0.72rem;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) #game {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) #game canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: fill;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .controls {
+    position: absolute;
+    z-index: 40;
+    right: 6px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 6px;
+    display: grid;
+    grid-template-columns: 78px 58px minmax(144px, 1fr);
+    align-items: end;
+    gap: 6px;
+    width: auto;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .control-cluster {
+    min-width: 0;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .control-strikes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .touch-button {
+    min-width: 0;
+    min-height: 38px;
+    padding: 5px 6px;
+    overflow: hidden;
+    border-color: rgb(32 40 32 / 34%);
+    background: rgb(238 243 239 / 72%);
+    box-shadow: 0 2px 8px rgb(32 40 32 / 18%);
+    font-size: 0.66rem;
+    pointer-events: auto;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .control-utility .touch-button {
+    min-height: 34px;
+    font-size: 0.62rem;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .joystick {
+    width: 74px;
+    height: 74px;
+    pointer-events: auto;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .joystick-thumb {
+    width: 29px;
+    height: 29px;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .training-tools {
+    position: absolute;
+    z-index: 45;
+    top: max(52px, calc(env(safe-area-inset-top) + 48px));
+    right: 6px;
+    left: 6px;
+    display: flex;
+    gap: 5px;
+    justify-content: flex-start;
+    margin: 0;
+    overflow-x: auto;
+    pointer-events: none;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .training-tools span,
+  .shell:has(#fight-screen:not([hidden])) .training-tools button {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 5px 7px;
+    background: rgb(238 243 239 / 74%);
+    font-size: 0.62rem;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .shell:has(#fight-screen:not([hidden])) .controls {
+    grid-template-columns: 72px 52px minmax(132px, 1fr);
+    gap: 5px;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .joystick {
+    width: 68px;
+    height: 68px;
+  }
+
+  .shell:has(#fight-screen:not([hidden])) .touch-button {
+    min-height: 36px;
+    padding: 4px 5px;
+    font-size: 0.6rem;
+  }
+}
