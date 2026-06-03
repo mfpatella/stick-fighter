@@ -14,6 +14,20 @@ The current art polish pass uses a small curated subset of public Kenney assets.
 - License: Creative Commons CC0
 - Used for: sky, clouds, hills, mountains, trees, houses, fences, temple, and grass level dressing.
 
-Only selected files are copied into `public/assets/vendor/kenney/` so the repo
-stays light. The original `License.txt` files are stored beside each copied
-asset subset.
+## OpenGameArt Spark Effect
+
+- Source: https://opengameart.org/content/spark-effect
+- Author: kurohina
+- License: Creative Commons CC0
+- Used for: animated hit sparks and guard sparks.
+
+## OpenGameArt Lots of Game Effects
+
+- Source: https://opengameart.org/content/lots-of-game-effects
+- Author: Soluna Software
+- License: Creative Commons CC0
+- Used for: animated finish burst and strong-hit accent.
+
+Only selected files are copied into `public/assets/vendor/` so the repo stays
+light. The original Kenney `License.txt` files are stored beside each copied
+asset subset; OpenGameArt source URLs are listed above.

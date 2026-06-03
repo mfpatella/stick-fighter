@@ -1,4 +1,5 @@
 export const kenneyBackgroundBase = "/assets/vendor/kenney/background-elements";
+export const openGameArtEffectBase = "/assets/vendor/opengameart/effects";
 
 export const backgroundAssets = {
   sky: `${kenneyBackgroundBase}/sky.png`,
@@ -23,3 +24,11 @@ export const backgroundAssets = {
 } as const;
 
 export type BackgroundAssetKey = keyof typeof backgroundAssets;
+
+export const effectAssets = {
+  spark: `${openGameArtEffectBase}/spark_sprite_strip9.png`,
+  sparkAlt: `${openGameArtEffectBase}/spark_sprite2_strip9.png`,
+  toonExplosion: `${openGameArtEffectBase}/toon_explosion_31.png`
+} as const;
+
+export type EffectAssetKey = keyof typeof effectAssets;

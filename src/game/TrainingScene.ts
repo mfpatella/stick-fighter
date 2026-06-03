@@ -22,7 +22,7 @@ import {
 } from "./combatSimulation";
 import { recordMatch } from "../services/backend";
 import { defaultGameSettings, startingLoadouts, type GameLaunchSettings } from "./gameSettings";
-import { backgroundAssets } from "./artAssets";
+import { backgroundAssets, effectAssets } from "./artAssets";
 
 const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   david: { color: 0x1f2a35, accent: 0x8a5a28 },
@@ -163,6 +163,9 @@ export class TrainingScene extends Phaser.Scene {
     Object.entries(backgroundAssets).forEach(([key, url]) => {
       this.load.image(`kenney-bg-${key}`, url);
     });
+    this.load.spritesheet("oga-spark", effectAssets.spark, { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet("oga-spark-alt", effectAssets.sparkAlt, { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet("oga-toon-explosion", effectAssets.toonExplosion, { frameWidth: 128, frameHeight: 128 });
   }
 
   create() {
@@ -202,6 +205,7 @@ export class TrainingScene extends Phaser.Scene {
     this.netplayPredictedFrames = 0;
     this.netplayRollbackCount = 0;
 
+    this.createVfxAnimations();
     this.createArena();
     this.graphics = this.add.graphics();
     this.graphics.setDepth(10);
@@ -643,15 +647,47 @@ export class TrainingScene extends Phaser.Scene {
     return true;
   }
 
+  private createVfxAnimations() {
+    if (!this.anims.exists("spark-pop")) {
+      this.anims.create({
+        key: "spark-pop",
+        frames: this.anims.generateFrameNumbers("oga-spark", { start: 0, end: 8 }),
+        frameRate: 30,
+        repeat: 0
+      });
+    }
+
+    if (!this.anims.exists("spark-guard")) {
+      this.anims.create({
+        key: "spark-guard",
+        frames: this.anims.generateFrameNumbers("oga-spark-alt", { start: 0, end: 8 }),
+        frameRate: 30,
+        repeat: 0
+      });
+    }
+
+    if (!this.anims.exists("finish-burst")) {
+      this.anims.create({
+        key: "finish-burst",
+        frames: this.anims.generateFrameNumbers("oga-toon-explosion", { start: 0, end: 15 }),
+        frameRate: 28,
+        repeat: 0
+      });
+    }
+  }
+
   private createArena() {
-    this.add.rectangle(480, 250, 960, 380, 0xf6efe2);
+    const palette = getLevelPalette(this.settings.level);
+    this.add.rectangle(480, 250, 960, 380, palette.sky);
     this.add.image(480, 214, "kenney-bg-sky").setDisplaySize(960, 360).setAlpha(0.7);
-    this.add.rectangle(480, 321, 960, 182, 0xe4d3b2, 0.36);
-    this.add.circle(115, 150, 48, 0xf0c76e, 0.85);
+    this.add.rectangle(480, 321, 960, 182, palette.haze, 0.36);
+    this.add.circle(115, 150, 48, palette.sun, 0.85);
     this.add.circle(128, 145, 68, 0xf0c76e, 0.12);
     this.add.circle(128, 145, 95, 0xf0c76e, 0.07);
-    this.add.ellipse(270, 275, 420, 96, 0x9ba982, 0.5);
-    this.add.ellipse(720, 278, 500, 112, 0x849675, 0.46);
+    this.add.triangle(196, 185, 0, 0, 64, 190, -38, 190, 0xfff3bf, 0.08).setAngle(-18);
+    this.add.triangle(352, 176, 0, 0, 52, 210, -28, 210, 0xfff3bf, 0.055).setAngle(-8);
+    this.add.ellipse(270, 275, 420, 96, palette.hillA, 0.5);
+    this.add.ellipse(720, 278, 500, 112, palette.hillB, 0.46);
     this.add.ellipse(135, 236, 220, 46, 0xdad6bb, 0.34);
     this.add.ellipse(835, 232, 260, 54, 0xdad6bb, 0.28);
     this.add.rectangle(480, 382, 900, 18, 0xc6aa79, 0.42);
@@ -662,9 +698,13 @@ export class TrainingScene extends Phaser.Scene {
     this.add.rectangle(480, 452, 960, 8, 0x95a985, 0.55);
     this.add.rectangle(480, groundY + 4, 960, 8, 0x202820);
     this.add.rectangle(480, 430, 960, 24, 0xb28b5f);
+    this.add.rectangle(480, 423, 960, 2, palette.banner, 0.42);
+    this.add.rectangle(205, groundY - 4, 86, 5, palette.banner, 0.78);
+    this.add.rectangle(755, groundY - 4, 86, 5, palette.banner, 0.78);
     this.add.rectangle(480, 220, 900, 4, 0xd5bea0, 0.8);
     this.add.rectangle(480, 265, 900, 3, 0xd5bea0, 0.46);
     this.add.rectangle(480, 398, 900, 2, 0xf4dfb7, 0.55);
+    this.add.rectangle(480, 536, 960, 16, 0x202820, 0.08);
   }
 
   private createLevelScenery() {
@@ -822,11 +862,13 @@ export class TrainingScene extends Phaser.Scene {
           this.blockFlashTimer = 0.24;
           this.statusHoldTimer = 0.72;
           this.statusText.setText("Perfect block! Counter window opened.");
+          this.spawnFloatingText("PERFECT", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#d8b45d");
           pulseHaptics([18, 18, 24]);
         } else if (event.blocked) {
           this.blockFlashTimer = 0.16;
           this.statusHoldTimer = 0.38;
           this.statusText.setText("Blocked!");
+          this.spawnFloatingText("BLOCK", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 92 : this.simulation.state.player.y - 92, "#f2d06b");
           pulseHaptics(10);
         } else if (event.detachedPart) {
           this.statusHoldTimer = 1.25;
@@ -835,12 +877,14 @@ export class TrainingScene extends Phaser.Scene {
               ? `${formatPartName(event.detachedPart)} popped loose. ${event.bonusStrikes} extra ${event.bonusStrikeKind}${event.bonusStrikes === 1 ? "" : "s"} landed.`
               : `${formatPartName(event.detachedPart)} popped loose. Anyone can attach it with E.`
           );
+          this.spawnFloatingText(`${formatPartName(event.detachedPart).toUpperCase()} OFF`, event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#f07d3b");
           pulseHaptics([18, 24, 18]);
         } else if (event.bonusStrikes > 0) {
           this.statusHoldTimer = 0.9;
           this.statusText.setText(
             `${event.bonusStrikes} extra ${event.bonusStrikeKind}${event.bonusStrikes === 1 ? "" : "s"} landed.`
           );
+          this.spawnFloatingText(`+${event.bonusStrikes} ${event.bonusStrikeKind}`, event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 104 : this.simulation.state.player.y - 104, "#d8b45d");
           pulseHaptics(16);
         }
         if (this.settings.motionFx === "full") {
@@ -981,6 +1025,7 @@ export class TrainingScene extends Phaser.Scene {
     const winner = playerWon ? this.simulation.state.player : this.simulation.state.opponent;
     const loser = playerWon ? this.simulation.state.opponent : this.simulation.state.player;
 
+    this.spawnAnimatedEffect("finish-burst", loser.x, loser.y - 80, 0.84, 0);
     this.effects.push({
       kind: "burst",
       x: loser.x,
@@ -1010,6 +1055,41 @@ export class TrainingScene extends Phaser.Scene {
     }
 
     pulseHaptics(playerWon ? [28, 36, 42] : [22, 28, 22]);
+  }
+
+  private spawnAnimatedEffect(animationKey: "spark-pop" | "spark-guard" | "finish-burst", x: number, y: number, scale: number, angle: number) {
+    const sprite = this.add.sprite(x, y, animationKey === "finish-burst" ? "oga-toon-explosion" : "oga-spark");
+    sprite.setDepth(35);
+    sprite.setScale(scale);
+    sprite.setAngle(angle);
+    sprite.setBlendMode(Phaser.BlendModes.ADD);
+    sprite.play(animationKey);
+    sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      sprite.destroy();
+    });
+  }
+
+  private spawnFloatingText(text: string, x: number, y: number, color: string) {
+    const label = this.add.text(x, y, text, {
+      align: "center",
+      color,
+      fontFamily: "Arial",
+      fontSize: "18px",
+      fontStyle: "bold",
+      stroke: "#202820",
+      strokeThickness: 4
+    });
+    label.setOrigin(0.5);
+    label.setDepth(42);
+    this.tweens.add({
+      targets: label,
+      y: y - 34,
+      alpha: 0,
+      scale: 1.12,
+      duration: 760,
+      ease: "Cubic.easeOut",
+      onComplete: () => label.destroy()
+    });
   }
 
   private updateEffects(delta: number) {
@@ -1071,6 +1151,11 @@ export class TrainingScene extends Phaser.Scene {
           ? defender.y - 96
           : defender.y - 74;
     const color = event.blocked ? 0xf2d06b : 0xf07d3b;
+
+    this.spawnAnimatedEffect(event.blocked ? "spark-guard" : "spark-pop", impactX, impactY, event.blocked ? 1.42 : 1.65, attacker.facing === 1 ? 0 : 180);
+    if (!event.blocked && (event.detachedPart || event.attackKind === "heavy" || event.attackKind === "spinKick" || event.attackKind === "chomp")) {
+      this.spawnAnimatedEffect("finish-burst", impactX + attacker.facing * 10, impactY + 4, 0.34, Phaser.Math.Between(-12, 12));
+    }
 
     this.effects.push({
       kind: "ring",
@@ -1206,6 +1291,25 @@ export class TrainingScene extends Phaser.Scene {
     this.drawFighter(opponent);
     this.drawDetachedParts();
     this.drawEffects();
+    this.drawDangerOverlay();
+  }
+
+  private drawDangerOverlay() {
+    const localFighter =
+      this.onlineBridge?.localSide === "opponent" ? this.simulation.state.opponent : this.simulation.state.player;
+    const healthRatio = localFighter.health / localFighter.stats.maxHealth;
+
+    if (healthRatio > 0.32 || this.simulation.state.roundOver) {
+      return;
+    }
+
+    const pulse = 0.5 + Math.sin(this.time.now / 145) * 0.5;
+    const alpha = Phaser.Math.Clamp((0.32 - healthRatio) * 0.58 + pulse * 0.035, 0.035, 0.18);
+    this.graphics.fillStyle(0x8f2f3f, alpha);
+    this.graphics.fillRect(0, 0, 960, 18);
+    this.graphics.fillRect(0, 522, 960, 18);
+    this.graphics.fillRect(0, 0, 18, 540);
+    this.graphics.fillRect(942, 0, 18, 540);
   }
 
   private drawShadows() {
@@ -1879,6 +1983,50 @@ function getModeStatus(settings: GameLaunchSettings) {
   }
 
   return "Training yard: learn spacing, timing, and guard";
+}
+
+function getLevelPalette(level: GameLaunchSettings["level"]) {
+  if (level === "mightyArena") {
+    return {
+      sky: 0xf2eadb,
+      haze: 0xcbb59c,
+      sun: 0xf0a956,
+      hillA: 0x9a8974,
+      hillB: 0x786f65,
+      banner: 0x8f2f3f
+    };
+  }
+
+  if (level === "covenantHall") {
+    return {
+      sky: 0xf4eddf,
+      haze: 0xd2c0a3,
+      sun: 0xd8b45d,
+      hillA: 0x9aa589,
+      hillB: 0x7e8e7d,
+      banner: 0x26364a
+    };
+  }
+
+  if (level === "shepherdField") {
+    return {
+      sky: 0xf7f3e8,
+      haze: 0xcad6bc,
+      sun: 0xf0c76e,
+      hillA: 0x9ba982,
+      hillB: 0x849675,
+      banner: 0x4e9a86
+    };
+  }
+
+  return {
+    sky: 0xf6efe2,
+    haze: 0xe4d3b2,
+    sun: 0xf0c76e,
+    hillA: 0x9ba982,
+    hillB: 0x849675,
+    banner: 0x8a5a28
+  };
 }
 
 function describeAttachment(part: AttachedBonusPart) {
