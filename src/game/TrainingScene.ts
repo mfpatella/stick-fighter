@@ -33,6 +33,11 @@ const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   ishbiBenob: { color: 0x312820, accent: 0xb58235 },
   saph: { color: 0x332f2a, accent: 0x8d7541 },
   lahmi: { color: 0x2f2c29, accent: 0x9c6841 },
+  tRex: { color: 0x2f4934, accent: 0x8aaa5d },
+  lion: { color: 0x8b5b2e, accent: 0xd8a84f },
+  hippo: { color: 0x5f6670, accent: 0x9aa5ad },
+  honeyBadger: { color: 0x1f2428, accent: 0xf1efe0 },
+  eagle: { color: 0x574133, accent: 0xe7d393 },
   guard: { color: 0x2a2926, accent: 0x8b2635 },
   neutral: { color: 0x5d4a16, accent: 0xd8b45d }
 };
@@ -47,6 +52,26 @@ type VisualEffect = {
   maxLife: number;
   color: number;
   size: number;
+};
+
+type ObjectiveKind = "none" | "training" | "parts" | "story";
+
+type ObjectiveState = {
+  kind: ObjectiveKind;
+  label: string;
+  hits: number;
+  blocks: number;
+  attaches: number;
+  wins: number;
+  complete: boolean;
+};
+
+type LevelPickup = {
+  kind: "stamina" | "guard" | "wild";
+  x: number;
+  y: number;
+  life: number;
+  pulse: number;
 };
 
 type RenderState = {
@@ -111,6 +136,7 @@ export class TrainingScene extends Phaser.Scene {
   private opponentHealth!: Phaser.GameObjects.Rectangle;
   private playerStamina!: Phaser.GameObjects.Rectangle;
   private opponentStamina!: Phaser.GameObjects.Rectangle;
+  private timerText!: Phaser.GameObjects.Text;
   private accumulator = 0;
   private pendingJump = false;
   private pendingLight = false;
@@ -144,8 +170,13 @@ export class TrainingScene extends Phaser.Scene {
   private joystickJumpReady = true;
   private joystickDashReady = true;
   private perfText!: Phaser.GameObjects.Text;
+  private objectiveText!: Phaser.GameObjects.Text;
   private perfSampleTimer = 0;
   private slowFrameCount = 0;
+  private objective: ObjectiveState = createObjective("none");
+  private levelEventTimer = 0;
+  private pickupTimer = 0;
+  private activePickup: LevelPickup | null = null;
 
   constructor() {
     super("training");
@@ -177,7 +208,9 @@ export class TrainingScene extends Phaser.Scene {
       playerFighter: this.settings.playerFighter,
       opponentFighter: this.settings.opponentFighter,
       noDeath: this.settings.matchType === "testing",
-      opponentControlled: this.settings.matchType === "online"
+      opponentControlled: this.settings.matchType === "online",
+      roundTimeSeconds: this.settings.roundTimeSeconds,
+      winCondition: this.settings.winCondition
     });
     this.previousRenderState = this.cloneRenderState();
     this.recordedRound = false;
@@ -204,6 +237,10 @@ export class TrainingScene extends Phaser.Scene {
     this.lastRemotePrediction = createEmptyInput();
     this.netplayPredictedFrames = 0;
     this.netplayRollbackCount = 0;
+    this.objective = createObjective(getObjectiveKind(this.settings));
+    this.levelEventTimer = 4.5;
+    this.pickupTimer = 3.2;
+    this.activePickup = null;
 
     this.createVfxAnimations();
     this.createArena();
@@ -287,6 +324,7 @@ export class TrainingScene extends Phaser.Scene {
 
     this.updateEffects(cappedDelta);
     this.updateScenery(cappedDelta);
+    this.updateLevelEvents(cappedDelta);
     this.updateHud();
     this.drawFrame();
   }
@@ -722,6 +760,30 @@ export class TrainingScene extends Phaser.Scene {
       return;
     }
 
+    if (this.settings.level === "valleyOfElah") {
+      this.add.image(220, 294, "kenney-bg-pointyMountains").setScale(0.62).setAlpha(0.34);
+      this.add.image(720, 302, "kenney-bg-mountain2").setScale(0.72).setAlpha(0.36);
+      this.add.image(480, 382, "kenney-bg-fence").setScale(0.78).setAlpha(0.42);
+      this.add.image(820, 376, "kenney-bg-grass2").setScale(0.54).setAlpha(0.52);
+      return;
+    }
+
+    if (this.settings.level === "wildernessCave") {
+      this.add.image(190, 304, "kenney-bg-mountain1").setScale(0.82).setAlpha(0.42);
+      this.add.image(760, 296, "kenney-bg-mountain2").setScale(0.86).setAlpha(0.46);
+      this.add.image(170, 362, "kenney-bg-tree13").setScale(0.56).setAlpha(0.5);
+      this.add.image(835, 368, "kenney-bg-tree01").setScale(0.5).setAlpha(0.46);
+      return;
+    }
+
+    if (this.settings.level === "cedarRidge") {
+      this.add.image(280, 306, "kenney-bg-hills1").setScale(0.82).setAlpha(0.36);
+      this.add.image(710, 302, "kenney-bg-hills2").setScale(0.84).setAlpha(0.34);
+      this.add.image(132, 333, "kenney-bg-tree08").setScale(0.58).setAlpha(0.76);
+      this.add.image(828, 333, "kenney-bg-tree04").setScale(0.54).setAlpha(0.72);
+      return;
+    }
+
     if (this.settings.level === "covenantHall") {
       this.add.image(705, 338, "kenney-bg-temple").setScale(0.48).setAlpha(0.82);
       this.add.image(210, 340, "kenney-bg-houseFront").setScale(0.44).setAlpha(0.52);
@@ -768,6 +830,17 @@ export class TrainingScene extends Phaser.Scene {
     this.playerStamina = this.add.rectangle(56, 76, 176, 6, 0xc79d3b).setOrigin(0, 0.5);
     this.opponentStamina = this.add.rectangle(904, 76, 176, 6, 0xc79d3b).setOrigin(1, 0.5);
 
+    this.timerText = this.add.text(480, 48, formatRoundTimer(getRemainingRoundTime(this.settings, 0)), {
+      align: "center",
+      color: "#202820",
+      fontFamily: "Arial",
+      fontSize: "22px",
+      fontStyle: "bold",
+      stroke: "#fff7df",
+      strokeThickness: 4
+    });
+    this.timerText.setOrigin(0.5);
+
     this.statusText = this.add.text(480, 94, getModeStatus(this.settings), {
       align: "center",
       color: "#334039",
@@ -776,6 +849,18 @@ export class TrainingScene extends Phaser.Scene {
       fontStyle: "bold"
     });
     this.statusText.setOrigin(0.5);
+
+    this.objectiveText = this.add.text(480, 120, formatObjective(this.objective), {
+      align: "center",
+      color: "#5d4a16",
+      fontFamily: "Arial",
+      fontSize: "13px",
+      fontStyle: "bold",
+      stroke: "#fff7df",
+      strokeThickness: 3
+    });
+    this.objectiveText.setOrigin(0.5);
+    this.objectiveText.setAlpha(this.objective.kind === "none" ? 0 : 0.92);
 
     this.perfText = this.add.text(24, 96, "", {
       color: "#334039",
@@ -858,6 +943,12 @@ export class TrainingScene extends Phaser.Scene {
     for (const event of events) {
       if (event.type === "hit") {
         this.spawnImpactEffects(event);
+        if (event.attacker === "player" && !event.blocked) {
+          this.advanceObjective("hit");
+        }
+        if (event.attacker === "opponent" && (event.blocked || event.perfectBlock)) {
+          this.advanceObjective("block");
+        }
         if (event.perfectBlock) {
           this.blockFlashTimer = 0.24;
           this.statusHoldTimer = 0.72;
@@ -932,6 +1023,9 @@ export class TrainingScene extends Phaser.Scene {
       }
 
       if (event.type === "attach") {
+        if (event.owner === "player") {
+          this.advanceObjective("attach");
+        }
         this.statusHoldTimer = 1.1;
         this.statusText.setText(
           `${event.owner === "player" ? this.simulation.state.player.name : this.simulation.state.opponent.name} attached ${event.part.label}: ${describeAttachment(event.part)}.`
@@ -981,14 +1075,23 @@ export class TrainingScene extends Phaser.Scene {
         this.recordedRound = true;
         const localPlayerWon =
           this.onlineBridge?.localSide === "opponent" ? !event.playerWon : event.playerWon;
+        const localResult = event.draw ? "draw" : localPlayerWon ? "win" : "loss";
+        if (localPlayerWon) {
+          this.advanceObjective("win");
+        }
         this.statusText.setText(
-          event.playerWon ? "Round complete: David stands firm" : "Round complete: press R to train again"
+          event.draw
+            ? "Round complete: draw by even health"
+            : event.playerWon
+              ? "Round complete: David stands firm"
+              : "Round complete: press R to train again"
         );
         this.spawnRoundEndFeedback(event.playerWon);
         window.dispatchEvent(
           new CustomEvent("sff:round-over", {
             detail: {
               playerWon: event.playerWon,
+              draw: event.draw ?? false,
               localPlayerWon,
               matchType: this.settings.matchType,
               playerName: this.simulation.state.player.name,
@@ -1002,7 +1105,7 @@ export class TrainingScene extends Phaser.Scene {
         }
         void recordMatch({
           matchId: this.onlineBridge?.matchId,
-          result: localPlayerWon ? "win" : "loss",
+          result: localResult,
           fighterKey:
             this.onlineBridge?.localSide === "opponent"
               ? this.simulation.state.opponent.key
@@ -1018,6 +1121,176 @@ export class TrainingScene extends Phaser.Scene {
           durationSeconds: event.durationSeconds
         });
       }
+    }
+  }
+
+  private advanceObjective(action: "hit" | "block" | "attach" | "win") {
+    if (this.objective.kind === "none" || this.objective.complete) {
+      return;
+    }
+
+    if (action === "hit") {
+      this.objective.hits += 1;
+    } else if (action === "block") {
+      this.objective.blocks += 1;
+    } else if (action === "attach") {
+      this.objective.attaches += 1;
+    } else {
+      this.objective.wins += 1;
+    }
+
+    if (!isObjectiveComplete(this.objective)) {
+      return;
+    }
+
+    this.objective.complete = true;
+    this.statusHoldTimer = 1.2;
+    this.statusText.setText("Objective complete. Keep fighting or return to the menu.");
+    this.spawnFloatingText("OBJECTIVE", this.simulation.state.player.x, this.simulation.state.player.y - 142, "#d8b45d");
+    this.effects.push({
+      kind: "ring",
+      x: this.simulation.state.player.x,
+      y: this.simulation.state.player.y - 76,
+      vx: 0,
+      vy: 0,
+      life: 0.62,
+      maxLife: 0.62,
+      color: 0xd8b45d,
+      size: 34
+    });
+    pulseHaptics([18, 28, 18]);
+  }
+
+  private updateLevelEvents(delta: number) {
+    if (this.onlineBridge || this.simulation.state.roundOver) {
+      return;
+    }
+
+    if (this.activePickup) {
+      this.activePickup.life -= delta;
+      this.activePickup.pulse += delta;
+      this.tryCollectLevelPickup();
+      if (this.activePickup && this.activePickup.life <= 0) {
+        this.activePickup = null;
+      }
+    }
+
+    this.pickupTimer -= delta;
+    if (!this.activePickup && this.pickupTimer <= 0) {
+      this.spawnLevelPickup();
+      this.pickupTimer = Phaser.Math.FloatBetween(8.5, 12);
+    }
+
+    this.levelEventTimer -= delta;
+    if (this.levelEventTimer <= 0) {
+      this.triggerLevelEvent();
+      this.levelEventTimer = Phaser.Math.FloatBetween(9, 14);
+    }
+  }
+
+  private spawnLevelPickup() {
+    if (this.settings.matchType === "testing" && this.settings.level !== "trainingYard") {
+      return;
+    }
+
+    const kind =
+      this.settings.level === "covenantHall"
+        ? "guard"
+        : this.settings.level === "trainingYard" || this.settings.level === "mightyArena"
+          ? "wild"
+          : "stamina";
+
+    this.activePickup = {
+      kind,
+      x: Phaser.Math.Between(190, 770),
+      y: groundY - 18,
+      life: 8,
+      pulse: 0
+    };
+  }
+
+  private tryCollectLevelPickup() {
+    if (!this.activePickup) {
+      return;
+    }
+
+    const player = this.simulation.state.player;
+    if (Math.abs(player.x - this.activePickup.x) > 54 || Math.abs(player.y - groundY) > 58) {
+      return;
+    }
+
+    const pickup = this.activePickup;
+    this.activePickup = null;
+
+    if (pickup.kind === "stamina") {
+      player.stamina = Math.min(100, player.stamina + 34);
+      this.statusText.setText("Field supply restored stamina.");
+      this.spawnFloatingText("STAMINA", player.x, player.y - 112, "#4e9a86");
+    } else if (pickup.kind === "guard") {
+      player.health = Math.min(player.stats.maxHealth, player.health + 9);
+      player.stamina = Math.min(100, player.stamina + 18);
+      this.statusText.setText("Covenant shield restored guard rhythm.");
+      this.spawnFloatingText("GUARD", player.x, player.y - 112, "#d8b45d");
+    } else {
+      const kind = Phaser.Math.RND.pick<TrainingDropKind>(["crocodileHead", "tail", "claws", "wings"]);
+      this.statusText.setText("Wild part cache opened.");
+      this.spawnTrainingDrop(kind);
+    }
+
+    this.statusHoldTimer = 0.9;
+    this.effects.push({
+      kind: "burst",
+      x: player.x,
+      y: player.y - 72,
+      vx: 0,
+      vy: 0,
+      life: 0.38,
+      maxLife: 0.38,
+      color: pickup.kind === "guard" ? 0xd8b45d : 0x83b36f,
+      size: 28
+    });
+  }
+
+  private triggerLevelEvent() {
+    if (this.settings.level !== "mightyArena") {
+      return;
+    }
+
+    const player = this.simulation.state.player;
+    const opponent = this.simulation.state.opponent;
+    const fighters = [player, opponent];
+    let affected = false;
+
+    for (const fighter of fighters) {
+      if (fighter.y < groundY - 8 || fighter.x < 260 || fighter.x > 700) {
+        continue;
+      }
+
+      fighter.stamina = Math.max(0, fighter.stamina - 12);
+      fighter.vx += fighter.x < 480 ? -90 : 90;
+      fighter.vy = Math.min(fighter.vy, -120);
+      affected = true;
+      this.effects.push({
+        kind: "ring",
+        x: fighter.x,
+        y: groundY - 18,
+        vx: 0,
+        vy: 0,
+        life: 0.42,
+        maxLife: 0.42,
+        color: 0x8f2f3f,
+        size: 24
+      });
+    }
+
+    if (!affected) {
+      return;
+    }
+
+    this.statusHoldTimer = 0.8;
+    this.statusText.setText("Arena tremor. Jump or dash clear of center.");
+    if (this.settings.motionFx === "full") {
+      this.cameras.main.shake(90, 0.0032);
     }
   }
 
@@ -1243,7 +1516,20 @@ export class TrainingScene extends Phaser.Scene {
     this.opponentHealth.width = 236 * (opponent.health / opponent.stats.maxHealth);
     this.playerStamina.width = 176 * (player.stamina / 100);
     this.opponentStamina.width = 176 * (opponent.stamina / 100);
+    if (this.timerText) {
+      this.timerText.setText(formatRoundTimer(getRemainingRoundTime(this.settings, this.simulation.state.elapsedSeconds)));
+      this.timerText.setColor(
+        this.settings.roundTimeSeconds > 0 &&
+          getRemainingRoundTime(this.settings, this.simulation.state.elapsedSeconds) <= 10
+          ? "#8f2f3f"
+          : "#202820"
+      );
+    }
     this.updateDomControls(player);
+    if (this.objectiveText) {
+      this.objectiveText.setText(formatObjective(this.objective));
+      this.objectiveText.setAlpha(this.objective.kind === "none" ? 0 : this.objective.complete ? 0.78 : 0.92);
+    }
 
     if (!roundOver && this.blockFlashTimer === 0 && this.statusHoldTimer === 0) {
       const missing = getMissingParts(player);
@@ -1264,9 +1550,9 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private updateDomControls(player: FighterSnapshot) {
-    const hasCrocodile = player.bonusParts.some((part) => part.trait === "crocodile");
-    const hasTail = player.bonusParts.some((part) => part.category === "tail");
-    const hasClaws = player.bonusParts.some((part) => part.category === "claws");
+    const hasCrocodile = player.bonusParts.some((part) => part.trait === "crocodile") || hasNaturalChomp(player);
+    const hasTail = player.bonusParts.some((part) => part.category === "tail") || hasNaturalTail(player);
+    const hasClaws = player.bonusParts.some((part) => part.category === "claws") || hasNaturalClaws(player);
     const hasWings = player.bonusParts.some((part) => part.category === "wings");
 
     setControlVisible("control-chomp", hasCrocodile);
@@ -1290,8 +1576,38 @@ export class TrainingScene extends Phaser.Scene {
     this.drawFighter(player);
     this.drawFighter(opponent);
     this.drawDetachedParts();
+    this.drawLevelPickup();
     this.drawEffects();
     this.drawDangerOverlay();
+  }
+
+  private drawLevelPickup() {
+    if (!this.activePickup) {
+      return;
+    }
+
+    const pickup = this.activePickup;
+    const g = this.graphics;
+    const pulse = 0.5 + Math.sin(pickup.pulse * 7) * 0.5;
+    const color = pickup.kind === "guard" ? 0xd8b45d : pickup.kind === "wild" ? 0x8f2f3f : 0x4e9a86;
+
+    g.lineStyle(3, color, 0.72);
+    g.strokeCircle(pickup.x, pickup.y, 18 + pulse * 4);
+    g.fillStyle(color, 0.18 + pulse * 0.1);
+    g.fillCircle(pickup.x, pickup.y, 13 + pulse * 3);
+    g.lineStyle(4, 0x202820, 0.74);
+    if (pickup.kind === "wild") {
+      g.lineBetween(pickup.x - 10, pickup.y + 8, pickup.x + 10, pickup.y - 8);
+      g.lineBetween(pickup.x - 7, pickup.y - 8, pickup.x + 7, pickup.y + 8);
+    } else if (pickup.kind === "guard") {
+      g.strokeCircle(pickup.x, pickup.y, 8);
+      g.lineBetween(pickup.x, pickup.y - 11, pickup.x, pickup.y + 11);
+    } else {
+      g.fillRect(pickup.x - 8, pickup.y - 6, 16, 12);
+      g.fillStyle(0xfff7df, 0.9);
+      g.fillRect(pickup.x - 2, pickup.y - 10, 4, 20);
+      g.fillRect(pickup.x - 10, pickup.y - 2, 20, 4);
+    }
   }
 
   private drawDangerOverlay() {
@@ -1412,6 +1728,8 @@ export class TrainingScene extends Phaser.Scene {
       (fighter.attackKind === "spinKick" ? 46 * bodyScale + spinFootLift : 0);
     const backFootY = fighter.y - Math.max(0, -runCycle) * 8;
 
+    this.drawAnimalUnderlay(fighter, torsoX, shoulderY, hipY, attackEase);
+
     if (fighter.state === "attack" && fighter.attackKind === "heavy") {
       g.lineStyle(2, 0x8a5a28, 0.28);
       g.lineBetween(torsoX - fighter.facing * 44, shoulderY - 8, torsoX - fighter.facing * 78, shoulderY - 18);
@@ -1425,6 +1743,17 @@ export class TrainingScene extends Phaser.Scene {
       g.lineBetween(torsoX - trailDirection * 36, hipY, torsoX - trailDirection * 78, hipY + 8);
       g.fillStyle(0xf2d06b, 0.18);
       g.fillEllipse(torsoX - trailDirection * 28, hipY + 12, 68, 22);
+
+      if (fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle") {
+        g.lineStyle(3, style.accent, 0.38);
+        g.lineBetween(torsoX - trailDirection * 18, shoulderY - 30, torsoX - trailDirection * 64, shoulderY - 42);
+        g.lineBetween(torsoX - trailDirection * 8, shoulderY + 4, torsoX - trailDirection * 58, shoulderY + 12);
+      }
+    }
+
+    if ((fighter.key === "hippo" || fighter.key === "tRex") && (fighter.state === "hit" || fighter.state === "blockstun")) {
+      g.lineStyle(3, style.accent, 0.46);
+      g.strokeEllipse(torsoX, hipY - 18, 78 * bodyScale, 92 * bodyScale);
     }
 
     if (fighter.state === "attack" && fighter.attackKind === "spinKick") {
@@ -1543,6 +1872,8 @@ export class TrainingScene extends Phaser.Scene {
       }
     }
 
+    this.drawAnimalOverlay(fighter, torsoX, shoulderY, hipY, headY, attackEase);
+
     if (fighter.state === "attack" && fighter.attackKind) {
       g.fillStyle(0xd8b45d, 0.35);
       if (fighter.attackKind === "low" || isKick || isTailStrike) {
@@ -1601,6 +1932,129 @@ export class TrainingScene extends Phaser.Scene {
       g.strokeRect(attackBox.x, attackBox.y, attackBox.width, attackBox.height);
       g.lineStyle(2, 0x73a9d8, 0.55);
       g.strokeRect(targetBox.x, targetBox.y, targetBox.width, targetBox.height);
+    }
+  }
+
+  private drawAnimalUnderlay(
+    fighter: FighterSnapshot,
+    torsoX: number,
+    shoulderY: number,
+    hipY: number,
+    attackEase: number
+  ) {
+    const g = this.graphics;
+    const style = fighterStyles[fighter.key];
+    const scale = fighter.stats.bodyScale;
+
+    if (fighter.key === "tRex") {
+      const tailLift = fighter.attackKind === "tailStrike" ? Math.sin(attackEase * Math.PI) * 28 : 0;
+      g.lineStyle(13 * scale, style.color, 0.82);
+      g.beginPath();
+      g.moveTo(torsoX - fighter.facing * 8 * scale, hipY + 4);
+      g.lineTo(torsoX - fighter.facing * 54 * scale, hipY + 12 - tailLift);
+      g.lineTo(torsoX - fighter.facing * 92 * scale, hipY + 26 - tailLift * 0.4);
+      g.strokePath();
+      g.lineStyle(4 * scale, style.accent, 0.55);
+      g.lineBetween(torsoX - fighter.facing * 40 * scale, hipY + 10 - tailLift, torsoX - fighter.facing * 104 * scale, hipY + 30 - tailLift * 0.3);
+    }
+
+    if (fighter.key === "eagle") {
+      const flap = Math.sin(this.time.now / 95) * (fighter.y < groundY ? 20 : 10);
+      g.fillStyle(style.accent, 0.16);
+      g.fillTriangle(
+        torsoX - fighter.facing * 4,
+        shoulderY + 4,
+        torsoX - fighter.facing * 82 * scale,
+        shoulderY - 34 * scale - flap,
+        torsoX - fighter.facing * 112 * scale,
+        shoulderY + 34 * scale
+      );
+      g.fillTriangle(
+        torsoX + fighter.facing * 4,
+        shoulderY + 4,
+        torsoX + fighter.facing * 82 * scale,
+        shoulderY - 34 * scale + flap,
+        torsoX + fighter.facing * 112 * scale,
+        shoulderY + 34 * scale
+      );
+      g.lineStyle(5 * scale, style.color, 0.82);
+      g.lineBetween(torsoX, shoulderY + 4, torsoX - fighter.facing * 88 * scale, shoulderY - 20 * scale - flap);
+      g.lineBetween(torsoX, shoulderY + 4, torsoX + fighter.facing * 88 * scale, shoulderY - 20 * scale + flap);
+    }
+  }
+
+  private drawAnimalOverlay(
+    fighter: FighterSnapshot,
+    torsoX: number,
+    shoulderY: number,
+    hipY: number,
+    headY: number,
+    attackEase: number
+  ) {
+    const g = this.graphics;
+    const style = fighterStyles[fighter.key];
+    const scale = fighter.stats.bodyScale;
+
+    if (fighter.key === "tRex") {
+      const jawX = torsoX + fighter.facing * (28 + attackEase * 24) * scale;
+      g.lineStyle(6 * scale, style.accent, 0.94);
+      g.strokeTriangle(jawX, headY - 12 * scale, jawX + fighter.facing * 42 * scale, headY - 2 * scale, jawX, headY + 8 * scale);
+      g.lineStyle(2, 0xf7f3e8, 0.95);
+      g.lineBetween(jawX + fighter.facing * 14 * scale, headY - 6 * scale, jawX + fighter.facing * 20 * scale, headY - 1 * scale);
+      g.lineBetween(jawX + fighter.facing * 14 * scale, headY + 6 * scale, jawX + fighter.facing * 20 * scale, headY + 1 * scale);
+      g.lineStyle(5 * scale, style.color, 0.9);
+      g.lineBetween(torsoX - fighter.facing * 10 * scale, shoulderY + 4, torsoX + fighter.facing * 20 * scale, shoulderY + 30 * scale);
+      return;
+    }
+
+    if (fighter.key === "lion") {
+      g.fillStyle(0x6a3f20, 0.34);
+      g.fillCircle(torsoX - fighter.facing * 3 * scale, headY + 1, 30 * scale);
+      g.lineStyle(4 * scale, style.accent, 0.95);
+      g.strokeCircle(torsoX, headY, 22 * scale);
+      g.lineStyle(3, 0xe7d393, 0.9);
+      for (let i = -1; i <= 1; i += 1) {
+        const clawY = shoulderY + 22 + i * 7;
+        g.lineBetween(torsoX + fighter.facing * 33 * scale, clawY, torsoX + fighter.facing * 52 * scale, clawY - 5);
+      }
+      return;
+    }
+
+    if (fighter.key === "hippo") {
+      g.fillStyle(style.color, 0.22);
+      g.fillEllipse(torsoX, shoulderY + 14, 92 * scale, 70 * scale);
+      g.fillStyle(style.accent, 0.22);
+      g.fillEllipse(torsoX + fighter.facing * 24 * scale, headY + 9 * scale, 54 * scale, 34 * scale);
+      g.lineStyle(5 * scale, style.accent, 0.9);
+      g.strokeEllipse(torsoX + fighter.facing * 24 * scale, headY + 9 * scale, 52 * scale, 32 * scale);
+      g.fillStyle(0x202820, 0.9);
+      g.fillCircle(torsoX + fighter.facing * 35 * scale, headY + 3 * scale, 2.5 * scale);
+      return;
+    }
+
+    if (fighter.key === "honeyBadger") {
+      g.lineStyle(7 * scale, style.accent, 0.95);
+      g.lineBetween(torsoX - fighter.facing * 18 * scale, headY - 21 * scale, torsoX - fighter.facing * 8 * scale, hipY + 2);
+      g.lineBetween(torsoX + fighter.facing * 4 * scale, shoulderY - 28 * scale, torsoX + fighter.facing * 18 * scale, hipY + 2);
+      g.lineStyle(3, 0xe7d393, 0.92);
+      g.lineBetween(torsoX + fighter.facing * 34 * scale, shoulderY + 22, torsoX + fighter.facing * 51 * scale, shoulderY + 14);
+      g.lineBetween(torsoX + fighter.facing * 34 * scale, shoulderY + 30, torsoX + fighter.facing * 52 * scale, shoulderY + 30);
+      return;
+    }
+
+    if (fighter.key === "eagle") {
+      g.fillStyle(style.accent, 0.92);
+      g.fillTriangle(
+        torsoX + fighter.facing * 17 * scale,
+        headY - 4 * scale,
+        torsoX + fighter.facing * 42 * scale,
+        headY + 2 * scale,
+        torsoX + fighter.facing * 17 * scale,
+        headY + 8 * scale
+      );
+      g.lineStyle(3, 0xe7d393, 0.9);
+      g.lineBetween(torsoX + fighter.facing * 24 * scale, hipY + 4, torsoX + fighter.facing * 38 * scale, hipY + 23);
+      g.lineBetween(torsoX - fighter.facing * 24 * scale, hipY + 4, torsoX - fighter.facing * 38 * scale, hipY + 23);
     }
   }
 
@@ -1946,13 +2400,96 @@ function getAttachmentSummary(fighter: FighterSnapshot) {
 
 function getAnimalAbilitySummary(fighter: FighterSnapshot) {
   const abilities = [
-    fighter.bonusParts.some((part) => part.trait === "crocodile") ? "C chomp" : "",
-    fighter.bonusParts.some((part) => part.category === "tail") ? "T tail strike" : "",
-    fighter.bonusParts.some((part) => part.category === "claws") ? "V claw swipe" : "",
-    fighter.bonusParts.some((part) => part.category === "wings") ? "W/Space fly" : ""
+    fighter.bonusParts.some((part) => part.trait === "crocodile") || hasNaturalChomp(fighter) ? "C chomp" : "",
+    fighter.bonusParts.some((part) => part.category === "tail") || hasNaturalTail(fighter) ? "T tail strike" : "",
+    fighter.bonusParts.some((part) => part.category === "claws") || hasNaturalClaws(fighter) ? "V claw swipe" : "",
+    fighter.bonusParts.some((part) => part.category === "wings") || fighter.key === "eagle" ? "W/Space fly" : ""
   ].filter(Boolean);
 
   return abilities.join(", ");
+}
+
+function hasNaturalChomp(fighter: FighterSnapshot) {
+  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo";
+}
+
+function getObjectiveKind(settings: GameLaunchSettings): ObjectiveKind {
+  if (settings.matchType === "testing" || settings.matchType === "online") {
+    return "none";
+  }
+
+  if (settings.mode === "training") {
+    return "training";
+  }
+
+  if (settings.mode === "storySpar") {
+    return "story";
+  }
+
+  return "parts";
+}
+
+function createObjective(kind: ObjectiveKind): ObjectiveState {
+  const labels: Record<ObjectiveKind, string> = {
+    none: "",
+    training: "Training Trial",
+    parts: "Builder Trial",
+    story: "Story Challenge"
+  };
+
+  return {
+    kind,
+    label: labels[kind],
+    hits: 0,
+    blocks: 0,
+    attaches: 0,
+    wins: 0,
+    complete: kind === "none"
+  };
+}
+
+function formatObjective(objective: ObjectiveState) {
+  if (objective.kind === "none") {
+    return "";
+  }
+
+  if (objective.complete) {
+    return `${objective.label}: complete`;
+  }
+
+  if (objective.kind === "training") {
+    return `${objective.label}: block ${Math.min(objective.blocks, 2)}/2 and land ${Math.min(objective.hits, 3)}/3 hits`;
+  }
+
+  if (objective.kind === "story") {
+    return `${objective.label}: block ${Math.min(objective.blocks, 1)}/1, land ${Math.min(objective.hits, 2)}/2, win ${Math.min(objective.wins, 1)}/1`;
+  }
+
+  return `${objective.label}: attach ${Math.min(objective.attaches, 2)}/2 parts and land ${Math.min(objective.hits, 2)}/2 hits`;
+}
+
+function isObjectiveComplete(objective: ObjectiveState) {
+  if (objective.kind === "training") {
+    return objective.blocks >= 2 && objective.hits >= 3;
+  }
+
+  if (objective.kind === "story") {
+    return objective.blocks >= 1 && objective.hits >= 2 && objective.wins >= 1;
+  }
+
+  if (objective.kind === "parts") {
+    return objective.attaches >= 2 && objective.hits >= 2;
+  }
+
+  return true;
+}
+
+function hasNaturalTail(fighter: FighterSnapshot) {
+  return fighter.key === "tRex";
+}
+
+function hasNaturalClaws(fighter: FighterSnapshot) {
+  return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle";
 }
 
 function setControlVisible(id: string, visible: boolean) {
@@ -1966,26 +2503,84 @@ function setControlVisible(id: string, visible: boolean) {
 }
 
 function getModeStatus(settings: GameLaunchSettings) {
+  const roundRule =
+    settings.winCondition === "knockout"
+      ? "KO wins"
+      : settings.winCondition === "survival"
+        ? "survive the timer"
+        : "health lead wins";
+
   if (settings.matchType === "testing") {
     return "Testing lab: spawn parts freely, no deaths, exit from the menu button";
   }
 
   if (settings.matchType === "online") {
-    return "Online versus: lobby match loaded for a player fight";
+    return `Online versus: ${roundRule}`;
   }
 
   if (settings.mode === "storySpar") {
-    return "Story spar: David trains for courage and restraint";
+    return `Story spar: ${roundRule}`;
   }
 
   if (settings.mode === "partsBuilder") {
-    return "Parts builder: attach wild parts, unlock new moves";
+    return `Parts builder: ${roundRule}`;
   }
 
-  return "Training yard: learn spacing, timing, and guard";
+  return `Training yard: ${roundRule}`;
+}
+
+function getRemainingRoundTime(settings: GameLaunchSettings, elapsedSeconds: number) {
+  if (settings.roundTimeSeconds <= 0 || settings.winCondition === "knockout") {
+    return 0;
+  }
+
+  return Math.max(0, Math.ceil(settings.roundTimeSeconds - elapsedSeconds));
+}
+
+function formatRoundTimer(seconds: number) {
+  if (seconds <= 0) {
+    return "--";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
 function getLevelPalette(level: GameLaunchSettings["level"]) {
+  if (level === "valleyOfElah") {
+    return {
+      sky: 0xf1e6d2,
+      haze: 0xd4b28a,
+      sun: 0xf0a956,
+      hillA: 0xb4956d,
+      hillB: 0x8c765f,
+      banner: 0xa54f2b
+    };
+  }
+
+  if (level === "wildernessCave") {
+    return {
+      sky: 0xd6d2c2,
+      haze: 0x8d8170,
+      sun: 0xd8b45d,
+      hillA: 0x6b6255,
+      hillB: 0x504b43,
+      banner: 0x2f2c29
+    };
+  }
+
+  if (level === "cedarRidge") {
+    return {
+      sky: 0xe4f0df,
+      haze: 0xa9bea0,
+      sun: 0xf2d06b,
+      hillA: 0x6f8a5a,
+      hillB: 0x4f765b,
+      banner: 0x4e9a86
+    };
+  }
+
   if (level === "mightyArena") {
     return {
       sky: 0xf2eadb,

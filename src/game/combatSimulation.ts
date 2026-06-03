@@ -125,6 +125,7 @@ export type DetachedPart = {
 
 export type BonusStrikeKind = "arm" | "kick" | "bite" | "tail" | "claw";
 export type CpuDifficulty = "gentle" | "standard" | "champion";
+export type WinCondition = "knockout" | "healthLead" | "survival";
 
 export type CombatSimulationOptions = {
   difficulty?: CpuDifficulty;
@@ -135,6 +136,8 @@ export type CombatSimulationOptions = {
   opponentFighter?: BaseFighterKey;
   noDeath?: boolean;
   opponentControlled?: boolean;
+  roundTimeSeconds?: number;
+  winCondition?: WinCondition;
 };
 
 export type CombatState = {
@@ -195,7 +198,7 @@ export type CombatEvent =
   | { type: "clash"; x: number; y: number; attackKind: AttackKind }
   | { type: "attach"; owner: "player" | "opponent"; part: AttachedBonusPart }
   | { type: "drop"; part: DetachedPart }
-  | { type: "roundOver"; playerWon: boolean; durationSeconds: number };
+  | { type: "roundOver"; playerWon: boolean; draw?: boolean; durationSeconds: number };
 
 export const combatFps = 60;
 export const fixedStep = 1 / combatFps;
@@ -542,7 +545,9 @@ export class CombatSimulation {
       playerFighter: options.playerFighter ?? "david",
       opponentFighter: options.opponentFighter ?? "guard",
       noDeath: options.noDeath ?? false,
-      opponentControlled: options.opponentControlled ?? false
+      opponentControlled: options.opponentControlled ?? false,
+      roundTimeSeconds: options.roundTimeSeconds ?? 0,
+      winCondition: options.winCondition ?? "knockout"
     };
     this.state = {
       frameNumber: 0,
@@ -1212,18 +1217,18 @@ export class CombatSimulation {
 
     if (!blocked) {
       defender.state = "hit";
-      defender.stunTimer = spec.hitStun;
-      defender.vx = attacker.facing * spec.knockback;
+      defender.stunTimer = spec.hitStun * getHitStunTakenMultiplier(defender);
+      defender.vx = attacker.facing * spec.knockback * getKnockbackTakenMultiplier(defender);
       defender.vy =
         (spec.kind === "heavy" || spec.kind === "high" || spec.kind === "spinKick" || spec.kind === "chomp") &&
         defender.y >= groundY
-          ? -135
+          ? -135 * getLaunchTakenMultiplier(defender)
           : defender.vy;
       this.hitStopTimer = spec.hitStop;
     } else {
       defender.state = "blockstun";
-      defender.stunTimer = perfectBlock ? frames(5) : spec.blockStun;
-      defender.vx = attacker.facing * 58;
+      defender.stunTimer = (perfectBlock ? frames(5) : spec.blockStun) * getHitStunTakenMultiplier(defender);
+      defender.vx = attacker.facing * 58 * getKnockbackTakenMultiplier(defender);
       attacker.vx = -attacker.facing * (perfectBlock ? 210 : 70);
       if (perfectBlock) {
         attacker.state = "hit";
@@ -1385,14 +1390,38 @@ export class CombatSimulation {
       return null;
     }
 
-    if (this.state.player.health > 0 && this.state.opponent.health > 0) {
-      return null;
+    const playerAlive = this.state.player.health > 0;
+    const opponentAlive = this.state.opponent.health > 0;
+    if (!playerAlive || !opponentAlive) {
+      return this.createRoundOverEvent("knockout");
     }
+
+    const roundTimeSeconds = this.options.roundTimeSeconds ?? 0;
+    const winCondition = this.options.winCondition ?? "knockout";
+    if (roundTimeSeconds > 0 && winCondition !== "knockout" && this.state.elapsedSeconds >= roundTimeSeconds) {
+      return this.createRoundOverEvent(winCondition);
+    }
+
+    return null;
+  }
+
+  private createRoundOverEvent(winCondition: WinCondition): CombatEvent {
+    const playerHealthRatio = this.state.player.health / this.state.player.stats.maxHealth;
+    const opponentHealthRatio = this.state.opponent.health / this.state.opponent.stats.maxHealth;
+    const healthDelta = playerHealthRatio - opponentHealthRatio;
+    const draw = winCondition === "healthLead" && Math.abs(healthDelta) < 0.025;
+    const playerWon =
+      winCondition === "survival"
+        ? this.state.player.health > 0
+        : draw
+          ? false
+          : healthDelta >= 0;
 
     this.state.roundOver = true;
     return {
       type: "roundOver",
-      playerWon: this.state.player.health > 0,
+      playerWon,
+      draw,
       durationSeconds: Math.floor(this.state.elapsedSeconds)
     };
   }
@@ -1660,7 +1689,7 @@ function getJumpMultiplier(fighter: FighterSnapshot) {
 }
 
 function canGuard(fighter: FighterSnapshot) {
-  return hasAnyHead(fighter) && (attachedArmCount(fighter) > 0 || hasTail(fighter));
+  return hasAnyHead(fighter) && (attachedArmCount(fighter) > 0 || hasTail(fighter) || isNaturalGuarder(fighter));
 }
 
 function canAttack(fighter: FighterSnapshot, kind: AttackKind) {
@@ -1669,22 +1698,22 @@ function canAttack(fighter: FighterSnapshot, kind: AttackKind) {
   }
 
   if (kind === "chomp") {
-    return hasCrocodileHead(fighter);
+    return hasCrocodileHead(fighter) || hasNaturalChomp(fighter);
   }
 
   if (kind === "tailStrike") {
-    return hasTail(fighter);
+    return hasTail(fighter) || hasNaturalTail(fighter);
   }
 
   if (kind === "clawSwipe") {
-    return hasClaws(fighter);
+    return hasClaws(fighter) || hasNaturalClaws(fighter);
   }
 
   if (isKickAttack(kind) || kind === "low") {
     return attachedLegCount(fighter) > 0;
   }
 
-  return attachedArmCount(fighter) > 0 || hasCrocodileHead(fighter) || hasTail(fighter);
+  return attachedArmCount(fighter) > 0 || hasCrocodileHead(fighter) || hasTail(fighter) || hasNaturalChomp(fighter) || hasNaturalTail(fighter);
 }
 
 function getAttackDamageMultiplier(fighter: FighterSnapshot, kind: AttackKind) {
@@ -1692,27 +1721,35 @@ function getAttackDamageMultiplier(fighter: FighterSnapshot, kind: AttackKind) {
     const crocodilePower = fighter.bonusParts
       .filter((part) => part.trait === "crocodile")
       .reduce((sum, part) => sum + (part.power - 1) * 0.42 + part.weaponDamage * 0.035, 0);
-    return Math.min(1.72, 1.08 + crocodilePower);
+    return Math.min(1.82, getNaturalChompBonus(fighter) + crocodilePower);
   }
 
   if (kind === "tailStrike") {
     const tailPower = fighter.bonusParts
       .filter((part) => part.category === "tail")
       .reduce((sum, part) => sum + (part.power - 1) * 0.5 + part.weaponDamage * 0.03, 0);
-    return Math.min(1.68, 1.05 + tailPower);
+    return Math.min(1.76, getNaturalTailBonus(fighter) + tailPower);
   }
 
   if (kind === "clawSwipe") {
     const clawPower = fighter.bonusParts
       .filter((part) => part.category === "claws")
       .reduce((sum, part) => sum + (part.power - 1) * 0.34 + part.weaponDamage * 0.04, 0);
-    return Math.min(1.72, 1.04 + clawPower);
+    return Math.min(1.76, getNaturalClawBonus(fighter) + clawPower);
   }
 
   if (isKickAttack(kind) || kind === "low") {
     const extraLegs = Math.max(0, attachedLegCount(fighter) - 2);
     const tailBonus = hasTail(fighter) ? 0.08 : 0;
-    return Math.min(1.78, 1 + extraLegs * (kind === "spinKick" ? 0.16 : 0.12) + tailBonus);
+    const pounceBonus =
+      fighter.key === "lion"
+        ? 0.12
+        : fighter.key === "eagle" && fighter.y < groundY
+          ? 0.14
+          : fighter.key === "honeyBadger"
+            ? 0.06
+            : 0;
+    return Math.min(1.78, 1 + extraLegs * (kind === "spinKick" ? 0.16 : 0.12) + tailBonus + pounceBonus);
   }
 
   const extraArms = Math.max(0, attachedArmCount(fighter) - 2);
@@ -1725,15 +1762,22 @@ function getAttackDamageMultiplier(fighter: FighterSnapshot, kind: AttackKind) {
 
 function getBonusStrikeCount(fighter: FighterSnapshot, kind: AttackKind) {
   if (kind === "chomp") {
-    return Math.min(1, Math.max(0, fighter.bonusParts.filter((part) => part.trait === "crocodile").length - 1));
+    return Math.min(
+      1,
+      (hasNaturalChomp(fighter) && (fighter.key === "tRex" || fighter.key === "lion") ? 1 : 0) +
+        Math.max(0, fighter.bonusParts.filter((part) => part.trait === "crocodile").length - 1)
+    );
   }
 
   if (kind === "tailStrike") {
-    return Math.min(1, Math.max(0, fighter.bonusParts.filter((part) => part.category === "tail").length - 1));
+    return Math.min(
+      1,
+      (hasNaturalTail(fighter) ? 1 : 0) + Math.max(0, fighter.bonusParts.filter((part) => part.category === "tail").length - 1)
+    );
   }
 
   if (kind === "clawSwipe") {
-    return Math.min(2, Math.max(1, fighter.bonusParts.filter((part) => part.category === "claws").length));
+    return Math.min(2, (hasNaturalClaws(fighter) ? 1 : 0) + fighter.bonusParts.filter((part) => part.category === "claws").length);
   }
 
   if (isKickAttack(kind)) {
@@ -1797,7 +1841,69 @@ function getDashCost(fighter: FighterSnapshot) {
 }
 
 function getDashSpeedMultiplier(fighter: FighterSnapshot) {
-  return 1 + getDodgeBonus(fighter) * 0.55;
+  const naturalBurst =
+    fighter.key === "lion"
+      ? 0.12
+      : fighter.key === "honeyBadger"
+        ? 0.16
+        : fighter.key === "eagle"
+          ? 0.1
+          : fighter.key === "hippo" || fighter.key === "tRex"
+            ? -0.08
+            : 0;
+  return Math.max(0.7, 1 + getDodgeBonus(fighter) * 0.55 + naturalBurst);
+}
+
+function getKnockbackTakenMultiplier(fighter: FighterSnapshot) {
+  if (fighter.key === "hippo") {
+    return 0.58;
+  }
+
+  if (fighter.key === "tRex") {
+    return 0.72;
+  }
+
+  if (fighter.key === "honeyBadger") {
+    return 0.86;
+  }
+
+  if (fighter.key === "eagle") {
+    return 1.2;
+  }
+
+  return 1;
+}
+
+function getLaunchTakenMultiplier(fighter: FighterSnapshot) {
+  if (fighter.key === "hippo") {
+    return 0.52;
+  }
+
+  if (fighter.key === "tRex") {
+    return 0.68;
+  }
+
+  if (fighter.key === "eagle") {
+    return 1.26;
+  }
+
+  return 1;
+}
+
+function getHitStunTakenMultiplier(fighter: FighterSnapshot) {
+  if (fighter.key === "honeyBadger") {
+    return 0.84;
+  }
+
+  if (fighter.key === "hippo") {
+    return 0.92;
+  }
+
+  if (fighter.key === "eagle") {
+    return 1.08;
+  }
+
+  return 1;
 }
 
 function isKickAttack(kind: AttackKind) {
@@ -1877,19 +1983,71 @@ function isControlReversed(fighter: FighterSnapshot) {
 }
 
 function hasClaws(fighter: FighterSnapshot) {
-  return fighter.bonusParts.some((part) => part.category === "claws");
+  return fighter.bonusParts.some((part) => part.category === "claws") || hasNaturalClaws(fighter);
 }
 
 function hasTail(fighter: FighterSnapshot) {
-  return fighter.bonusParts.some((part) => part.category === "tail");
+  return fighter.bonusParts.some((part) => part.category === "tail") || hasNaturalTail(fighter);
 }
 
 function hasCrocodileHead(fighter: FighterSnapshot) {
-  return fighter.bonusParts.some((part) => part.trait === "crocodile");
+  return fighter.bonusParts.some((part) => part.trait === "crocodile") || hasNaturalChomp(fighter);
 }
 
 function canFly(fighter: FighterSnapshot) {
-  return fighter.bonusParts.some((part) => part.category === "wings") && fighter.stamina >= 8;
+  return (fighter.bonusParts.some((part) => part.category === "wings") || fighter.key === "eagle") && fighter.stamina >= 8;
+}
+
+function hasNaturalChomp(fighter: FighterSnapshot) {
+  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo";
+}
+
+function hasNaturalTail(fighter: FighterSnapshot) {
+  return fighter.key === "tRex";
+}
+
+function hasNaturalClaws(fighter: FighterSnapshot) {
+  return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle";
+}
+
+function isNaturalGuarder(fighter: FighterSnapshot) {
+  return fighter.key === "hippo" || fighter.key === "tRex";
+}
+
+function getNaturalChompBonus(fighter: FighterSnapshot) {
+  if (fighter.key === "tRex") {
+    return 1.28;
+  }
+
+  if (fighter.key === "hippo") {
+    return 1.22;
+  }
+
+  if (fighter.key === "lion") {
+    return 1.12;
+  }
+
+  return 1.08;
+}
+
+function getNaturalTailBonus(fighter: FighterSnapshot) {
+  return fighter.key === "tRex" ? 1.2 : 1.05;
+}
+
+function getNaturalClawBonus(fighter: FighterSnapshot) {
+  if (fighter.key === "lion") {
+    return 1.14;
+  }
+
+  if (fighter.key === "honeyBadger") {
+    return 1.06;
+  }
+
+  if (fighter.key === "eagle") {
+    return 1.08;
+  }
+
+  return 1.04;
 }
 
 function getPartCategory(part: BonusPart): PartCategory {
@@ -1913,7 +2071,18 @@ function getPartCategory(part: BonusPart): PartCategory {
 }
 
 function formatDetachedPartLabel(owner: PartOwner, part: BonusPart) {
-  const ownerLabel = owner === "david" ? "David's" : owner === "guard" ? "Guard's" : "wild";
+  const ownerLabel =
+    owner === "david"
+      ? "David's"
+      : owner === "guard"
+        ? "Guard's"
+        : owner === "tRex"
+          ? "T. Rex"
+          : owner === "honeyBadger"
+            ? "badger"
+            : owner === "neutral"
+              ? "wild"
+              : owner;
   const partLabel =
     part === "head" || part === "crocodileHead"
       ? "head"

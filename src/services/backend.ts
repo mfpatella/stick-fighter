@@ -18,7 +18,7 @@ import type {
   PlayerStats
 } from "../game/multiplayerTypes";
 
-type MatchResult = {
+export type MatchResult = {
   matchId?: string;
   result: MatchResultKind;
   fighterKey: BaseFighterKey;

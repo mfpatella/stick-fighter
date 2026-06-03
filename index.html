@@ -89,6 +89,11 @@
                 <option value="ishbiBenob">Ishbi-Benob - Spear Giant</option>
                 <option value="saph">Saph - Heavy Guard</option>
                 <option value="lahmi">Lahmi - Giant Duelist</option>
+                <option value="tRex">T. Rex - Apex Chomper</option>
+                <option value="lion">Lion - Pouncing Hunter</option>
+                <option value="hippo">Hippo - River Tank</option>
+                <option value="honeyBadger">Honey Badger - Relentless Scrapper</option>
+                <option value="eagle">Eagle - Air Duelist</option>
               </select>
             </label>
             <label>
@@ -103,6 +108,11 @@
                 <option value="ishbiBenob">Ishbi-Benob</option>
                 <option value="saph">Saph</option>
                 <option value="lahmi">Lahmi</option>
+                <option value="tRex">T. Rex</option>
+                <option value="lion">Lion</option>
+                <option value="hippo">Hippo</option>
+                <option value="honeyBadger">Honey Badger</option>
+                <option value="eagle">Eagle</option>
               </select>
             </label>
             <label>
@@ -114,6 +124,39 @@
                 <option value="beast">Full Beast Kit</option>
               </select>
             </label>
+            <div class="fighter-icon-panel" aria-label="Quick fighter selection">
+              <div class="fighter-icon-heading">
+                <strong>Your quick pick</strong>
+                <span>Tap an icon to choose your fighter.</span>
+              </div>
+              <div class="fighter-icon-grid" data-fighter-icons="playerFighter">
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="david" data-icon-label="D">David</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="jonathan" data-icon-label="J">Jonathan</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="benaiah" data-icon-label="B">Benaiah</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="asahel" data-icon-label="A">Asahel</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="goliath" data-icon-label="G">Goliath</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="ishbiBenob" data-icon-label="IB">Ishbi</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="saph" data-icon-label="S">Saph</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="lahmi" data-icon-label="L">Lahmi</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="tRex" data-icon-label="TR">T. Rex</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="lion" data-icon-label="LI">Lion</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="hippo" data-icon-label="H">Hippo</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="honeyBadger" data-icon-label="HB">Badger</button>
+                <button type="button" data-fighter-target="playerFighter" data-fighter-key="eagle" data-icon-label="E">Eagle</button>
+              </div>
+              <div class="fighter-icon-heading fighter-icon-heading-secondary">
+                <strong>Opponent quick pick</strong>
+                <span>Choose common CPU matchups fast.</span>
+              </div>
+              <div class="fighter-icon-grid fighter-icon-grid-compact" data-fighter-icons="opponentFighter">
+                <button type="button" data-fighter-target="opponentFighter" data-fighter-key="guard" data-icon-label="TG">Guard</button>
+                <button type="button" data-fighter-target="opponentFighter" data-fighter-key="goliath" data-icon-label="G">Goliath</button>
+                <button type="button" data-fighter-target="opponentFighter" data-fighter-key="tRex" data-icon-label="TR">T. Rex</button>
+                <button type="button" data-fighter-target="opponentFighter" data-fighter-key="lion" data-icon-label="LI">Lion</button>
+                <button type="button" data-fighter-target="opponentFighter" data-fighter-key="hippo" data-icon-label="H">Hippo</button>
+                <button type="button" data-fighter-target="opponentFighter" data-fighter-key="eagle" data-icon-label="E">Eagle</button>
+              </div>
+            </div>
             <label class="switch-row">
               <input name="trainingTools" type="checkbox" />
               <span>Local spawn tools</span>
@@ -122,6 +165,10 @@
               <input name="motionFx" type="checkbox" checked />
               <span>Full motion effects</span>
             </label>
+            <div id="fighter-preview" class="fighter-preview" aria-live="polite">
+              <article id="player-fighter-card" class="fighter-preview-card"></article>
+              <article id="opponent-fighter-card" class="fighter-preview-card"></article>
+            </div>
           </section>
           <section class="menu-panel" data-menu-panel="rules" aria-label="Rules settings">
             <label>
@@ -131,6 +178,27 @@
                 <option value="shepherdField">Shepherd Field</option>
                 <option value="covenantHall">Covenant Hall</option>
                 <option value="mightyArena">Mighty Arena</option>
+                <option value="valleyOfElah">Valley of Elah</option>
+                <option value="wildernessCave">Wilderness Cave</option>
+                <option value="cedarRidge">Cedar Ridge</option>
+              </select>
+            </label>
+            <label>
+              <span>Round Time</span>
+              <select name="roundTimeSeconds">
+                <option value="0">No Limit</option>
+                <option value="45">45 Seconds</option>
+                <option value="60">60 Seconds</option>
+                <option value="90" selected>90 Seconds</option>
+                <option value="120">120 Seconds</option>
+              </select>
+            </label>
+            <label>
+              <span>Win Condition</span>
+              <select name="winCondition">
+                <option value="knockout">Knockout Only</option>
+                <option value="healthLead" selected>Health Lead at Time</option>
+                <option value="survival">Survival Trial</option>
               </select>
             </label>
             <label class="switch-row">
@@ -143,10 +211,47 @@
             </label>
           </section>
           <section class="menu-panel" data-menu-panel="online" aria-label="Online settings">
+            <section class="profile-setup" aria-label="Player profile setup">
+              <div class="profile-copy">
+                <p class="setup-step">1. Pick your fighter identity</p>
+                <span>Choose a username and avatar color before creating an account. These settings are saved locally now and synced online when Supabase is connected.</span>
+              </div>
+              <label>
+                <span>Username</span>
+                <input name="displayName" type="text" minlength="2" maxlength="32" value="Local Player" autocomplete="nickname" />
+              </label>
+              <label>
+                <span>Avatar Color</span>
+                <select name="avatarColor">
+                  <option value="olive" selected>Olive</option>
+                  <option value="cedar">Cedar</option>
+                  <option value="gold">Gold</option>
+                  <option value="crimson">Crimson</option>
+                  <option value="sky">Sky</option>
+                </select>
+              </label>
+              <label>
+                <span>Avatar Frame</span>
+                <select name="avatarFrame">
+                  <option value="shepherd" selected>Shepherd</option>
+                  <option value="covenant">Covenant</option>
+                  <option value="mighty">Mighty</option>
+                  <option value="wild">Wild Parts</option>
+                </select>
+              </label>
+              <div class="avatar-preview" aria-live="polite">
+                <div id="avatar-preview-token" class="avatar-token avatar-token-olive avatar-frame-shepherd">LP</div>
+                <div>
+                  <p id="avatar-preview-name">Local Player</p>
+                  <span id="avatar-preview-meta">Shepherd avatar, David favorite</span>
+                </div>
+              </div>
+            </section>
             <div class="auth-panel">
               <div>
+                <p class="setup-step">2. Save online</p>
                 <p id="auth-status" class="auth-status">Playing as local guest</p>
-                <span id="auth-detail">Sign in to save stats, host lobbies, and sync avatars online.</span>
+                <span id="auth-detail">Create an account to keep wins, losses, avatar choices, and lobby access synced online.</span>
               </div>
               <div class="auth-fields">
                 <label>
@@ -160,33 +265,10 @@
               </div>
               <div class="auth-actions">
                 <button id="sign-in" type="button">Sign In</button>
-                <button id="sign-up" type="button">Create Account</button>
+                <button id="sign-up" type="button">Create Account &amp; Save</button>
                 <button id="sign-out" type="button" hidden>Sign Out</button>
               </div>
             </div>
-            <label>
-              <span>Display Name</span>
-              <input name="displayName" type="text" minlength="2" maxlength="32" value="Local Player" />
-            </label>
-            <label>
-              <span>Avatar Frame</span>
-              <select name="avatarFrame">
-                <option value="shepherd" selected>Shepherd</option>
-                <option value="covenant">Covenant</option>
-                <option value="mighty">Mighty</option>
-                <option value="wild">Wild Parts</option>
-              </select>
-            </label>
-            <label>
-              <span>Avatar Color</span>
-              <select name="avatarColor">
-                <option value="olive" selected>Olive</option>
-                <option value="cedar">Cedar</option>
-                <option value="gold">Gold</option>
-                <option value="crimson">Crimson</option>
-                <option value="sky">Sky</option>
-              </select>
-            </label>
             <label>
               <span>Matchmaking</span>
               <select name="matchmakingMode">
@@ -207,13 +289,6 @@
               <input name="roomCode" type="text" maxlength="12" autocomplete="off" placeholder="ABC123" />
             </label>
             <button id="join-lobby" class="secondary-action" type="button">Join Lobby</button>
-            <div class="avatar-preview" aria-live="polite">
-              <div id="avatar-preview-token" class="avatar-token avatar-token-olive avatar-frame-shepherd">LP</div>
-              <div>
-                <p id="avatar-preview-name">Local Player</p>
-                <span id="avatar-preview-meta">Shepherd avatar, David favorite</span>
-              </div>
-            </div>
             <dl id="stats-summary" class="stats-summary" aria-label="Local player stats">
               <div>
                 <dt>Wins</dt>
@@ -232,6 +307,7 @@
                 <dd data-stat="bestStreak">0</dd>
               </div>
             </dl>
+            <section id="balance-telemetry" class="balance-telemetry" aria-label="Local fighter balance telemetry"></section>
             <p id="online-status" class="menu-note">Local lobby data will be saved now; Supabase can sync the same shape later.</p>
           </section>
           <div class="menu-actions">

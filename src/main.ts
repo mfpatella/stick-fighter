@@ -18,6 +18,7 @@ import {
   joinRealtimeRoom,
   joinLobbyByRoomCode,
   leaveLobby,
+  loadLocalMatchResults,
   loadPlayerStats,
   loadLocalProfile,
   markLobbyInMatch,
@@ -30,6 +31,7 @@ import {
   signUpWithEmail,
   tryMatchmaking,
   type AuthSnapshot,
+  type MatchResult,
   type RealtimeInputFrame,
   type RealtimeMatchStart,
   type RealtimeParticipant
@@ -78,7 +80,10 @@ const joinLobbyButton = document.querySelector<HTMLButtonElement>("#join-lobby")
 const avatarPreviewToken = document.querySelector<HTMLElement>("#avatar-preview-token");
 const avatarPreviewName = document.querySelector<HTMLElement>("#avatar-preview-name");
 const avatarPreviewMeta = document.querySelector<HTMLElement>("#avatar-preview-meta");
+const playerFighterCard = document.querySelector<HTMLElement>("#player-fighter-card");
+const opponentFighterCard = document.querySelector<HTMLElement>("#opponent-fighter-card");
 const statsSummary = document.querySelector<HTMLElement>("#stats-summary");
+const balanceTelemetry = document.querySelector<HTMLElement>("#balance-telemetry");
 const controls = document.querySelector<HTMLElement>(".controls");
 const trainingTools = document.querySelector<HTMLElement>(".training-tools");
 const installRoot = document.querySelector<HTMLElement>("#install-root");
@@ -104,6 +109,7 @@ const remotePacketAges: number[] = [];
 
 type RoundOverDetail = {
   playerWon: boolean;
+  draw?: boolean;
   localPlayerWon: boolean;
   matchType: GameLaunchSettings["matchType"];
   playerName: string;
@@ -176,11 +182,31 @@ document.querySelectorAll<HTMLButtonElement>("[data-menu-tab]").forEach((button)
 
 hydrateStoredProfile();
 updateAvatarPreview();
+updateFighterPreview();
+updateFighterIconSelection();
+updateBalanceTelemetry();
 void refreshAuthState();
 void updateStatsSummary();
 
 setupForm?.addEventListener("input", () => {
   updateAvatarPreview();
+  updateFighterPreview();
+  updateFighterIconSelection();
+});
+
+document.querySelectorAll<HTMLButtonElement>("[data-fighter-target][data-fighter-key]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = button.dataset.fighterTarget;
+    const fighterKey = button.dataset.fighterKey;
+    if (!target || !fighterKey) {
+      return;
+    }
+
+    setFormValue(target, fighterKey);
+    updateAvatarPreview();
+    updateFighterPreview();
+    updateFighterIconSelection();
+  });
 });
 
 setupForm?.addEventListener("submit", (event) => {
@@ -192,10 +218,13 @@ resetButton?.addEventListener("click", () => {
   setupForm?.reset();
   updateGuardHealthOutput();
   updateAvatarPreview();
+  updateFighterPreview();
+  updateFighterIconSelection();
 });
 
 window.addEventListener("sff:stats-updated", () => {
   void updateStatsSummary();
+  updateBalanceTelemetry();
 });
 
 signInButton?.addEventListener("click", () => {
@@ -562,10 +591,11 @@ async function handleAuthAction(action: "signIn" | "signUp") {
       favoriteFighter: readSettings().playerFighter
     });
     await updateStatsSummary();
+    updateBalanceTelemetry();
     setAuthMessage(
       action === "signUp" && !result.session
         ? "Account created. Check your email to confirm before signing in."
-        : "Signed in. Your avatar, stats, and lobbies can now sync online."
+        : "Signed in. Your username, color, stats, and lobby access are ready to sync."
     );
   } catch (error) {
     setAuthMessage(formatError(error));
@@ -586,6 +616,7 @@ async function handleSignOut() {
     leaveRoom = null;
     renderAuthState();
     await updateStatsSummary();
+    updateBalanceTelemetry();
     setAuthMessage("Signed out. Local mode remains available.");
   } catch (error) {
     setAuthMessage(formatError(error));
@@ -679,7 +710,7 @@ function renderAuthState() {
   if (authDetail) {
     authDetail.textContent = email
       ? "Profiles, lobbies, and stats will sync through Supabase."
-      : "Sign in to save stats, host lobbies, and sync avatars online.";
+      : "Create an account to keep wins, losses, avatar choices, and lobby access synced online.";
   }
   if (signInButton) {
     signInButton.hidden = Boolean(email);
@@ -742,6 +773,7 @@ function createAvatar(settings: GameLaunchSettings): PlayerAvatar {
 }
 
 function showAppScreen(screen: "menu" | "lobby" | "fight") {
+  document.body.classList.toggle("is-fighting", screen === "fight");
   if (menuOverlay) {
     menuOverlay.hidden = screen !== "menu";
   }
@@ -837,7 +869,15 @@ function showRoundOverlay(detail: RoundOverDetail) {
 
   const localName = detail.localPlayerWon ? detail.playerName : detail.opponentName;
   const winnerName = detail.playerWon ? detail.playerName : detail.opponentName;
-  const title = detail.matchType === "online" ? (detail.localPlayerWon ? "Victory" : "Defeat") : detail.playerWon ? "Victory" : "Defeat";
+  const title = detail.draw
+    ? "Draw"
+    : detail.matchType === "online"
+      ? detail.localPlayerWon
+        ? "Victory"
+        : "Defeat"
+      : detail.playerWon
+        ? "Victory"
+        : "Defeat";
 
   if (roundKicker) {
     roundKicker.textContent = detail.matchType === "online" ? "Online round complete" : "Round complete";
@@ -849,7 +889,9 @@ function showRoundOverlay(detail: RoundOverDetail) {
 
   if (roundDetail) {
     roundDetail.textContent =
-      detail.matchType === "online"
+      detail.draw
+        ? `Even round after ${detail.durationSeconds}s. Draw saved to stats.`
+        : detail.matchType === "online"
         ? `${winnerName} won in ${detail.durationSeconds}s. ${localName}'s result was saved.`
         : `${winnerName} won in ${detail.durationSeconds}s. Stats saved locally and online if signed in.`;
   }
@@ -948,7 +990,7 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
 
   if (lobbyMatchSummary) {
     const settings = currentLobbySettings ?? readSettings();
-    lobbyMatchSummary.textContent = `${settings.matchmakingMode} ${settings.maxPlayers === 4 ? "2v2" : "1v1"} on ${settings.level}`;
+    lobbyMatchSummary.textContent = `${settings.matchmakingMode} ${settings.maxPlayers === 4 ? "2v2" : "1v1"} on ${settings.level} | ${formatRulesSummary(settings)}`;
   }
 
   if (lobbyStatus) {
@@ -1220,6 +1262,164 @@ function updateAvatarPreview() {
   }
 }
 
+function updateFighterPreview() {
+  const settings = readSettings();
+  renderFighterCard(playerFighterCard, "Your Fighter", settings.playerFighter);
+  renderFighterCard(opponentFighterCard, "Opponent", settings.opponentFighter);
+}
+
+function updateFighterIconSelection() {
+  const settings = readSettings();
+  document.querySelectorAll<HTMLButtonElement>("[data-fighter-target][data-fighter-key]").forEach((button) => {
+    const target = button.dataset.fighterTarget;
+    const selected =
+      (target === "playerFighter" && button.dataset.fighterKey === settings.playerFighter) ||
+      (target === "opponentFighter" && button.dataset.fighterKey === settings.opponentFighter);
+
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+}
+
+function renderFighterCard(card: HTMLElement | null, title: string, fighterKey: BaseFighterKey) {
+  if (!card) {
+    return;
+  }
+
+  const fighter = baseFighters[fighterKey];
+  const stats = fighter.stats;
+  const statRows = [
+    ["Health", stats.maxHealth / 152, String(stats.maxHealth)],
+    ["Power", stats.attackPower / 1.36, formatStat(stats.attackPower)],
+    ["Speed", stats.moveSpeed / 1.24, formatStat(stats.moveSpeed)],
+    ["Jump", stats.jumpPower / 1.32, formatStat(stats.jumpPower)],
+    ["Guard", stats.guardStrength / 1.22, formatStat(stats.guardStrength)],
+    ["Reach", stats.reachScale / 1.24, formatStat(stats.reachScale)]
+  ] as const;
+  const moves = getFighterMoveList(fighterKey);
+
+  card.innerHTML = `
+    <h3>${title}: ${fighter.name}</h3>
+    <p>${fighter.role}. ${fighter.description}</p>
+    <div class="fighter-tags">${getFighterTags(fighterKey)
+      .map((tag) => `<span>${tag}</span>`)
+      .join("")}</div>
+    <div class="fighter-stat-grid">
+      ${statRows
+        .map(
+          ([label, value, display]) => `
+            <div class="fighter-stat">
+              <span>${label}</span>
+              <meter min="0" max="1" value="${Math.min(1, Math.max(0.08, value))}"></meter>
+              <strong>${display}</strong>
+            </div>
+          `
+        )
+        .join("")}
+    </div>
+    <div class="move-list" aria-label="${fighter.name} move list">
+      <strong>Moves</strong>
+      <ul>
+        ${moves.map((move) => `<li>${move}</li>`).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function getFighterTags(fighterKey: BaseFighterKey) {
+  const tags: string[] = [];
+  const fighter = baseFighters[fighterKey];
+
+  if (fighter.stats.bodyScale >= 1.3) {
+    tags.push("Huge");
+  } else if (fighter.stats.bodyScale <= 0.9) {
+    tags.push("Small");
+  }
+
+  if (fighter.stats.moveSpeed >= 1.12) {
+    tags.push("Fast");
+  }
+
+  if (fighter.stats.maxHealth >= 135) {
+    tags.push("Tank");
+  }
+
+  if (fighter.stats.attackPower >= 1.18) {
+    tags.push("Heavy hits");
+  }
+
+  if (fighterKey === "tRex" || fighterKey === "lion" || fighterKey === "hippo") {
+    tags.push("Chomp");
+  }
+
+  if (fighterKey === "lion" || fighterKey === "honeyBadger" || fighterKey === "eagle") {
+    tags.push("Claws");
+  }
+
+  if (fighterKey === "tRex") {
+    tags.push("Tail");
+  }
+
+  if (fighterKey === "eagle") {
+    tags.push("Flight");
+  }
+
+  return tags.length > 0 ? tags : ["Balanced"];
+}
+
+function getFighterMoveList(fighterKey: BaseFighterKey) {
+  const moves = ["J light chain", "K heavy guard break", "H low cut", "I high strike", "U kick", "O spin kick"];
+
+  if (fighterKey === "david") {
+    moves.push("Fast dash slingshot spacing");
+  }
+  if (fighterKey === "jonathan") {
+    moves.push("Stronger block and counter rhythm");
+  }
+  if (fighterKey === "benaiah") {
+    moves.push("Bruiser knockback pressure");
+  }
+  if (fighterKey === "asahel") {
+    moves.push("Long chase dash and quick recovery");
+  }
+  if (fighterKey === "goliath" || fighterKey === "ishbiBenob" || fighterKey === "saph" || fighterKey === "lahmi") {
+    moves.push("Long reach giant pressure");
+  }
+  if (fighterKey === "tRex") {
+    moves.push("C natural chomp", "T tail sweep");
+  }
+  if (fighterKey === "lion") {
+    moves.push("C bite pounce", "V claw flurry");
+  }
+  if (fighterKey === "hippo") {
+    moves.push("C crushing bite", "Heavy guard body check");
+  }
+  if (fighterKey === "honeyBadger") {
+    moves.push("V relentless claw swipe", "Faster hit recovery");
+  }
+  if (fighterKey === "eagle") {
+    moves.push("W/Space flight lift", "V talon swipe");
+  }
+
+  return moves.slice(0, 9);
+}
+
+function formatStat(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatRulesSummary(settings: GameLaunchSettings) {
+  const time = settings.roundTimeSeconds > 0 ? `${settings.roundTimeSeconds}s` : "No timer";
+  const condition =
+    settings.winCondition === "knockout"
+      ? "KO"
+      : settings.winCondition === "survival"
+        ? "Survival"
+        : "Health lead";
+
+  return `${time}, ${condition}`;
+}
+
 async function updateStatsSummary() {
   if (!statsSummary) {
     return;
@@ -1230,6 +1430,78 @@ async function updateStatsSummary() {
   statsSummary.querySelector<HTMLElement>('[data-stat="losses"]')!.textContent = String(stats.losses);
   statsSummary.querySelector<HTMLElement>('[data-stat="matchesPlayed"]')!.textContent = String(stats.matchesPlayed);
   statsSummary.querySelector<HTMLElement>('[data-stat="bestStreak"]')!.textContent = String(stats.bestStreak);
+}
+
+function updateBalanceTelemetry() {
+  if (!balanceTelemetry) {
+    return;
+  }
+
+  const results = loadLocalMatchResults();
+  if (results.length === 0) {
+    balanceTelemetry.innerHTML = `
+      <div>
+        <strong>Balance Snapshot</strong>
+        <span>Finish matches to track local win rates by fighter.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const rows = collectBalanceRows(results).slice(0, 5);
+  balanceTelemetry.innerHTML = `
+    <div>
+      <strong>Balance Snapshot</strong>
+      <span>${results.length} recent local match${results.length === 1 ? "" : "es"} tracked for tuning.</span>
+    </div>
+    <div class="balance-grid">
+      ${rows
+        .map(
+          (row) => `
+            <article>
+              <span>${baseFighters[row.fighterKey].name}</span>
+              <strong>${Math.round(row.winRate * 100)}%</strong>
+              <small>${row.wins}-${row.losses}-${row.draws} over ${row.played}</small>
+            </article>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function collectBalanceRows(results: MatchResult[]) {
+  const byFighter = new Map<BaseFighterKey, { fighterKey: BaseFighterKey; wins: number; losses: number; draws: number; played: number; lastIndex: number }>();
+
+  results.forEach((result, index) => {
+    const row =
+      byFighter.get(result.fighterKey) ??
+      {
+        fighterKey: result.fighterKey,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        played: 0,
+        lastIndex: index
+      };
+    row.played += 1;
+    row.lastIndex = index;
+    if (result.result === "win") {
+      row.wins += 1;
+    } else if (result.result === "loss") {
+      row.losses += 1;
+    } else {
+      row.draws += 1;
+    }
+    byFighter.set(result.fighterKey, row);
+  });
+
+  return [...byFighter.values()]
+    .map((row) => ({
+      ...row,
+      winRate: row.played > 0 ? row.wins / row.played : 0
+    }))
+    .sort((a, b) => b.played - a.played || b.lastIndex - a.lastIndex);
 }
 
 function formatError(error: unknown) {
@@ -1246,6 +1518,8 @@ function readSettings(): GameLaunchSettings {
   const loadout = String(data.get("loadout") ?? defaultGameSettings.loadout);
   const mode = String(data.get("mode") ?? defaultGameSettings.mode);
   const matchType = String(data.get("matchType") ?? defaultGameSettings.matchType);
+  const roundTimeSeconds = Number(data.get("roundTimeSeconds") ?? defaultGameSettings.roundTimeSeconds);
+  const winCondition = String(data.get("winCondition") ?? defaultGameSettings.winCondition);
 
   return {
     matchType: matchType === "online" || matchType === "testing" ? matchType : "singlePlayer",
@@ -1259,6 +1533,11 @@ function readSettings(): GameLaunchSettings {
     trainingTools: data.get("trainingTools") === "on",
     showHitboxes: data.get("showHitboxes") === "on",
     motionFx: data.get("motionFx") === "on" ? "full" : "calm",
+    roundTimeSeconds: readRoundTime(roundTimeSeconds),
+    winCondition:
+      winCondition === "knockout" || winCondition === "survival" || winCondition === "healthLead"
+        ? winCondition
+        : defaultGameSettings.winCondition,
     guardHealth: Number(data.get("guardHealth") ?? defaultGameSettings.guardHealth),
     playerFighter: readFighter(data.get("playerFighter"), playerFighterKeys, defaultGameSettings.playerFighter),
     opponentFighter: readFighter(data.get("opponentFighter"), opponentFighterKeys, defaultGameSettings.opponentFighter),
@@ -1312,6 +1591,10 @@ function readFighter(value: FormDataEntryValue | null, allowed: BaseFighterKey[]
 
 function readLevel(value: FormDataEntryValue | null): LevelKey {
   return typeof value === "string" && levelKeys.includes(value as LevelKey) ? (value as LevelKey) : defaultGameSettings.level;
+}
+
+function readRoundTime(value: number) {
+  return [0, 45, 60, 90, 120].includes(value) ? value : defaultGameSettings.roundTimeSeconds;
 }
 
 function readDisplayName(value: FormDataEntryValue | null) {

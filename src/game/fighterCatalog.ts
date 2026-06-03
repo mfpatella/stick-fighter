@@ -7,6 +7,11 @@ export type BaseFighterKey =
   | "ishbiBenob"
   | "saph"
   | "lahmi"
+  | "tRex"
+  | "lion"
+  | "hippo"
+  | "honeyBadger"
+  | "eagle"
   | "guard";
 
 export type FighterStats = {
@@ -175,6 +180,96 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       reachScale: 1.08
     }
   },
+  tRex: {
+    key: "tRex",
+    name: "T. Rex",
+    role: "Apex chomper",
+    description: "Massive bite, tail reach, and heavy health with poor turning, jumping, and stamina recovery.",
+    stats: {
+      maxHealth: 142,
+      moveSpeed: 0.72,
+      jumpPower: 0.48,
+      attackPower: 1.34,
+      staminaRegen: 0.76,
+      staminaCost: 1.26,
+      guardStrength: 0.86,
+      dodgeSpeed: 0.58,
+      bodyScale: 1.36,
+      reachScale: 1.24
+    }
+  },
+  lion: {
+    key: "lion",
+    name: "Lion",
+    role: "Pouncing hunter",
+    description: "Fast pounces, claw pressure, and strong bite damage with modest guard durability.",
+    stats: {
+      maxHealth: 108,
+      moveSpeed: 1.14,
+      jumpPower: 1.18,
+      attackPower: 1.12,
+      staminaRegen: 1.02,
+      staminaCost: 1.04,
+      guardStrength: 0.88,
+      dodgeSpeed: 1.12,
+      bodyScale: 1.04,
+      reachScale: 1.04
+    }
+  },
+  hippo: {
+    key: "hippo",
+    name: "Hippo",
+    role: "River tank",
+    description: "Huge health, crushing bite, and stubborn guard with slow movement and weak jumps.",
+    stats: {
+      maxHealth: 152,
+      moveSpeed: 0.66,
+      jumpPower: 0.52,
+      attackPower: 1.22,
+      staminaRegen: 0.86,
+      staminaCost: 1.16,
+      guardStrength: 1.22,
+      dodgeSpeed: 0.54,
+      bodyScale: 1.34,
+      reachScale: 1.08
+    }
+  },
+  honeyBadger: {
+    key: "honeyBadger",
+    name: "Honey Badger",
+    role: "Relentless scrapper",
+    description: "Tiny, quick, hard to pin down, and stamina-rich with lighter individual hits.",
+    stats: {
+      maxHealth: 86,
+      moveSpeed: 1.24,
+      jumpPower: 1.08,
+      attackPower: 0.9,
+      staminaRegen: 1.24,
+      staminaCost: 0.84,
+      guardStrength: 0.78,
+      dodgeSpeed: 1.28,
+      bodyScale: 0.82,
+      reachScale: 0.86
+    }
+  },
+  eagle: {
+    key: "eagle",
+    name: "Eagle",
+    role: "Air duelist",
+    description: "Light and fragile, but excellent jumps, air control, claw strikes, and natural flight.",
+    stats: {
+      maxHealth: 82,
+      moveSpeed: 1.08,
+      jumpPower: 1.32,
+      attackPower: 0.96,
+      staminaRegen: 1.16,
+      staminaCost: 0.92,
+      guardStrength: 0.74,
+      dodgeSpeed: 1.22,
+      bodyScale: 0.9,
+      reachScale: 0.92
+    }
+  },
   guard: {
     key: "guard",
     name: "Training Guard",
@@ -203,6 +298,11 @@ export const playerFighterKeys: BaseFighterKey[] = [
   "goliath",
   "ishbiBenob",
   "saph",
-  "lahmi"
+  "lahmi",
+  "tRex",
+  "lion",
+  "hippo",
+  "honeyBadger",
+  "eagle"
 ];
 export const opponentFighterKeys: BaseFighterKey[] = ["guard", ...playerFighterKeys];

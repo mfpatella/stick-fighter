@@ -8,6 +8,7 @@ export type MatchType = "singlePlayer" | "online" | "testing";
 export type CpuDifficulty = "gentle" | "standard" | "champion";
 export type StartingLoadout = "classic" | "winged" | "predator" | "beast";
 export type MotionFxLevel = "calm" | "full";
+export type WinCondition = "knockout" | "healthLead" | "survival";
 
 export type GameLaunchSettings = {
   matchType: MatchType;
@@ -18,6 +19,8 @@ export type GameLaunchSettings = {
   trainingTools: boolean;
   showHitboxes: boolean;
   motionFx: MotionFxLevel;
+  roundTimeSeconds: number;
+  winCondition: WinCondition;
   guardHealth: number;
   playerFighter: BaseFighterKey;
   opponentFighter: BaseFighterKey;
@@ -38,6 +41,8 @@ export const defaultGameSettings: GameLaunchSettings = {
   trainingTools: false,
   showHitboxes: false,
   motionFx: "full",
+  roundTimeSeconds: 90,
+  winCondition: "healthLead",
   guardHealth: 100,
   playerFighter: "david",
   opponentFighter: "guard",

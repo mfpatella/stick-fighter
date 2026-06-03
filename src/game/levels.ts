@@ -1,4 +1,11 @@
-export type LevelKey = "trainingYard" | "shepherdField" | "covenantHall" | "mightyArena";
+export type LevelKey =
+  | "trainingYard"
+  | "shepherdField"
+  | "covenantHall"
+  | "mightyArena"
+  | "valleyOfElah"
+  | "wildernessCave"
+  | "cedarRidge";
 
 export type LevelDefinition = {
   key: LevelKey;
@@ -36,7 +43,36 @@ export const levels: Record<LevelKey, LevelDefinition> = {
     setting: "Wide versus arena for parts-builder chaos and future 2v2 fights.",
     maxPlayers: 4,
     recommendedMode: "partsBuilder"
+  },
+  valleyOfElah: {
+    key: "valleyOfElah",
+    name: "Valley of Elah",
+    setting: "A dramatic open valley built for giant duels and health-lead pressure.",
+    maxPlayers: 2,
+    recommendedMode: "storySpar"
+  },
+  wildernessCave: {
+    key: "wildernessCave",
+    name: "Wilderness Cave",
+    setting: "Tight shadows, close spacing, and survival-style ambush practice.",
+    maxPlayers: 2,
+    recommendedMode: "training"
+  },
+  cedarRidge: {
+    key: "cedarRidge",
+    name: "Cedar Ridge",
+    setting: "A high-ridge animal-parts arena with strong movement lanes.",
+    maxPlayers: 4,
+    recommendedMode: "partsBuilder"
   }
 };
 
-export const levelKeys: LevelKey[] = ["trainingYard", "shepherdField", "covenantHall", "mightyArena"];
+export const levelKeys: LevelKey[] = [
+  "trainingYard",
+  "shepherdField",
+  "covenantHall",
+  "mightyArena",
+  "valleyOfElah",
+  "wildernessCave",
+  "cedarRidge"
+];
