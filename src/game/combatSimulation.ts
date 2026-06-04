@@ -201,7 +201,7 @@ export type CombatEvent =
       perfectBlock: boolean;
     }
   | { type: "clash"; x: number; y: number; attackKind: AttackKind }
-  | { type: "attach"; owner: "player" | "opponent"; part: AttachedBonusPart }
+  | { type: "attach"; owner: "player" | "opponent"; part: AttachedBonusPart; repairedPart?: BodyPart | null }
   | { type: "drop"; part: DetachedPart }
   | { type: "roundOver"; playerWon: boolean; draw?: boolean; durationSeconds: number };
 
@@ -243,7 +243,7 @@ const airDeceleration = 1300;
 const jumpSpeed = 780;
 const dashSpeed = 520;
 const dashCost = 22;
-const reattachRadius = 66;
+const reattachRadius = 92;
 const maxLooseParts = 5;
 const pushboxWidth = 44;
 const coyoteFrames = 6;
@@ -1119,7 +1119,12 @@ export class CombatSimulation {
   }
 
   private queueAttack(fighter: FighterSnapshot, kind: AttackKind) {
-    fighter.queuedAttack = kind;
+    const availableAttack = resolveAvailableAttack(fighter, kind);
+    if (!availableAttack) {
+      return;
+    }
+
+    fighter.queuedAttack = availableAttack;
     fighter.inputBufferTimer = frames(10);
   }
 
@@ -1325,15 +1330,17 @@ export class CombatSimulation {
     }
 
     let index = -1;
-    let closestDistance = Number.POSITIVE_INFINITY;
+    let bestScore = Number.POSITIVE_INFINITY;
 
     this.state.detachedParts.forEach((part, partIndex) => {
       const dx = part.x - fighter.x;
       const dy = part.y - (fighter.y - 34);
       const distance = Math.hypot(dx, dy);
+      const repairSocket = findRepairSocket(fighter, part);
+      const score = distance - (repairSocket ? 26 : 0) - (part.grounded ? 8 : 0);
 
-      if (distance <= reattachRadius && distance < closestDistance) {
-        closestDistance = distance;
+      if (distance <= reattachRadius && score < bestScore) {
+        bestScore = score;
         index = partIndex;
       }
     });
@@ -1343,6 +1350,7 @@ export class CombatSimulation {
     }
 
     const [part] = this.state.detachedParts.splice(index, 1);
+    const repairedPart = findRepairSocket(fighter, part);
     const attachment: AttachedBonusPart = {
       id: part.id,
       sourceOwner: part.owner,
@@ -1357,13 +1365,23 @@ export class CombatSimulation {
       dodgeBonus: part.dodgeBonus,
       scale: part.scale
     };
-    fighter.bonusParts.push(attachment);
-    fighter.stamina = Math.max(0, fighter.stamina - 6);
+
+    if (repairedPart) {
+      fighter.parts[repairedPart] = true;
+      if (part.part === "crocodileHead" || part.part === "claws" || part.part === "tail" || part.part === "wings") {
+        fighter.bonusParts.push(attachment);
+      }
+      fighter.stamina = Math.max(0, fighter.stamina - 4);
+    } else {
+      fighter.bonusParts.push(attachment);
+      fighter.stamina = Math.max(0, fighter.stamina - 6);
+    }
 
     return {
       type: "attach",
       owner,
-      part: attachment
+      part: attachment,
+      repairedPart
     };
   }
 
@@ -1729,6 +1747,44 @@ function chooseFrontBackPart(fighter: FighterSnapshot, frontWhenFacingRight: Bod
   return fighter.parts[back] ? back : null;
 }
 
+function findRepairSocket(fighter: FighterSnapshot, part: DetachedPart): BodyPart | null {
+  if (part.category === "head" && !fighter.parts.head) {
+    return "head";
+  }
+
+  if (part.category === "arm") {
+    const preferred = part.part === "leftArm" || part.part === "rightArm" ? part.part : null;
+    if (preferred && !fighter.parts[preferred]) {
+      return preferred;
+    }
+
+    if (!fighter.parts.leftArm) {
+      return "leftArm";
+    }
+
+    if (!fighter.parts.rightArm) {
+      return "rightArm";
+    }
+  }
+
+  if (part.category === "leg") {
+    const preferred = part.part === "leftLeg" || part.part === "rightLeg" ? part.part : null;
+    if (preferred && !fighter.parts[preferred]) {
+      return preferred;
+    }
+
+    if (!fighter.parts.leftLeg) {
+      return "leftLeg";
+    }
+
+    if (!fighter.parts.rightLeg) {
+      return "rightLeg";
+    }
+  }
+
+  return null;
+}
+
 function getPartAnchor(fighter: FighterSnapshot, part: BodyPart) {
   const side = part.startsWith("right") ? 1 : -1;
   const scale = fighter.stats.bodyScale;
@@ -1800,6 +1856,26 @@ function canAttack(fighter: FighterSnapshot, kind: AttackKind) {
   }
 
   return attachedArmCount(fighter) > 0 || hasCrocodileHead(fighter) || hasTail(fighter) || hasNaturalChomp(fighter) || hasNaturalTail(fighter);
+}
+
+function resolveAvailableAttack(fighter: FighterSnapshot, requested: AttackKind): AttackKind | null {
+  if (canAttack(fighter, requested)) {
+    return requested;
+  }
+
+  const fallbackGroups: Record<AttackKind, AttackKind[]> = {
+    light: ["clawSwipe", "kick", "low", "tailStrike", "chomp"],
+    heavy: ["high", "tailStrike", "kick", "chomp", "light"],
+    low: ["kick", "tailStrike", "light", "chomp"],
+    high: ["heavy", "chomp", "clawSwipe", "kick", "light"],
+    kick: ["low", "tailStrike", "light", "chomp"],
+    spinKick: ["kick", "low", "tailStrike", "heavy"],
+    chomp: ["high", "heavy", "clawSwipe", "kick"],
+    tailStrike: ["low", "kick", "heavy", "chomp"],
+    clawSwipe: ["light", "high", "kick", "chomp"]
+  };
+
+  return fallbackGroups[requested].find((kind) => canAttack(fighter, kind)) ?? null;
 }
 
 function getAttackDamageMultiplier(fighter: FighterSnapshot, kind: AttackKind) {

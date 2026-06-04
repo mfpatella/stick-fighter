@@ -331,6 +331,13 @@ type TouchAction =
   | "dash"
   | "reattach";
 
+type AttackControlId = "control-attack-top" | "control-attack-left" | "control-attack-right" | "control-attack-bottom";
+type AttackControlDefinition = {
+  id: AttackControlId;
+  label: string;
+  action: TouchAction;
+};
+
 const heldTouchActions = new Set<TouchAction>(["left", "right", "block"]);
 
 export class TrainingScene extends Phaser.Scene {
@@ -780,12 +787,12 @@ export class TrainingScene extends Phaser.Scene {
     const joystick = document.querySelector<HTMLElement>("[data-joystick]");
 
     buttons.forEach((button) => {
-      const action = button.dataset.touchAction as TouchAction | undefined;
-      if (!action) {
-        return;
-      }
-
       const press = (event: PointerEvent) => {
+        const action = button.dataset.touchAction as TouchAction | undefined;
+        if (!action) {
+          return;
+        }
+
         event.preventDefault();
         button.setPointerCapture?.(event.pointerId);
         if (heldTouchActions.has(action)) {
@@ -798,9 +805,10 @@ export class TrainingScene extends Phaser.Scene {
       };
 
       const release = (event: PointerEvent) => {
+        const action = button.dataset.touchAction as TouchAction | undefined;
         event.preventDefault();
         button.releasePointerCapture?.(event.pointerId);
-        if (heldTouchActions.has(action)) {
+        if (action && heldTouchActions.has(action)) {
           this.touchHeld.delete(action);
         }
         button.classList.remove("is-pressed");
@@ -1381,8 +1389,11 @@ export class TrainingScene extends Phaser.Scene {
           this.advanceObjective("attach");
         }
         this.statusHoldTimer = 1.1;
+        const fighterName = event.owner === "player" ? this.simulation.state.player.name : this.simulation.state.opponent.name;
         this.statusText.setText(
-          `${event.owner === "player" ? this.simulation.state.player.name : this.simulation.state.opponent.name} attached ${event.part.label}: ${describeAttachment(event.part)}.`
+          event.repairedPart
+            ? `${fighterName} reattached ${formatPartName(event.repairedPart)} with ${event.part.label}.`
+            : `${fighterName} attached ${event.part.label}: ${describeAttachment(event.part)}.`
         );
         this.effects.push({
           kind: "ring",
@@ -2057,7 +2068,7 @@ export class TrainingScene extends Phaser.Scene {
             ? "Head missing: controls reversed. Find any head and press E."
             : missing.length > 0
             ? `Missing: ${missing.map(formatPartName).join(", ")}. Press E near loose parts to attach.`
-            : "J light, K heavy, U kick, O spin kick. H low, I high."
+            : `${getControlHint(player)}.`
       );
     }
   }
@@ -2067,10 +2078,14 @@ export class TrainingScene extends Phaser.Scene {
     const hasTail = player.bonusParts.some((part) => part.category === "tail") || hasNaturalTail(player);
     const hasClaws = player.bonusParts.some((part) => part.category === "claws") || hasNaturalClaws(player);
     const hasWings = player.bonusParts.some((part) => part.category === "wings");
+    const attackControls = getAttackControlsForFighter(player);
+    const diamondActions = new Set(attackControls.map((control) => control.action));
 
-    setControlVisible("control-chomp", hasCrocodile);
-    setControlVisible("control-tail", hasTail);
-    setControlVisible("control-claws", hasClaws);
+    attackControls.forEach((control) => setAttackControl(control));
+
+    setControlVisible("control-chomp", hasCrocodile && !diamondActions.has("chomp"));
+    setControlVisible("control-tail", hasTail && !diamondActions.has("tail"));
+    setControlVisible("control-claws", hasClaws && !diamondActions.has("claw"));
 
     const jumpControl = document.getElementById("control-jump");
     if (jumpControl) {
@@ -2532,8 +2547,10 @@ export class TrainingScene extends Phaser.Scene {
     const bodyScale = fighter.stats.bodyScale;
     const spriteScale = config.scale * (bodyScale / config.baseBodyScale);
     const missingFrame = getMissingLimbFrame(fighter);
-    const textureKey = missingFrame !== null && this.textures.exists(config.missingTextureKey) ? config.missingTextureKey : config.textureKey;
-    const frame = missingFrame !== null && textureKey === config.missingTextureKey ? missingFrame : this.getSheetSpriteFrame(fighter, config);
+    const useMissingFrame =
+      missingFrame !== null && fighter.state !== "attack" && this.textures.exists(config.missingTextureKey);
+    const textureKey = useMissingFrame ? config.missingTextureKey : config.textureKey;
+    const frame = useMissingFrame ? missingFrame : this.getSheetSpriteFrame(fighter, config);
 
     sprite
       .setVisible(true)
@@ -3462,6 +3479,62 @@ function hasNaturalTail(fighter: FighterSnapshot) {
 
 function hasNaturalClaws(fighter: FighterSnapshot) {
   return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle";
+}
+
+function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDefinition[] {
+  const controls = (top: [string, TouchAction], left: [string, TouchAction], right: [string, TouchAction], bottom: [string, TouchAction]) => [
+    { id: "control-attack-top", label: top[0], action: top[1] },
+    { id: "control-attack-left", label: left[0], action: left[1] },
+    { id: "control-attack-right", label: right[0], action: right[1] },
+    { id: "control-attack-bottom", label: bottom[0], action: bottom[1] }
+  ] satisfies AttackControlDefinition[];
+
+  if (fighter.key === "david") {
+    return controls(["Sling", "high"], ["Punch", "light"], ["Kick", "kick"], ["Sword", "heavy"]);
+  }
+
+  if (fighter.key === "goliath") {
+    return controls(["Spear", "high"], ["Punch", "light"], ["Kick", "kick"], ["Sword", "heavy"]);
+  }
+
+  if (fighter.key === "tRex") {
+    return controls(["Bite", "chomp"], ["Tail", "tail"], ["Kick", "kick"], ["Stomp", "low"]);
+  }
+
+  if (fighter.key === "hippo") {
+    return controls(["Bite", "chomp"], ["Punch", "light"], ["Stomp", "low"], ["Spin", "powerKick"]);
+  }
+
+  if (fighter.key === "eagle") {
+    return controls(["Dive", "heavy"], ["Talon", "claw"], ["Kick", "kick"], ["Spin", "powerKick"]);
+  }
+
+  if (fighter.key === "lion") {
+    return controls(["Bite", "chomp"], ["Claw", "claw"], ["Pounce", "kick"], ["Rake", "high"]);
+  }
+
+  if (fighter.key === "honeyBadger") {
+    return controls(["Rake", "claw"], ["Scrap", "light"], ["Kick", "kick"], ["Lunge", "heavy"]);
+  }
+
+  return controls(["High", "high"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);
+}
+
+function getControlHint(fighter: FighterSnapshot) {
+  return getAttackControlsForFighter(fighter)
+    .map((control) => control.label)
+    .join(", ");
+}
+
+function setAttackControl(control: AttackControlDefinition) {
+  const button = document.getElementById(control.id);
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  button.textContent = control.label;
+  button.dataset.touchAction = control.action;
+  button.setAttribute("aria-label", control.label);
 }
 
 function setControlVisible(id: string, visible: boolean) {
