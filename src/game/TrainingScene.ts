@@ -23,7 +23,7 @@ import {
 } from "./combatSimulation";
 import { recordMatch } from "../services/backend";
 import { defaultGameSettings, startingLoadouts, type GameLaunchSettings } from "./gameSettings";
-import { backgroundAssets, effectAssets } from "./artAssets";
+import { backgroundAssets, characterAssets, effectAssets } from "./artAssets";
 
 const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   david: { color: 0x1f2a35, accent: 0x8a5a28 },
@@ -79,6 +79,210 @@ type LevelPickup = {
 type RenderState = {
   player: FighterSnapshot;
   opponent: FighterSnapshot;
+};
+
+type FighterSide = "player" | "opponent";
+type SheetFighterKey = Extract<FighterSnapshot["key"], "david" | "goliath" | "tRex" | "hippo" | "eagle">;
+type SheetRow = {
+  start: number;
+  count: number;
+};
+type CharacterSheetConfig = {
+  textureKey: string;
+  asset: string;
+  missingTextureKey: string;
+  missingAsset: string;
+  frameWidth: number;
+  frameHeight: number;
+  idle: SheetRow;
+  run?: SheetRow;
+  light?: SheetRow;
+  heavy?: SheetRow;
+  low?: SheetRow;
+  high?: SheetRow;
+  kick?: SheetRow;
+  spinKick?: SheetRow;
+  chomp?: SheetRow;
+  tailStrike?: SheetRow;
+  clawSwipe?: SheetRow;
+  scale: number;
+  baseBodyScale: number;
+  originX: number;
+  originY: number;
+  yOffset: number;
+};
+
+type DetachedPartSheetConfig = {
+  textureKey: string;
+  asset: string;
+  frameWidth: number;
+  frameHeight: number;
+  scale: number;
+  frames: {
+    leftArm?: number;
+    rightArm?: number;
+    leftLeg?: number;
+    rightLeg?: number;
+    head?: number;
+    tail?: number;
+    claws?: number;
+    wings?: number;
+  };
+};
+
+const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
+  david: {
+    textureKey: "character-david-actions",
+    asset: characterAssets.davidActions,
+    missingTextureKey: "character-david-missing",
+    missingAsset: characterAssets.davidMissing,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 8 },
+    light: { start: 8, count: 8 },
+    kick: { start: 16, count: 8 },
+    spinKick: { start: 16, count: 8 },
+    low: { start: 16, count: 8 },
+    high: { start: 24, count: 8 },
+    heavy: { start: 32, count: 8 },
+    scale: 0.74,
+    baseBodyScale: 1,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
+  },
+  goliath: {
+    textureKey: "character-goliath-actions",
+    asset: characterAssets.goliathActions,
+    missingTextureKey: "character-goliath-missing",
+    missingAsset: characterAssets.goliathMissing,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 8 },
+    light: { start: 8, count: 8 },
+    kick: { start: 16, count: 8 },
+    spinKick: { start: 16, count: 8 },
+    low: { start: 16, count: 8 },
+    high: { start: 24, count: 8 },
+    heavy: { start: 32, count: 8 },
+    scale: 0.82,
+    baseBodyScale: 1.3,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
+  },
+  tRex: {
+    textureKey: "character-trex-actions",
+    asset: characterAssets.trexActions,
+    missingTextureKey: "character-trex-missing",
+    missingAsset: characterAssets.trexMissing,
+    frameWidth: 161,
+    frameHeight: 181,
+    idle: { start: 0, count: 9 },
+    run: { start: 9, count: 9 },
+    chomp: { start: 18, count: 9 },
+    tailStrike: { start: 27, count: 9 },
+    kick: { start: 36, count: 9 },
+    spinKick: { start: 36, count: 9 },
+    low: { start: 36, count: 9 },
+    heavy: { start: 39, count: 6 },
+    light: { start: 45, count: 9 },
+    high: { start: 45, count: 9 },
+    scale: 1.08,
+    baseBodyScale: 1.36,
+    originX: 0.48,
+    originY: 0.86,
+    yOffset: 3
+  },
+  hippo: {
+    textureKey: "character-hippo-actions",
+    asset: characterAssets.hippoActions,
+    missingTextureKey: "character-hippo-missing",
+    missingAsset: characterAssets.hippoMissing,
+    frameWidth: 161,
+    frameHeight: 181,
+    idle: { start: 0, count: 9 },
+    run: { start: 9, count: 9 },
+    chomp: { start: 18, count: 9 },
+    tailStrike: { start: 27, count: 9 },
+    kick: { start: 36, count: 9 },
+    spinKick: { start: 27, count: 9 },
+    low: { start: 36, count: 9 },
+    heavy: { start: 39, count: 6 },
+    light: { start: 45, count: 9 },
+    high: { start: 45, count: 9 },
+    scale: 1.07,
+    baseBodyScale: 1.34,
+    originX: 0.48,
+    originY: 0.86,
+    yOffset: 2
+  },
+  eagle: {
+    textureKey: "character-eagle-actions",
+    asset: characterAssets.eagleActions,
+    missingTextureKey: "character-eagle-missing",
+    missingAsset: characterAssets.eagleMissing,
+    frameWidth: 181,
+    frameHeight: 181,
+    idle: { start: 0, count: 8 },
+    run: { start: 8, count: 8 },
+    chomp: { start: 16, count: 8 },
+    heavy: { start: 24, count: 8 },
+    low: { start: 32, count: 8 },
+    kick: { start: 32, count: 8 },
+    spinKick: { start: 24, count: 8 },
+    light: { start: 40, count: 8 },
+    high: { start: 40, count: 8 },
+    clawSwipe: { start: 40, count: 8 },
+    scale: 0.87,
+    baseBodyScale: 0.9,
+    originX: 0.5,
+    originY: 0.82,
+    yOffset: 1
+  }
+};
+
+const detachedPartSheetConfigs: Record<SheetFighterKey, DetachedPartSheetConfig> = {
+  david: {
+    textureKey: "character-david-parts",
+    asset: characterAssets.davidParts,
+    frameWidth: 181,
+    frameHeight: 272,
+    scale: 0.34,
+    frames: { leftArm: 0, rightArm: 1, leftLeg: 2, rightLeg: 3 }
+  },
+  goliath: {
+    textureKey: "character-goliath-parts",
+    asset: characterAssets.goliathParts,
+    frameWidth: 181,
+    frameHeight: 272,
+    scale: 0.38,
+    frames: { leftArm: 0, rightArm: 1, leftLeg: 2, rightLeg: 3 }
+  },
+  tRex: {
+    textureKey: "character-trex-parts",
+    asset: characterAssets.trexParts,
+    frameWidth: 181,
+    frameHeight: 272,
+    scale: 0.42,
+    frames: { head: 1, leftArm: 8, rightArm: 9, leftLeg: 16, rightLeg: 17, tail: 24 }
+  },
+  hippo: {
+    textureKey: "character-hippo-parts",
+    asset: characterAssets.hippoParts,
+    frameWidth: 181,
+    frameHeight: 272,
+    scale: 0.43,
+    frames: { leftArm: 0, rightArm: 1, leftLeg: 8, rightLeg: 9, tail: 16, head: 25 }
+  },
+  eagle: {
+    textureKey: "character-eagle-parts",
+    asset: characterAssets.eagleParts,
+    frameWidth: 181,
+    frameHeight: 272,
+    scale: 0.36,
+    frames: { leftArm: 0, rightArm: 8, leftLeg: 16, rightLeg: 17, wings: 0, claws: 18, tail: 24, head: 29 }
+  }
 };
 
 export type OnlineInputBridge = {
@@ -184,6 +388,8 @@ export class TrainingScene extends Phaser.Scene {
   private levelEventTimer = 0;
   private pickupTimer = 0;
   private activePickup: LevelPickup | null = null;
+  private characterSprites: Partial<Record<FighterSide, Phaser.GameObjects.Sprite>> = {};
+  private detachedPartSprites = new Map<number, Phaser.GameObjects.Sprite>();
 
   constructor() {
     super("training");
@@ -204,6 +410,22 @@ export class TrainingScene extends Phaser.Scene {
     this.load.spritesheet("oga-spark", effectAssets.spark, { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet("oga-spark-alt", effectAssets.sparkAlt, { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet("oga-toon-explosion", effectAssets.toonExplosion, { frameWidth: 128, frameHeight: 128 });
+    Object.values(characterSheetConfigs).forEach((config) => {
+      this.load.spritesheet(config.textureKey, config.asset, {
+        frameWidth: config.frameWidth,
+        frameHeight: config.frameHeight
+      });
+      this.load.spritesheet(config.missingTextureKey, config.missingAsset, {
+        frameWidth: 181,
+        frameHeight: 272
+      });
+    });
+    Object.values(detachedPartSheetConfigs).forEach((config) => {
+      this.load.spritesheet(config.textureKey, config.asset, {
+        frameWidth: config.frameWidth,
+        frameHeight: config.frameHeight
+      });
+    });
   }
 
   create() {
@@ -238,6 +460,8 @@ export class TrainingScene extends Phaser.Scene {
     this.statusHoldTimer = 0;
     this.effects = [];
     this.clouds = [];
+    this.detachedPartSprites.forEach((sprite) => sprite.destroy());
+    this.detachedPartSprites.clear();
     this.dustTimer = 0;
     this.netplaySnapshots.clear();
     this.netplayInputs.clear();
@@ -253,6 +477,7 @@ export class TrainingScene extends Phaser.Scene {
     this.createArena();
     this.graphics = this.add.graphics();
     this.graphics.setDepth(10);
+    this.createCharacterSprites();
     this.configureCameraForViewport();
     this.scale.on("resize", this.configureCameraForViewport, this);
     this.bindSceneLifecycle();
@@ -266,7 +491,17 @@ export class TrainingScene extends Phaser.Scene {
       this.releaseTouchControls();
       this.releaseTrainingTools();
       this.releaseSceneLifecycle();
+      this.detachedPartSprites.forEach((sprite) => sprite.destroy());
+      this.detachedPartSprites.clear();
     });
+  }
+
+  private createCharacterSprites() {
+    this.characterSprites.player = this.add.sprite(0, 0, characterSheetConfigs.david.textureKey, 0).setDepth(9).setVisible(false);
+    this.characterSprites.opponent = this.add
+      .sprite(0, 0, characterSheetConfigs.david.textureKey, 0)
+      .setDepth(9)
+      .setVisible(false);
   }
 
   update(_time: number, deltaMs: number) {
@@ -1588,6 +1823,24 @@ export class TrainingScene extends Phaser.Scene {
 
     if (!event.blocked) {
       this.spawnAttackSignature(event.attackKind, impactX, impactY, attacker.facing);
+      if (event.comboCount >= 2 && !event.comboStale) {
+        this.spawnFloatingText(`${event.comboCount} HIT`, attacker.x + attacker.facing * 34, attacker.y - 132, "#fff3bf");
+        if (event.comboCount >= 3) {
+          this.effects.push({
+            kind: "shockwave",
+            x: impactX + attacker.facing * 10,
+            y: impactY,
+            vx: 0,
+            vy: 0,
+            life: 0.28,
+            maxLife: 0.28,
+            color: 0xfff3bf,
+            size: 22 + event.comboCount * 4
+          });
+        }
+      } else if (event.comboStale) {
+        this.spawnFloatingText("STALE", impactX, impactY - 28, "#9aa5ad");
+      }
     }
 
     for (let i = 0; i < (event.attackKind === "heavy" || event.attackKind === "spinKick" ? 12 : 8); i += 1) {
@@ -1832,8 +2085,8 @@ export class TrainingScene extends Phaser.Scene {
 
     this.graphics.clear();
     this.drawShadows();
-    this.drawFighter(player);
-    this.drawFighter(opponent);
+    this.drawFighter(player, "player");
+    this.drawFighter(opponent, "opponent");
     this.drawDetachedParts();
     this.drawLevelPickup();
     this.drawEffects();
@@ -1903,7 +2156,7 @@ export class TrainingScene extends Phaser.Scene {
     }
   }
 
-  private drawFighter(fighter: FighterSnapshot) {
+  private drawFighter(fighter: FighterSnapshot, side: FighterSide) {
     const g = this.graphics;
     const style = fighterStyles[fighter.key];
     const parts = fighter.parts;
@@ -1958,7 +2211,8 @@ export class TrainingScene extends Phaser.Scene {
     const hipY = fighter.y - 38 * bodyScale + idleBob;
     const shoulderY = fighter.y - 78 * bodyScale + idleBob;
     const torsoX = fighter.x + hitLean + dashLean + (spinAmount ? Math.sin(spinAmount) * 4 : 0);
-    const headless = !parts.head && !fighter.bonusParts.some((part) => part.category === "head");
+    const primaryAttachedHead = !parts.head ? fighter.bonusParts.find((part) => part.category === "head") : undefined;
+    const headless = !parts.head && !primaryAttachedHead;
     const lowSweep =
       fighter.state === "attack" && (fighter.attackKind === "low" || fighter.attackKind === "kick")
         ? attackEase * (fighter.attackKind === "kick" ? 56 : 44) * limbScale
@@ -1986,6 +2240,10 @@ export class TrainingScene extends Phaser.Scene {
       (lowSweep > 0 ? 12 : 0) -
       (fighter.attackKind === "spinKick" ? 46 * bodyScale + spinFootLift : 0);
     const backFootY = fighter.y - Math.max(0, -runCycle) * 8;
+
+    if (this.drawSheetSpriteFighter(fighter, side, torsoX, shoulderY, hipY, headY, attackEase)) {
+      return;
+    }
 
     this.drawAnimalUnderlay(fighter, torsoX, shoulderY, hipY, attackEase);
 
@@ -2024,19 +2282,49 @@ export class TrainingScene extends Phaser.Scene {
       g.strokePath();
     }
 
+    const headStyle = primaryAttachedHead ? fighterStyles[primaryAttachedHead.sourceOwner] : style;
+    const headScale = primaryAttachedHead ? Math.min(1.2, primaryAttachedHead.scale) : bodyScale;
     g.lineStyle(8 * lineScale, style.color, 1);
     g.fillStyle(0xf7f3e8, 1);
-    if (parts.head) {
-      g.strokeCircle(torsoX, headY, 20 * bodyScale);
-      g.fillStyle(style.color, 1);
-      g.fillCircle(torsoX + fighter.facing * 8 * bodyScale, headY - 4 * bodyScale, 2.5 * lineScale);
-      g.lineStyle(2, style.color, 0.8);
-      g.lineBetween(torsoX + fighter.facing * 7 * bodyScale, headY + 9 * bodyScale, torsoX + fighter.facing * 15 * bodyScale, headY + 7 * bodyScale);
+    if (parts.head || primaryAttachedHead) {
+      g.lineStyle(8 * lineScale, headStyle.color, 1);
+      g.strokeCircle(torsoX, headY, 20 * headScale);
+      if (primaryAttachedHead) {
+        g.lineStyle(3, headStyle.accent, 0.82);
+        g.strokeCircle(torsoX, headY, 25 * headScale);
+        g.lineStyle(4, 0xd8b45d, 0.45);
+        g.lineBetween(torsoX - 13 * headScale, headY + 22 * headScale, torsoX + 13 * headScale, headY + 22 * headScale);
+      }
+      g.fillStyle(headStyle.color, 1);
+      g.fillCircle(torsoX + fighter.facing * 8 * headScale, headY - 4 * headScale, 2.5 * lineScale);
+      g.lineStyle(2, headStyle.color, 0.8);
+      g.lineBetween(torsoX + fighter.facing * 7 * headScale, headY + 9 * headScale, torsoX + fighter.facing * 15 * headScale, headY + 7 * headScale);
+      if (primaryAttachedHead?.trait === "crocodile") {
+        g.fillStyle(0x3f6f3b, 0.16);
+        g.fillTriangle(
+          torsoX + fighter.facing * 11 * headScale,
+          headY - 8 * headScale,
+          torsoX + fighter.facing * 42 * headScale,
+          headY,
+          torsoX + fighter.facing * 11 * headScale,
+          headY + 10 * headScale
+        );
+        g.lineStyle(3, 0x3f6f3b, 0.9);
+        g.strokeTriangle(
+          torsoX + fighter.facing * 11 * headScale,
+          headY - 8 * headScale,
+          torsoX + fighter.facing * 42 * headScale,
+          headY,
+          torsoX + fighter.facing * 11 * headScale,
+          headY + 10 * headScale
+        );
+      }
     } else if (headless) {
       g.lineStyle(3, 0x8b2635, 0.72);
       g.strokeCircle(torsoX, shoulderY - 12, 8 + Math.sin(time / 130) * 2);
     }
-    g.lineBetween(torsoX, parts.head ? headY + 22 : shoulderY - 6, torsoX, hipY);
+    g.lineStyle(8 * lineScale, style.color, 1);
+    g.lineBetween(torsoX, parts.head || primaryAttachedHead ? headY + 22 * headScale : shoulderY - 6, torsoX, hipY);
     if (parts[frontArm]) {
       g.lineBetween(torsoX, shoulderY, frontHandX, frontHandY);
     }
@@ -2184,7 +2472,7 @@ export class TrainingScene extends Phaser.Scene {
     if (this.settings.showHitboxes && fighter.state === "attack" && isAttackActive(fighter)) {
       const attackBox = getAttackBox(fighter);
       const targetBox = getTargetHurtBox(
-        fighter.key === "david" ? this.simulation.state.opponent : this.simulation.state.player,
+        side === "player" ? this.simulation.state.opponent : this.simulation.state.player,
         attackSpecs[fighter.attackKind!].target
       );
       g.lineStyle(2, 0xd8a01d, 0.95);
@@ -2192,6 +2480,140 @@ export class TrainingScene extends Phaser.Scene {
       g.lineStyle(2, 0x73a9d8, 0.55);
       g.strokeRect(targetBox.x, targetBox.y, targetBox.width, targetBox.height);
     }
+  }
+
+  private drawSheetSpriteFighter(
+    fighter: FighterSnapshot,
+    side: FighterSide,
+    torsoX: number,
+    shoulderY: number,
+    hipY: number,
+    headY: number,
+    attackEase: number
+  ) {
+    const sprite = this.characterSprites[side];
+    if (!sprite) {
+      return false;
+    }
+
+    const config = getCharacterSheetConfig(fighter.key);
+    if (!config || !this.textures.exists(config.textureKey)) {
+      sprite.setVisible(false);
+      return false;
+    }
+    if (!fighter.parts.head) {
+      sprite.setVisible(false);
+      return false;
+    }
+
+    const style = fighterStyles[fighter.key];
+    const bodyScale = fighter.stats.bodyScale;
+    const spriteScale = config.scale * (bodyScale / config.baseBodyScale);
+    const missingFrame = getMissingLimbFrame(fighter);
+    const textureKey = missingFrame !== null && this.textures.exists(config.missingTextureKey) ? config.missingTextureKey : config.textureKey;
+    const frame = missingFrame !== null && textureKey === config.missingTextureKey ? missingFrame : this.getSheetSpriteFrame(fighter, config);
+
+    sprite
+      .setVisible(true)
+      .setTexture(textureKey)
+      .setFrame(frame)
+      .setOrigin(config.originX, config.originY)
+      .setPosition(fighter.x, fighter.y + config.yOffset)
+      .setScale(spriteScale)
+      .setFlipX(fighter.facing < 0)
+      .setAlpha(fighter.invulnerableTimer > 0 ? 0.76 : 1);
+
+    if (fighter.state === "hit") {
+      sprite.setTint(0xffc9a7);
+    } else if (fighter.state === "blockstun") {
+      sprite.setTint(0xfff3bf);
+    } else {
+      sprite.clearTint();
+    }
+
+    this.drawBonusAttachments(fighter, torsoX, shoulderY, hipY, headY);
+
+    if (fighter.state === "block" || fighter.state === "blockstun") {
+      const shieldX = torsoX + fighter.facing * 36;
+      const shieldY = shoulderY + 14;
+      const shieldRadius = fighter.state === "blockstun" || this.blockFlashTimer > 0 ? 25 : 19;
+
+      this.graphics.fillStyle(fighter.state === "blockstun" ? 0xf2d06b : 0x6f7d86, 0.9);
+      this.graphics.fillCircle(shieldX, shieldY, shieldRadius);
+      this.graphics.lineStyle(4, 0x202820, 0.95);
+      this.graphics.strokeCircle(shieldX, shieldY, shieldRadius);
+    }
+
+    if (fighter.state === "attack" && fighter.attackKind) {
+      const attackBox = getAttackBox(fighter);
+      const isStomp = fighter.attackKind === "heavy" || fighter.attackKind === "low";
+      const flashX =
+        fighter.attackKind === "chomp"
+          ? fighter.x + fighter.facing * (68 + attackEase * 18)
+          : fighter.attackKind === "tailStrike"
+            ? fighter.x - fighter.facing * (54 + attackEase * 18)
+            : isStomp || fighter.attackKind === "kick" || fighter.attackKind === "spinKick"
+              ? fighter.x + fighter.facing * 34
+              : fighter.x + fighter.facing * 48;
+      const flashY =
+        fighter.attackKind === "chomp"
+          ? headY + 1
+          : fighter.attackKind === "tailStrike"
+            ? hipY + 16
+            : isStomp || fighter.attackKind === "kick" || fighter.attackKind === "spinKick"
+              ? fighter.y - 12
+              : shoulderY + 10;
+
+      this.graphics.fillStyle(0xd8b45d, 0.25);
+      this.graphics.fillCircle(flashX, flashY, isStomp ? 20 : fighter.attackKind === "tailStrike" ? 24 : 16);
+      this.graphics.lineStyle(3, 0xfff3bf, 0.48);
+      this.graphics.strokeCircle(flashX, flashY, 18 + attackEase * 18);
+
+      if (isStomp && isAttackActive(fighter)) {
+        this.graphics.lineStyle(3, style.accent, 0.42);
+        this.graphics.strokeEllipse(fighter.x + fighter.facing * 18, groundY + 3, 76 + attackEase * 34, 16 + attackEase * 8);
+      }
+
+      if (this.settings.showHitboxes && isAttackActive(fighter)) {
+        const targetBox = getTargetHurtBox(
+          side === "player" ? this.simulation.state.opponent : this.simulation.state.player,
+          attackSpecs[fighter.attackKind].target
+        );
+        this.graphics.lineStyle(2, 0xd8a01d, 0.95);
+        this.graphics.strokeRect(attackBox.x, attackBox.y, attackBox.width, attackBox.height);
+        this.graphics.lineStyle(2, 0x73a9d8, 0.55);
+        this.graphics.strokeRect(targetBox.x, targetBox.y, targetBox.width, targetBox.height);
+      }
+    }
+
+    return true;
+  }
+
+  private getSheetSpriteFrame(fighter: FighterSnapshot, config: CharacterSheetConfig) {
+    const cycle = (row: SheetRow, speed: number) => row.start + (Math.floor(this.time.now / speed) % row.count);
+
+    if (fighter.state === "attack" && fighter.attackKind) {
+      const spec = attackSpecs[fighter.attackKind];
+      const total = spec.startup + spec.active + spec.recovery;
+      const progress = Phaser.Math.Clamp(fighter.attackElapsed / total, 0, 0.999);
+      const row = getCharacterAttackRow(config, fighter.attackKind);
+
+      if (row) {
+        return row.start + Math.min(row.count - 1, Math.floor(progress * row.count));
+      }
+
+      return config.idle.start;
+    }
+
+    if (fighter.state === "run" || fighter.state === "dash") {
+      return config.run ? cycle(config.run, fighter.state === "dash" ? 54 : 82) : cycle(config.idle, 92);
+    }
+
+    if (fighter.state === "hit" || fighter.state === "blockstun") {
+      return config.idle.start + Math.min(config.idle.count - 1, Math.floor(config.idle.count * 0.78));
+    }
+
+    return cycle(config.idle, 180);
   }
 
   private drawAnimalUnderlay(
@@ -2413,8 +2835,20 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private drawDetachedParts() {
+    const activeIds = new Set(this.simulation.state.detachedParts.map((part) => part.id));
+    this.detachedPartSprites.forEach((sprite, id) => {
+      if (!activeIds.has(id)) {
+        sprite.destroy();
+        this.detachedPartSprites.delete(id);
+      } else {
+        sprite.setVisible(false);
+      }
+    });
+
     for (const part of this.simulation.state.detachedParts) {
-      this.drawDetachedPart(part);
+      if (!this.drawDetachedPartSprite(part)) {
+        this.drawDetachedPart(part);
+      }
     }
   }
 
@@ -2427,7 +2861,9 @@ export class TrainingScene extends Phaser.Scene {
   ) {
     const arms = fighter.bonusParts.filter((part) => part.category === "arm");
     const legs = fighter.bonusParts.filter((part) => part.category === "leg");
-    const heads = fighter.bonusParts.filter((part) => part.category === "head");
+    const heads = fighter.bonusParts
+      .filter((part) => part.category === "head")
+      .slice(fighter.parts.head ? 0 : 1);
     const tails = fighter.bonusParts.filter((part) => part.category === "tail");
     const claws = fighter.bonusParts.filter((part) => part.category === "claws");
     const wings = fighter.bonusParts.filter((part) => part.category === "wings");
@@ -2569,6 +3005,51 @@ export class TrainingScene extends Phaser.Scene {
       this.graphics.fillStyle(style.accent, 0.9);
       this.graphics.fillCircle(tailTipX, tailTipY, 5 * scale);
     });
+  }
+
+  private drawDetachedPartSprite(part: DetachedPart) {
+    const config = getDetachedPartSheetConfig(part);
+    const frame = config ? getDetachedPartFrame(part, config) : null;
+    if (!config || frame === null || !this.textures.exists(config.textureKey)) {
+      const existing = this.detachedPartSprites.get(part.id);
+      existing?.setVisible(false);
+      return false;
+    }
+
+    const scale = config.scale * part.scale;
+    const pickupBob = part.grounded ? Math.sin(this.time.now / 260 + part.id) * 2.5 : 0;
+    const x = part.x;
+    const y = part.y + pickupBob;
+    const glowColor =
+      part.category === "wings"
+        ? 0x73a9d8
+        : part.trait === "crocodile"
+          ? 0x3f6f3b
+          : part.category === "tail" || part.category === "claws"
+            ? 0xd8b45d
+            : 0x83b36f;
+
+    this.graphics.fillStyle(glowColor, part.grounded ? 0.14 : 0.09);
+    this.graphics.fillEllipse(x, y + 10, 66 * part.scale, 18 * part.scale);
+    this.graphics.lineStyle(2, glowColor, 0.36);
+    this.graphics.strokeCircle(x, y, (part.category === "wings" ? 35 : 24) * part.scale + Math.sin(this.time.now / 180 + part.id) * 2);
+
+    let sprite = this.detachedPartSprites.get(part.id);
+    if (!sprite) {
+      sprite = this.add.sprite(x, y, config.textureKey, frame).setDepth(12).setVisible(false);
+      this.detachedPartSprites.set(part.id, sprite);
+    }
+
+    sprite
+      .setVisible(true)
+      .setTexture(config.textureKey)
+      .setFrame(frame)
+      .setPosition(x, y)
+      .setScale(scale)
+      .setRotation(part.rotation)
+      .setAlpha(part.grounded ? 1 : 0.92);
+
+    return true;
   }
 
   private drawDetachedPart(part: DetachedPart) {
@@ -2744,6 +3225,99 @@ export class TrainingScene extends Phaser.Scene {
       vy: Phaser.Math.Linear(previous.vy, current.vy, alpha)
     };
   }
+}
+
+function getCharacterSheetConfig(key: FighterSnapshot["key"]) {
+  return key in characterSheetConfigs ? characterSheetConfigs[key as SheetFighterKey] : null;
+}
+
+function getDetachedPartSheetConfig(part: DetachedPart) {
+  return part.owner in detachedPartSheetConfigs ? detachedPartSheetConfigs[part.owner as SheetFighterKey] : null;
+}
+
+function getDetachedPartFrame(part: DetachedPart, config: DetachedPartSheetConfig) {
+  if (part.part === "leftArm" || part.part === "rightArm" || part.part === "leftLeg" || part.part === "rightLeg" || part.part === "head") {
+    return config.frames[part.part] ?? null;
+  }
+
+  if (part.category === "tail") {
+    return config.frames.tail ?? null;
+  }
+
+  if (part.category === "claws") {
+    return config.frames.claws ?? null;
+  }
+
+  if (part.category === "wings") {
+    return config.frames.wings ?? null;
+  }
+
+  return null;
+}
+
+function getMissingLimbFrame(fighter: FighterSnapshot) {
+  const missingLeftArm = !fighter.parts.leftArm;
+  const missingRightArm = !fighter.parts.rightArm;
+  const missingLeftLeg = !fighter.parts.leftLeg;
+  const missingRightLeg = !fighter.parts.rightLeg;
+
+  if (!missingLeftArm && !missingRightArm && !missingLeftLeg && !missingRightLeg) {
+    return null;
+  }
+
+  let column = 0;
+  if (missingLeftLeg && missingRightLeg) {
+    column = 6;
+  } else if (missingLeftLeg) {
+    column = 4;
+  } else if (missingRightLeg) {
+    column = 5;
+  } else if (missingLeftArm && missingRightArm) {
+    column = 3;
+  } else if (missingLeftArm) {
+    column = 1;
+  } else if (missingRightArm) {
+    column = 2;
+  }
+
+  const actionRow = fighter.state === "run" || fighter.state === "dash" || fighter.state === "attack" ? 8 : 0;
+  return actionRow + column;
+}
+
+function getCharacterAttackRow(config: CharacterSheetConfig, kind: AttackKind): SheetRow {
+  if (kind === "chomp") {
+    return config.chomp ?? config.high ?? config.heavy ?? config.light ?? config.idle;
+  }
+
+  if (kind === "tailStrike") {
+    return config.tailStrike ?? config.spinKick ?? config.kick ?? config.heavy ?? config.idle;
+  }
+
+  if (kind === "clawSwipe") {
+    return config.clawSwipe ?? config.light ?? config.heavy ?? config.idle;
+  }
+
+  if (kind === "spinKick") {
+    return config.spinKick ?? config.kick ?? config.low ?? config.idle;
+  }
+
+  if (kind === "kick") {
+    return config.kick ?? config.low ?? config.idle;
+  }
+
+  if (kind === "low") {
+    return config.low ?? config.kick ?? config.light ?? config.idle;
+  }
+
+  if (kind === "high") {
+    return config.high ?? config.heavy ?? config.light ?? config.idle;
+  }
+
+  if (kind === "heavy") {
+    return config.heavy ?? config.high ?? config.light ?? config.idle;
+  }
+
+  return config.light ?? config.idle;
 }
 
 function getMissingParts(fighter: FighterSnapshot): BodyPart[] {

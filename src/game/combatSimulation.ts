@@ -97,6 +97,9 @@ export type FighterSnapshot = {
   guardLockTimer: number;
   hitCooldown: number;
   stunTimer: number;
+  comboCount: number;
+  comboTimer: number;
+  lastComboAttack: AttackKind | null;
   parts: AttachedParts;
   bonusParts: AttachedBonusPart[];
 };
@@ -193,6 +196,8 @@ export type CombatEvent =
       detachedPart: BodyPart | null;
       bonusStrikes: number;
       bonusStrikeKind: BonusStrikeKind;
+      comboCount: number;
+      comboStale: boolean;
       perfectBlock: boolean;
     }
   | { type: "clash"; x: number; y: number; attackKind: AttackKind }
@@ -875,23 +880,23 @@ export class CombatSimulation {
       const nextAttack: AttackKind =
         playerHabit === "low" && roll > 0.64 && attachedLegCount(fighter) > 0
           ? "kick"
-          : (playerHabit === "heavy" || playerHabit === "high") && roll > 0.62 && canGuard(fighter)
-            ? "light"
-            : playerHabit === "kick" && roll > 0.66
-              ? "low"
-              : animalMoves.length > 0 && roll > 0.72
+        : (playerHabit === "heavy" || playerHabit === "high") && roll > 0.62 && canGuard(fighter)
+          ? "light"
+          : playerHabit === "kick" && roll > 0.66
+            ? "low"
+            : animalMoves.length > 0 && roll > 0.82
           ? animalMoves[Math.floor(this.random() * animalMoves.length)]
-          : roll > 0.9
+          : roll > 0.94
             ? "spinKick"
-            : roll > 0.76
+            : roll > 0.8
               ? "kick"
-              : roll > 0.6
+              : roll > 0.66
                 ? hasClaws(fighter)
                   ? "heavy"
                   : "high"
-                : roll > 0.42
+                : roll > 0.48
                   ? "low"
-                  : roll > 0.22
+                  : roll > 0.28
                     ? "heavy"
                     : "light";
       this.queueAttack(fighter, nextAttack);
@@ -917,10 +922,16 @@ export class CombatSimulation {
     fighter.guardLockTimer = Math.max(0, fighter.guardLockTimer - delta);
     fighter.hitCooldown = Math.max(0, fighter.hitCooldown - delta);
     fighter.stunTimer = Math.max(0, fighter.stunTimer - delta);
+    fighter.comboTimer = Math.max(0, fighter.comboTimer - delta);
     fighter.coyoteTimer = fighter.y >= groundY ? frames(coyoteFrames) : Math.max(0, fighter.coyoteTimer - delta);
 
     if (fighter.inputBufferTimer === 0) {
       fighter.queuedAttack = null;
+    }
+
+    if (fighter.comboTimer === 0) {
+      fighter.comboCount = 0;
+      fighter.lastComboAttack = null;
     }
 
     fighter.stamina = Math.min(
@@ -937,9 +948,21 @@ export class CombatSimulation {
       const spec = attackSpecs[fighter.attackKind];
       fighter.attackElapsed += delta;
       if (fighter.attackElapsed >= attackTotalDuration(spec)) {
+        const whiffed = !fighter.hasHitDuringAttack;
         fighter.attackKind = null;
         fighter.hasHitDuringAttack = false;
         fighter.attackElapsed = 0;
+        if (whiffed) {
+          fighter.comboCount = 0;
+          fighter.comboTimer = 0;
+          fighter.lastComboAttack = null;
+          if (fighter === this.state.opponent && !this.options.opponentControlled) {
+            this.cpuAttackCooldown = Math.max(
+              this.cpuAttackCooldown,
+              spec.kind === "heavy" || spec.kind === "spinKick" || spec.kind === "chomp" ? 0.42 : 0.26
+            );
+          }
+        }
         if (fighter.guardLockTimer > 0 && fighter.stamina > 4 && fighter.y >= groundY) {
           fighter.state = "block";
           return;
@@ -1205,9 +1228,10 @@ export class CombatSimulation {
     const perfectBlock = blocked && defender.guardLockTimer > frames(7) && defender.stamina > 20;
     const detachedPart = blocked ? null : this.detachTargetPart(attacker, defender, spec.target);
     const bonusStrikes = blocked ? 0 : getBonusStrikeCount(attacker, spec.kind);
+    const combo = blocked ? createBlockedComboResult(attacker) : advanceCombo(attacker, spec.kind);
 
     const damage =
-      spec.damage * attacker.stats.attackPower * getAttackDamageMultiplier(attacker, spec.kind) +
+      spec.damage * attacker.stats.attackPower * getAttackDamageMultiplier(attacker, spec.kind) * combo.damageMultiplier +
       bonusStrikes * getBonusStrikeDamage(spec.kind);
 
     defender.health = Math.max(0, defender.health - (blocked ? 0 : damage));
@@ -1217,15 +1241,21 @@ export class CombatSimulation {
 
     if (!blocked) {
       defender.state = "hit";
-      defender.stunTimer = spec.hitStun * getHitStunTakenMultiplier(defender);
-      defender.vx = attacker.facing * spec.knockback * getKnockbackTakenMultiplier(defender);
+      defender.stunTimer = (spec.hitStun + combo.extraHitStun) * getHitStunTakenMultiplier(defender);
+      defender.vx = attacker.facing * spec.knockback * combo.knockbackMultiplier * getKnockbackTakenMultiplier(defender);
       defender.vy =
         (spec.kind === "heavy" || spec.kind === "high" || spec.kind === "spinKick" || spec.kind === "chomp") &&
         defender.y >= groundY
-          ? -135 * getLaunchTakenMultiplier(defender)
+          ? (-135 - combo.extraLaunch) * getLaunchTakenMultiplier(defender)
           : defender.vy;
-      this.hitStopTimer = spec.hitStop;
+      this.hitStopTimer = spec.hitStop + combo.extraHitStop;
+      if (attackerId === "opponent" && !this.options.opponentControlled) {
+        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, combo.count >= 3 ? 0.36 : 0.2);
+      }
     } else {
+      defender.comboCount = 0;
+      defender.comboTimer = 0;
+      defender.lastComboAttack = null;
       defender.state = "blockstun";
       defender.stunTimer = (perfectBlock ? frames(5) : spec.blockStun) * getHitStunTakenMultiplier(defender);
       defender.vx = attacker.facing * 58 * getKnockbackTakenMultiplier(defender);
@@ -1238,6 +1268,9 @@ export class CombatSimulation {
         defender.stamina = Math.min(100, defender.stamina + 8);
       }
       this.hitStopTimer = perfectBlock ? frames(5) : frames(2);
+      if (attackerId === "opponent" && !this.options.opponentControlled) {
+        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, perfectBlock ? 0.78 : 0.48);
+      }
     }
 
     return {
@@ -1249,6 +1282,8 @@ export class CombatSimulation {
       detachedPart,
       bonusStrikes,
       bonusStrikeKind: getBonusStrikeKind(spec.kind),
+      comboCount: combo.count,
+      comboStale: combo.stale,
       perfectBlock
     };
   }
@@ -1539,6 +1574,9 @@ function createFighter(key: FighterSnapshot["key"], x: number): FighterSnapshot 
     guardLockTimer: 0,
     hitCooldown: 0,
     stunTimer: 0,
+    comboCount: 0,
+    comboTimer: 0,
+    lastComboAttack: null,
     parts: createAttachedParts(),
     bonusParts: []
   };
@@ -1546,6 +1584,54 @@ function createFighter(key: FighterSnapshot["key"], x: number): FighterSnapshot 
 
 function attackTotalDuration(spec: AttackSpec) {
   return spec.startup + spec.active + spec.recovery;
+}
+
+function createBlockedComboResult(attacker: FighterSnapshot) {
+  attacker.comboCount = 0;
+  attacker.comboTimer = 0;
+  attacker.lastComboAttack = null;
+  return {
+    count: 0,
+    stale: false,
+    damageMultiplier: 1,
+    knockbackMultiplier: 1,
+    extraHitStun: 0,
+    extraLaunch: 0,
+    extraHitStop: 0
+  };
+}
+
+function advanceCombo(attacker: FighterSnapshot, kind: AttackKind) {
+  const previousCount = attacker.comboTimer > 0 ? attacker.comboCount : 0;
+  const stale = previousCount > 0 && attacker.lastComboAttack === kind;
+  const nextCount = stale ? 1 : Math.min(5, previousCount + 1);
+
+  attacker.comboCount = nextCount;
+  attacker.comboTimer = stale ? 0.42 : 1.18;
+  attacker.lastComboAttack = kind;
+
+  if (stale) {
+    return {
+      count: nextCount,
+      stale: true,
+      damageMultiplier: 0.76,
+      knockbackMultiplier: 0.68,
+      extraHitStun: -frames(3),
+      extraLaunch: 0,
+      extraHitStop: 0
+    };
+  }
+
+  const chainBonus = Math.max(0, nextCount - 1);
+  return {
+    count: nextCount,
+    stale: false,
+    damageMultiplier: 1 + Math.min(0.26, chainBonus * 0.065),
+    knockbackMultiplier: 1 + Math.min(0.48, chainBonus * 0.12),
+    extraHitStun: frames(Math.min(8, chainBonus * 2.5)),
+    extraLaunch: nextCount >= 3 ? Math.min(86, (nextCount - 2) * 30) : 0,
+    extraHitStop: nextCount >= 4 ? frames(2) : nextCount >= 3 ? frames(1) : 0
+  };
 }
 
 function isBlockingAttack(defender: FighterSnapshot, attacker: FighterSnapshot) {
@@ -1933,8 +2019,8 @@ function getBonusStrikeKind(kind: AttackKind): BonusStrikeKind {
 function getDifficultyProfile(difficulty: CpuDifficulty) {
   if (difficulty === "gentle") {
     return {
-      attackCooldownMin: 0.95,
-      attackCooldownMax: 1.45,
+      attackCooldownMin: 1.12,
+      attackCooldownMax: 1.72,
       blockRange: 112,
       chaseSpeed: 0.48,
       retreatSpeed: 0.34
@@ -1943,8 +2029,8 @@ function getDifficultyProfile(difficulty: CpuDifficulty) {
 
   if (difficulty === "champion") {
     return {
-      attackCooldownMin: 0.38,
-      attackCooldownMax: 0.72,
+      attackCooldownMin: 0.48,
+      attackCooldownMax: 0.86,
       blockRange: 150,
       chaseSpeed: 0.68,
       retreatSpeed: 0.52
@@ -1952,8 +2038,8 @@ function getDifficultyProfile(difficulty: CpuDifficulty) {
   }
 
   return {
-    attackCooldownMin: 0.55,
-    attackCooldownMax: 0.95,
+    attackCooldownMin: 0.72,
+    attackCooldownMax: 1.16,
     blockRange: 130,
     chaseSpeed: 0.58,
     retreatSpeed: 0.42

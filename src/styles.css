@@ -705,6 +705,41 @@ h2 {
   transform: translateX(-50%);
 }
 
+.fighter-icon-grid button[data-fighter-key="david"]::before,
+.fighter-icon-grid button[data-fighter-key="eagle"]::before,
+.fighter-icon-grid button[data-fighter-key="goliath"]::before,
+.fighter-icon-grid button[data-fighter-key="hippo"]::before,
+.fighter-icon-grid button[data-fighter-key="tRex"]::before {
+  content: "";
+  width: 39px;
+  height: 39px;
+  border-radius: 8px;
+  background-color: #f7f3e8;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 88%;
+}
+
+.fighter-icon-grid button[data-fighter-key="david"]::before {
+  background-image: url("/assets/characters/david/david-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="eagle"]::before {
+  background-image: url("/assets/characters/eagle/eagle-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="goliath"]::before {
+  background-image: url("/assets/characters/goliath/goliath-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="hippo"]::before {
+  background-image: url("/assets/characters/hippo/hippo-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="tRex"]::before {
+  background-image: url("/assets/characters/trex/trex-icon.png");
+}
+
 .fighter-icon-grid button.is-selected {
   border-color: var(--accent);
   background: #fff7df;
@@ -714,6 +749,38 @@ h2 {
 .fighter-icon-grid button.is-selected::before {
   background: var(--accent);
   color: #202820;
+}
+
+.fighter-icon-grid button[data-fighter-key="david"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="eagle"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="goliath"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="hippo"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
+  border-color: var(--accent);
+  background-color: #fff7df;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 88%;
+}
+
+.fighter-icon-grid button[data-fighter-key="david"].is-selected::before {
+  background-image: url("/assets/characters/david/david-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="eagle"].is-selected::before {
+  background-image: url("/assets/characters/eagle/eagle-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="goliath"].is-selected::before {
+  background-image: url("/assets/characters/goliath/goliath-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="hippo"].is-selected::before {
+  background-image: url("/assets/characters/hippo/hippo-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
+  background-image: url("/assets/characters/trex/trex-icon.png");
 }
 
 .fighter-preview-card {
@@ -727,6 +794,24 @@ h2 {
   margin: 0;
   font-size: 1rem;
   letter-spacing: 0;
+}
+
+.fighter-card-art {
+  display: grid;
+  min-height: 88px;
+  place-items: center;
+  margin: 8px 0 10px;
+  overflow: hidden;
+  border: 1px solid rgb(32 40 32 / 16%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 247 223 / 82%), rgb(220 235 201 / 52%));
+}
+
+.fighter-card-art img {
+  display: block;
+  width: min(76%, 210px);
+  height: 82px;
+  object-fit: contain;
 }
 
 .fighter-preview-card p {
@@ -1905,6 +1990,14 @@ h2 {
     grid-template-columns: 70px 144px;
   }
 
+  body.is-fighting .control-actions {
+    --diamond-size: 140px;
+    --diamond-button: 48px;
+    --bonus-rail-width: 46px;
+    --bonus-button-height: 25px;
+    --bonus-button-gap: 3px;
+  }
+
   body.is-fighting .attack-diamond {
     --diamond-size: 140px;
     --diamond-button: 48px;
@@ -2015,11 +2108,18 @@ h2 {
     bottom: max(14px, env(safe-area-inset-bottom));
   }
 
-  body.is-fighting .control-actions {
-    right: max(12px, env(safe-area-inset-right));
-    bottom: max(10px, env(safe-area-inset-bottom));
-    display: block;
-  }
+body.is-fighting .control-actions {
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: block;
+  --diamond-size: clamp(170px, 43vw, 218px);
+  --diamond-button: clamp(56px, 14vw, 72px);
+  --bonus-rail-width: clamp(50px, 12vw, 62px);
+  --bonus-button-height: clamp(27px, 6.8vw, 31px);
+  --bonus-button-gap: 4px;
+  width: calc(var(--diamond-size) + var(--bonus-rail-width) + 12px);
+  height: var(--diamond-size);
+}
 
   body.is-fighting .joystick {
     width: clamp(88px, 22vw, 116px) !important;
@@ -2034,22 +2134,32 @@ h2 {
     height: clamp(34px, 8.5vw, 46px) !important;
   }
 
-  body.is-fighting .attack-diamond {
-    --diamond-size: clamp(170px, 43vw, 218px) !important;
-    --diamond-button: clamp(56px, 14vw, 72px) !important;
-    pointer-events: none;
-  }
+body.is-fighting .attack-diamond {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
 
-  body.is-fighting .bonus-actions {
-    position: absolute;
-    right: 0;
-    bottom: calc(var(--diamond-size) + 8px);
-    display: flex;
-    width: min(50vw, 220px) !important;
-    gap: 6px;
-    justify-content: flex-end;
-    pointer-events: none;
-  }
+body.is-fighting .bonus-actions {
+  position: absolute;
+  right: calc(var(--diamond-size) + 12px);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--bonus-rail-width) !important;
+  max-height: var(--diamond-size);
+  gap: var(--bonus-button-gap);
+  justify-content: flex-end;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  pointer-events: none;
+}
+
+body.is-fighting .bonus-actions::-webkit-scrollbar {
+  display: none;
+}
 
   body.is-fighting .touch-button {
     border-color: rgb(32 40 32 / 36%);
@@ -2066,11 +2176,17 @@ h2 {
     font-size: clamp(0.62rem, 2.2vw, 0.78rem) !important;
   }
 
-  body.is-fighting .touch-button-bonus {
-    min-height: 34px !important;
-    padding: 5px 8px !important;
-    font-size: clamp(0.58rem, 2vw, 0.7rem) !important;
-  }
+body.is-fighting .touch-button-bonus {
+  width: var(--bonus-rail-width) !important;
+  min-height: var(--bonus-button-height) !important;
+  max-height: var(--bonus-button-height) !important;
+  padding: 3px 4px !important;
+  font-size: clamp(0.49rem, 1.65vw, 0.6rem) !important;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}
 
   body.is-fighting .fight-header {
     position: fixed;
@@ -2128,7 +2244,15 @@ h2 {
     --diamond-button: clamp(50px, 13.4vh, 64px) !important;
   }
 
+  body.is-fighting .control-actions {
+    --diamond-size: clamp(154px, 42vh, 190px);
+    --diamond-button: clamp(50px, 13.4vh, 64px);
+    --bonus-rail-width: clamp(48px, 11vh, 58px);
+    --bonus-button-height: clamp(25px, 6.8vh, 30px);
+    --bonus-button-gap: 4px;
+  }
+
   body.is-fighting .bonus-actions {
-    width: 210px !important;
+    width: var(--bonus-rail-width) !important;
   }
 }

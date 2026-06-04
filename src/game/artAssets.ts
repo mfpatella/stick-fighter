@@ -32,3 +32,28 @@ export const effectAssets = {
 } as const;
 
 export type EffectAssetKey = keyof typeof effectAssets;
+
+export const characterAssets = {
+  davidActions: "/assets/characters/david/david-actions.png",
+  davidIcon: "/assets/characters/david/david-icon.png",
+  davidMissing: "/assets/characters/david/david-missing.png",
+  davidParts: "/assets/characters/david/david-parts.png",
+  eagleActions: "/assets/characters/eagle/eagle-actions.png",
+  eagleIcon: "/assets/characters/eagle/eagle-icon.png",
+  eagleMissing: "/assets/characters/eagle/eagle-missing.png",
+  eagleParts: "/assets/characters/eagle/eagle-parts.png",
+  goliathActions: "/assets/characters/goliath/goliath-actions.png",
+  goliathIcon: "/assets/characters/goliath/goliath-icon.png",
+  goliathMissing: "/assets/characters/goliath/goliath-missing.png",
+  goliathParts: "/assets/characters/goliath/goliath-parts.png",
+  hippoActions: "/assets/characters/hippo/hippo-actions.png",
+  hippoIcon: "/assets/characters/hippo/hippo-icon.png",
+  hippoMissing: "/assets/characters/hippo/hippo-missing.png",
+  hippoParts: "/assets/characters/hippo/hippo-parts.png",
+  trexActions: "/assets/characters/trex/trex-actions.png",
+  trexIcon: "/assets/characters/trex/trex-icon.png",
+  trexMissing: "/assets/characters/trex/trex-missing.png",
+  trexParts: "/assets/characters/trex/trex-parts.png"
+} as const;
+
+export type CharacterAssetKey = keyof typeof characterAssets;

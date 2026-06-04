@@ -7,6 +7,7 @@ import {
 import { baseFighters, playerFighterKeys, opponentFighterKeys, type BaseFighterKey } from "./game/fighterCatalog";
 import { defaultGameSettings, type GameLaunchSettings } from "./game/gameSettings";
 import { levelKeys, type LevelKey } from "./game/levels";
+import { characterAssets } from "./game/artAssets";
 import {
   backendModeLabel,
   broadcastRealtimeInputFrame,
@@ -41,6 +42,14 @@ import {
 import { defaultNetplayTuning, type GameLobby, type PlayerAvatar } from "./game/multiplayerTypes";
 import { registerPwaServiceWorker } from "./pwaRegistration";
 import "./styles.css";
+
+const fighterPortraitAssets: Partial<Record<BaseFighterKey, string>> = {
+  david: characterAssets.davidIcon,
+  eagle: characterAssets.eagleIcon,
+  goliath: characterAssets.goliathIcon,
+  hippo: characterAssets.hippoIcon,
+  tRex: characterAssets.trexIcon
+};
 
 const modeElement = document.querySelector<HTMLDivElement>("#backend-mode");
 const menuOverlay = document.querySelector<HTMLElement>("#menu-overlay");
@@ -1408,6 +1417,7 @@ function renderFighterCard(card: HTMLElement | null, title: string, fighterKey: 
   card.innerHTML = `
     <h3>${title}: ${fighter.name}</h3>
     <p>${fighter.role}. ${fighter.description}</p>
+    ${getFighterPortraitMarkup(fighterKey)}
     <div class="fighter-tags">${getFighterTags(fighterKey)
       .map((tag) => `<span>${tag}</span>`)
       .join("")}</div>
@@ -1429,6 +1439,19 @@ function renderFighterCard(card: HTMLElement | null, title: string, fighterKey: 
       <ul>
         ${moves.map((move) => `<li>${move}</li>`).join("")}
       </ul>
+    </div>
+  `;
+}
+
+function getFighterPortraitMarkup(fighterKey: BaseFighterKey) {
+  const asset = fighterPortraitAssets[fighterKey];
+  if (!asset) {
+    return "";
+  }
+
+  return `
+    <div class="fighter-card-art fighter-card-art-${fighterKey}" aria-hidden="true">
+      <img src="${asset}" alt="" loading="lazy" />
     </div>
   `;
 }
