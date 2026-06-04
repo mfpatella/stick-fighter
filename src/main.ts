@@ -47,7 +47,13 @@ const fighterPortraitAssets: Partial<Record<BaseFighterKey, string>> = {
   david: characterAssets.davidIcon,
   eagle: characterAssets.eagleIcon,
   goliath: characterAssets.goliathIcon,
+  honeyBadger: characterAssets.honeyBadgerIcon,
   hippo: characterAssets.hippoIcon,
+  lion: characterAssets.lionIcon,
+  chefBoyardee: characterAssets.chefBoyardeeIcon,
+  marthaStewart: characterAssets.marthaStewartIcon,
+  stephenHawking: characterAssets.stephenHawkingIcon,
+  helenKeller: characterAssets.helenKellerIcon,
   tRex: characterAssets.trexIcon
 };
 
@@ -1501,7 +1507,7 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     tags.push("Heavy hits");
   }
 
-  if (fighterKey === "tRex" || fighterKey === "lion" || fighterKey === "hippo") {
+  if (fighterKey === "tRex" || fighterKey === "lion" || fighterKey === "hippo" || fighterKey === "honeyBadger") {
     tags.push("Chomp");
   }
 
@@ -1515,6 +1521,10 @@ function getFighterTags(fighterKey: BaseFighterKey) {
 
   if (fighterKey === "eagle") {
     tags.push("Flight");
+  }
+
+  if (fighterKey === "chefBoyardee" || fighterKey === "marthaStewart" || fighterKey === "stephenHawking" || fighterKey === "helenKeller") {
+    tags.push("Sheet moves");
   }
 
   return tags.length > 0 ? tags : ["Balanced"];
@@ -1552,6 +1562,18 @@ function getFighterMoveList(fighterKey: BaseFighterKey) {
   }
   if (fighterKey === "eagle") {
     moves.push("W/Space flight lift", "V talon swipe");
+  }
+  if (fighterKey === "chefBoyardee") {
+    moves.push("Pizza toss", "Rolling pin", "Ravioli throw", "Pasta whip");
+  }
+  if (fighterKey === "marthaStewart") {
+    moves.push("Scissor cut", "Money toss", "Round kick", "Craft rush");
+  }
+  if (fighterKey === "stephenHawking") {
+    moves.push("Chair dash", "Rocket volley", "Laser beam", "Saw sweep");
+  }
+  if (fighterKey === "helenKeller") {
+    moves.push("Book cast", "Cane sweep", "Water wave", "Resolve guard");
   }
 
   return moves.slice(0, 9);

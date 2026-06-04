@@ -12,6 +12,10 @@ export type BaseFighterKey =
   | "hippo"
   | "honeyBadger"
   | "eagle"
+  | "chefBoyardee"
+  | "marthaStewart"
+  | "stephenHawking"
+  | "helenKeller"
   | "guard";
 
 export type FighterStats = {
@@ -270,6 +274,78 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       reachScale: 0.92
     }
   },
+  chefBoyardee: {
+    key: "chefBoyardee",
+    name: "Chef Boyardee",
+    role: "Sauce slinger",
+    description: "Trick-shot food throws, solid midrange pressure, and sturdy fundamentals.",
+    stats: {
+      maxHealth: 106,
+      moveSpeed: 0.94,
+      jumpPower: 0.9,
+      attackPower: 1.04,
+      staminaRegen: 1.02,
+      staminaCost: 0.98,
+      guardStrength: 1.02,
+      dodgeSpeed: 0.9,
+      bodyScale: 1,
+      reachScale: 1.05
+    }
+  },
+  marthaStewart: {
+    key: "marthaStewart",
+    name: "Martha Stewart",
+    role: "Precision crafter",
+    description: "Clean footwork, sharp tool attacks, and efficient stamina usage.",
+    stats: {
+      maxHealth: 98,
+      moveSpeed: 1.04,
+      jumpPower: 1,
+      attackPower: 1.02,
+      staminaRegen: 1.1,
+      staminaCost: 0.94,
+      guardStrength: 0.96,
+      dodgeSpeed: 1.08,
+      bodyScale: 0.98,
+      reachScale: 1.02
+    }
+  },
+  stephenHawking: {
+    key: "stephenHawking",
+    name: "Stephen Hawking",
+    role: "Cosmic tactician",
+    description: "Slower movement balanced by excellent ranged pressure and heavy tech attacks.",
+    stats: {
+      maxHealth: 96,
+      moveSpeed: 0.82,
+      jumpPower: 0.42,
+      attackPower: 1.18,
+      staminaRegen: 1.08,
+      staminaCost: 1.05,
+      guardStrength: 1,
+      dodgeSpeed: 0.78,
+      bodyScale: 1,
+      reachScale: 1.2
+    }
+  },
+  helenKeller: {
+    key: "helenKeller",
+    name: "Helen Keller",
+    role: "Resolute scholar",
+    description: "Composed defense, patient spacing, and steady cane, book, and water attacks.",
+    stats: {
+      maxHealth: 104,
+      moveSpeed: 0.96,
+      jumpPower: 0.88,
+      attackPower: 1,
+      staminaRegen: 1.12,
+      staminaCost: 0.92,
+      guardStrength: 1.08,
+      dodgeSpeed: 0.96,
+      bodyScale: 1,
+      reachScale: 1.04
+    }
+  },
   guard: {
     key: "guard",
     name: "Training Guard",
@@ -303,6 +379,10 @@ export const playerFighterKeys: BaseFighterKey[] = [
   "lion",
   "hippo",
   "honeyBadger",
-  "eagle"
+  "eagle",
+  "chefBoyardee",
+  "marthaStewart",
+  "stephenHawking",
+  "helenKeller"
 ];
 export const opponentFighterKeys: BaseFighterKey[] = ["guard", ...playerFighterKeys];

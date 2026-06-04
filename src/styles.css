@@ -708,7 +708,13 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="david"]::before,
 .fighter-icon-grid button[data-fighter-key="eagle"]::before,
 .fighter-icon-grid button[data-fighter-key="goliath"]::before,
+.fighter-icon-grid button[data-fighter-key="honeyBadger"]::before,
 .fighter-icon-grid button[data-fighter-key="hippo"]::before,
+.fighter-icon-grid button[data-fighter-key="lion"]::before,
+.fighter-icon-grid button[data-fighter-key="chefBoyardee"]::before,
+.fighter-icon-grid button[data-fighter-key="marthaStewart"]::before,
+.fighter-icon-grid button[data-fighter-key="stephenHawking"]::before,
+.fighter-icon-grid button[data-fighter-key="helenKeller"]::before,
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   content: "";
   width: 39px;
@@ -736,6 +742,30 @@ h2 {
   background-image: url("/assets/characters/hippo/hippo-icon.png");
 }
 
+.fighter-icon-grid button[data-fighter-key="honeyBadger"]::before {
+  background-image: url("/assets/characters/honey-badger/honey-badger-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="lion"]::before {
+  background-image: url("/assets/characters/lion/lion-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="chefBoyardee"]::before {
+  background-image: url("/assets/characters/chef-boyardee/chef-boyardee-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="marthaStewart"]::before {
+  background-image: url("/assets/characters/martha-stewart/martha-stewart-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="stephenHawking"]::before {
+  background-image: url("/assets/characters/stephen-hawking/stephen-hawking-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="helenKeller"]::before {
+  background-image: url("/assets/characters/helen-keller/helen-keller-icon.png");
+}
+
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   background-image: url("/assets/characters/trex/trex-icon.png");
 }
@@ -754,7 +784,13 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="david"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="eagle"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="goliath"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="honeyBadger"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="hippo"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="lion"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="chefBoyardee"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="marthaStewart"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="stephenHawking"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="helenKeller"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
   border-color: var(--accent);
   background-color: #fff7df;
@@ -777,6 +813,30 @@ h2 {
 
 .fighter-icon-grid button[data-fighter-key="hippo"].is-selected::before {
   background-image: url("/assets/characters/hippo/hippo-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="honeyBadger"].is-selected::before {
+  background-image: url("/assets/characters/honey-badger/honey-badger-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="lion"].is-selected::before {
+  background-image: url("/assets/characters/lion/lion-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="chefBoyardee"].is-selected::before {
+  background-image: url("/assets/characters/chef-boyardee/chef-boyardee-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="marthaStewart"].is-selected::before {
+  background-image: url("/assets/characters/martha-stewart/martha-stewart-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="stephenHawking"].is-selected::before {
+  background-image: url("/assets/characters/stephen-hawking/stephen-hawking-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="helenKeller"].is-selected::before {
+  background-image: url("/assets/characters/helen-keller/helen-keller-icon.png");
 }
 
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {

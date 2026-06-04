@@ -40,6 +40,10 @@ const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   hippo: { color: 0x5f6670, accent: 0x9aa5ad },
   honeyBadger: { color: 0x1f2428, accent: 0xf1efe0 },
   eagle: { color: 0x574133, accent: 0xe7d393 },
+  chefBoyardee: { color: 0x56311d, accent: 0xd84726 },
+  marthaStewart: { color: 0x4f6c78, accent: 0xd8d8d8 },
+  stephenHawking: { color: 0x252a32, accent: 0x3da8ff },
+  helenKeller: { color: 0x273b51, accent: 0x75bdf2 },
   guard: { color: 0x2a2926, accent: 0x8b2635 },
   neutral: { color: 0x5d4a16, accent: 0xd8b45d }
 };
@@ -83,7 +87,20 @@ type RenderState = {
 };
 
 type FighterSide = "player" | "opponent";
-type SheetFighterKey = Extract<FighterSnapshot["key"], "david" | "goliath" | "tRex" | "hippo" | "eagle">;
+type SheetFighterKey = Extract<
+  FighterSnapshot["key"],
+  | "david"
+  | "goliath"
+  | "tRex"
+  | "hippo"
+  | "eagle"
+  | "lion"
+  | "honeyBadger"
+  | "chefBoyardee"
+  | "marthaStewart"
+  | "stephenHawking"
+  | "helenKeller"
+>;
 type SheetRow = {
   start: number;
   count: number;
@@ -91,8 +108,8 @@ type SheetRow = {
 type CharacterSheetConfig = {
   textureKey: string;
   asset: string;
-  missingTextureKey: string;
-  missingAsset: string;
+  missingTextureKey?: string;
+  missingAsset?: string;
   frameWidth: number;
   frameHeight: number;
   idle: SheetRow;
@@ -240,10 +257,125 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     originX: 0.5,
     originY: 0.82,
     yOffset: 1
+  },
+  lion: {
+    textureKey: "character-lion-actions",
+    asset: characterAssets.lionActions,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 8 },
+    run: { start: 24, count: 6 },
+    chomp: { start: 8, count: 6 },
+    clawSwipe: { start: 16, count: 6 },
+    kick: { start: 24, count: 6 },
+    spinKick: { start: 32, count: 6 },
+    low: { start: 32, count: 6 },
+    heavy: { start: 8, count: 6 },
+    light: { start: 16, count: 6 },
+    high: { start: 16, count: 6 },
+    scale: 0.84,
+    baseBodyScale: 1.04,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
+  },
+  honeyBadger: {
+    textureKey: "character-honey-badger-actions",
+    asset: characterAssets.honeyBadgerActions,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 7 },
+    run: { start: 0, count: 7 },
+    clawSwipe: { start: 8, count: 6 },
+    chomp: { start: 16, count: 5 },
+    kick: { start: 24, count: 6 },
+    spinKick: { start: 32, count: 5 },
+    low: { start: 24, count: 6 },
+    heavy: { start: 32, count: 5 },
+    light: { start: 8, count: 6 },
+    high: { start: 16, count: 5 },
+    scale: 0.72,
+    baseBodyScale: 0.82,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 2
+  },
+  chefBoyardee: {
+    textureKey: "character-chef-boyardee-actions",
+    asset: characterAssets.chefBoyardeeActions,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 8 },
+    high: { start: 8, count: 6 },
+    heavy: { start: 16, count: 6 },
+    light: { start: 24, count: 6 },
+    low: { start: 32, count: 6 },
+    kick: { start: 16, count: 6 },
+    spinKick: { start: 32, count: 6 },
+    scale: 0.76,
+    baseBodyScale: 1,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
+  },
+  marthaStewart: {
+    textureKey: "character-martha-stewart-actions",
+    asset: characterAssets.marthaStewartActions,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 8 },
+    heavy: { start: 8, count: 6 },
+    high: { start: 16, count: 6 },
+    kick: { start: 24, count: 6 },
+    spinKick: { start: 24, count: 6 },
+    low: { start: 24, count: 6 },
+    light: { start: 32, count: 6 },
+    scale: 0.76,
+    baseBodyScale: 0.98,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
+  },
+  stephenHawking: {
+    textureKey: "character-stephen-hawking-actions",
+    asset: characterAssets.stephenHawkingActions,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 8 },
+    run: { start: 8, count: 5 },
+    high: { start: 16, count: 6 },
+    heavy: { start: 24, count: 5 },
+    low: { start: 32, count: 5 },
+    light: { start: 8, count: 5 },
+    kick: { start: 8, count: 5 },
+    spinKick: { start: 32, count: 5 },
+    scale: 0.82,
+    baseBodyScale: 1,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
+  },
+  helenKeller: {
+    textureKey: "character-helen-keller-actions",
+    asset: characterAssets.helenKellerActions,
+    frameWidth: 181,
+    frameHeight: 217,
+    idle: { start: 0, count: 8 },
+    light: { start: 8, count: 6 },
+    high: { start: 16, count: 6 },
+    heavy: { start: 24, count: 6 },
+    low: { start: 32, count: 6 },
+    kick: { start: 24, count: 6 },
+    spinKick: { start: 32, count: 6 },
+    scale: 0.76,
+    baseBodyScale: 1,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
   }
 };
 
-const detachedPartSheetConfigs: Record<SheetFighterKey, DetachedPartSheetConfig> = {
+const detachedPartSheetConfigs: Partial<Record<SheetFighterKey, DetachedPartSheetConfig>> = {
   david: {
     textureKey: "character-david-parts",
     asset: characterAssets.davidParts,
@@ -423,10 +555,12 @@ export class TrainingScene extends Phaser.Scene {
         frameWidth: config.frameWidth,
         frameHeight: config.frameHeight
       });
-      this.load.spritesheet(config.missingTextureKey, config.missingAsset, {
-        frameWidth: 181,
-        frameHeight: 272
-      });
+      if (config.missingTextureKey && config.missingAsset) {
+        this.load.spritesheet(config.missingTextureKey, config.missingAsset, {
+          frameWidth: 181,
+          frameHeight: 272
+        });
+      }
     });
     Object.values(detachedPartSheetConfigs).forEach((config) => {
       this.load.spritesheet(config.textureKey, config.asset, {
@@ -2554,9 +2688,13 @@ export class TrainingScene extends Phaser.Scene {
     const bodyScale = fighter.stats.bodyScale;
     const spriteScale = config.scale * (bodyScale / config.baseBodyScale);
     const missingFrame = getMissingLimbFrame(fighter);
+    const missingTextureKey = config.missingTextureKey;
     const useMissingFrame =
-      missingFrame !== null && fighter.state !== "attack" && this.textures.exists(config.missingTextureKey);
-    const textureKey = useMissingFrame ? config.missingTextureKey : config.textureKey;
+      missingFrame !== null &&
+      fighter.state !== "attack" &&
+      missingTextureKey !== undefined &&
+      this.textures.exists(missingTextureKey);
+    const textureKey = useMissingFrame ? missingTextureKey : config.textureKey;
     const frame = useMissingFrame ? missingFrame : this.getSheetSpriteFrame(fighter, config);
 
     sprite
@@ -3278,7 +3416,7 @@ function getCharacterSheetConfig(key: FighterSnapshot["key"]) {
 }
 
 function getDetachedPartSheetConfig(part: DetachedPart) {
-  return part.owner in detachedPartSheetConfigs ? detachedPartSheetConfigs[part.owner as SheetFighterKey] : null;
+  return part.owner in detachedPartSheetConfigs ? (detachedPartSheetConfigs[part.owner as SheetFighterKey] ?? null) : null;
 }
 
 function getDetachedPartFrame(part: DetachedPart, config: DetachedPartSheetConfig) {
@@ -3406,7 +3544,7 @@ function getAnimalAbilitySummary(fighter: FighterSnapshot) {
 }
 
 function hasNaturalChomp(fighter: FighterSnapshot) {
-  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo";
+  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo" || fighter.key === "honeyBadger";
 }
 
 function getObjectiveKind(settings: GameLaunchSettings): ObjectiveKind {
@@ -3549,7 +3687,23 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
   }
 
   if (fighter.key === "honeyBadger") {
-    return controls(["Rake", "claw"], ["Scrap", "light"], ["Kick", "kick"], ["Lunge", "heavy"]);
+    return controls(["Bite", "chomp"], ["Claw", "claw"], ["Kick", "kick"], ["Roll", "powerKick"]);
+  }
+
+  if (fighter.key === "chefBoyardee") {
+    return controls(["Pizza", "high"], ["Ravioli", "light"], ["Pasta", "low"], ["Rolling Pin", "heavy"]);
+  }
+
+  if (fighter.key === "marthaStewart") {
+    return controls(["Money", "high"], ["Craft Rush", "light"], ["Kick", "kick"], ["Scissors", "heavy"]);
+  }
+
+  if (fighter.key === "stephenHawking") {
+    return controls(["Rockets", "high"], ["Chair Dash", "light"], ["Saw", "low"], ["Laser", "heavy"]);
+  }
+
+  if (fighter.key === "helenKeller") {
+    return controls(["Book", "high"], ["Resolve", "light"], ["Water", "low"], ["Cane", "heavy"]);
   }
 
   return controls(["High", "high"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);

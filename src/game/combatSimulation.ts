@@ -2021,16 +2021,20 @@ function getDashCost(fighter: FighterSnapshot) {
 }
 
 function getDashSpeedMultiplier(fighter: FighterSnapshot) {
-  const naturalBurst =
-    fighter.key === "lion"
-      ? 0.12
-      : fighter.key === "honeyBadger"
-        ? 0.16
-        : fighter.key === "eagle"
-          ? 0.1
-          : fighter.key === "hippo" || fighter.key === "tRex"
-            ? -0.08
-            : 0;
+  let naturalBurst = 0;
+  if (fighter.key === "lion") {
+    naturalBurst = 0.12;
+  } else if (fighter.key === "honeyBadger") {
+    naturalBurst = 0.16;
+  } else if (fighter.key === "eagle") {
+    naturalBurst = 0.1;
+  } else if (fighter.key === "marthaStewart") {
+    naturalBurst = 0.06;
+  } else if (fighter.key === "stephenHawking") {
+    naturalBurst = -0.12;
+  } else if (fighter.key === "hippo" || fighter.key === "tRex") {
+    naturalBurst = -0.08;
+  }
   return Math.max(0.7, 1 + getDodgeBonus(fighter) * 0.55 + naturalBurst);
 }
 
@@ -2045,6 +2049,10 @@ function getKnockbackTakenMultiplier(fighter: FighterSnapshot) {
 
   if (fighter.key === "honeyBadger") {
     return 0.86;
+  }
+
+  if (fighter.key === "stephenHawking") {
+    return 0.82;
   }
 
   if (fighter.key === "eagle") {
@@ -2067,6 +2075,10 @@ function getLaunchTakenMultiplier(fighter: FighterSnapshot) {
     return 1.26;
   }
 
+  if (fighter.key === "stephenHawking") {
+    return 0.9;
+  }
+
   return 1;
 }
 
@@ -2077,6 +2089,10 @@ function getHitStunTakenMultiplier(fighter: FighterSnapshot) {
 
   if (fighter.key === "hippo") {
     return 0.92;
+  }
+
+  if (fighter.key === "helenKeller" || fighter.key === "stephenHawking") {
+    return 0.94;
   }
 
   if (fighter.key === "eagle") {
@@ -2179,7 +2195,7 @@ function canFly(fighter: FighterSnapshot) {
 }
 
 function hasNaturalChomp(fighter: FighterSnapshot) {
-  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo";
+  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo" || fighter.key === "honeyBadger";
 }
 
 function hasNaturalTail(fighter: FighterSnapshot) {
@@ -2205,6 +2221,10 @@ function getNaturalChompBonus(fighter: FighterSnapshot) {
 
   if (fighter.key === "lion") {
     return 1.12;
+  }
+
+  if (fighter.key === "honeyBadger") {
+    return 1.06;
   }
 
   return 1.08;
