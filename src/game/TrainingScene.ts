@@ -12,6 +12,7 @@ import {
   type FighterSnapshot,
   fixedStep,
   getAttackBox,
+  getHurtBox,
   getTargetHurtBox,
   groundY,
   isAttackActive,
@@ -143,7 +144,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     kick: { start: 16, count: 8 },
     spinKick: { start: 16, count: 8 },
     low: { start: 16, count: 8 },
-    high: { start: 24, count: 8 },
+    high: { start: 24, count: 6 },
     heavy: { start: 32, count: 8 },
     scale: 0.74,
     baseBodyScale: 1,
@@ -181,13 +182,13 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     idle: { start: 0, count: 9 },
     run: { start: 9, count: 9 },
     chomp: { start: 18, count: 9 },
-    tailStrike: { start: 27, count: 9 },
-    kick: { start: 36, count: 9 },
-    spinKick: { start: 36, count: 9 },
-    low: { start: 36, count: 9 },
-    heavy: { start: 39, count: 6 },
-    light: { start: 45, count: 9 },
-    high: { start: 45, count: 9 },
+    tailStrike: { start: 27, count: 6 },
+    kick: { start: 36, count: 6 },
+    spinKick: { start: 36, count: 6 },
+    low: { start: 36, count: 6 },
+    heavy: { start: 36, count: 6 },
+    light: { start: 18, count: 6 },
+    high: { start: 18, count: 6 },
     scale: 1.08,
     baseBodyScale: 1.36,
     originX: 0.48,
@@ -205,12 +206,12 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     run: { start: 9, count: 9 },
     chomp: { start: 18, count: 9 },
     tailStrike: { start: 27, count: 9 },
-    kick: { start: 36, count: 9 },
-    spinKick: { start: 27, count: 9 },
-    low: { start: 36, count: 9 },
-    heavy: { start: 39, count: 6 },
-    light: { start: 45, count: 9 },
-    high: { start: 45, count: 9 },
+    kick: { start: 36, count: 6 },
+    spinKick: { start: 27, count: 6 },
+    low: { start: 36, count: 6 },
+    heavy: { start: 36, count: 6 },
+    light: { start: 18, count: 6 },
+    high: { start: 18, count: 6 },
     scale: 1.07,
     baseBodyScale: 1.34,
     originX: 0.48,
@@ -2087,10 +2088,31 @@ export class TrainingScene extends Phaser.Scene {
     this.drawShadows();
     this.drawFighter(player, "player");
     this.drawFighter(opponent, "opponent");
+    this.drawDebugHurtBoxes(player, opponent);
     this.drawDetachedParts();
     this.drawLevelPickup();
     this.drawEffects();
     this.drawDangerOverlay();
+  }
+
+  private drawDebugHurtBoxes(player: FighterSnapshot, opponent: FighterSnapshot) {
+    if (!this.settings.showHitboxes) {
+      return;
+    }
+
+    const fighters: Array<{ fighter: FighterSnapshot; color: number }> = [
+      { fighter: player, color: 0x4e9a86 },
+      { fighter: opponent, color: 0x8f2f3f }
+    ];
+
+    fighters.forEach(({ fighter, color }) => {
+      const hurtBox = getHurtBox(fighter);
+      this.graphics.lineStyle(2, color, 0.5);
+      this.graphics.strokeRect(hurtBox.x, hurtBox.y, hurtBox.width, hurtBox.height);
+      this.graphics.lineStyle(1, 0xfff3bf, 0.5);
+      this.graphics.lineBetween(fighter.x - 9, fighter.y, fighter.x + 9, fighter.y);
+      this.graphics.lineBetween(fighter.x, fighter.y - 9, fighter.x, fighter.y + 9);
+    });
   }
 
   private drawLevelPickup() {
@@ -2518,7 +2540,7 @@ export class TrainingScene extends Phaser.Scene {
       .setTexture(textureKey)
       .setFrame(frame)
       .setOrigin(config.originX, config.originY)
-      .setPosition(fighter.x, fighter.y + config.yOffset)
+      .setPosition(Math.round(fighter.x), Math.round(fighter.y + config.yOffset))
       .setScale(spriteScale)
       .setFlipX(fighter.facing < 0)
       .setAlpha(fighter.invulnerableTimer > 0 ? 0.76 : 1);
