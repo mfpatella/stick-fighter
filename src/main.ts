@@ -348,7 +348,10 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
   game.scene.start("training", { settings, onlineBridge });
   controls?.removeAttribute("hidden");
   if (trainingTools) {
-    trainingTools.hidden = settings.matchType !== "testing" && !settings.trainingTools;
+    trainingTools.hidden =
+      settings.mode === "standardFighter" && settings.matchType !== "testing"
+        ? true
+        : settings.matchType !== "testing" && !settings.trainingTools;
   }
   if (beginButton) {
     beginButton.textContent = "Continue";
@@ -1024,13 +1027,15 @@ async function leaveCurrentOnlineLobby() {
 }
 
 function renderFightHeading(settings: GameLaunchSettings) {
+  const modeName = formatGameMode(settings.mode);
+
   if (fightModeLabel) {
     fightModeLabel.textContent =
       settings.matchType === "testing"
         ? "Testing lab"
         : settings.matchType === "online"
           ? "Online player fight"
-          : "Single player bot fight";
+          : modeName;
   }
 
   if (fightTitle) {
@@ -1039,13 +1044,31 @@ function renderFightHeading(settings: GameLaunchSettings) {
         ? "Parts Testing Lab"
         : settings.matchType === "online"
           ? "Online Arena"
-          : "Bot Arena";
+          : settings.mode === "standardFighter"
+            ? "Standard Arena"
+            : "Bot Arena";
   }
 
   if (netplayStatus) {
     netplayStatus.hidden = settings.matchType !== "online";
     netplayStatus.textContent = settings.matchType === "online" ? "Netplay starting..." : "";
   }
+}
+
+function formatGameMode(mode: GameLaunchSettings["mode"]) {
+  if (mode === "standardFighter") {
+    return "Standard fighter";
+  }
+
+  if (mode === "training") {
+    return "Training yard";
+  }
+
+  if (mode === "storySpar") {
+    return "Story spar";
+  }
+
+  return "Parts builder";
 }
 
 function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
@@ -1653,7 +1676,10 @@ function readSettings(): GameLaunchSettings {
 
   return {
     matchType: matchType === "online" || matchType === "testing" ? matchType : "singlePlayer",
-    mode: mode === "training" || mode === "storySpar" ? mode : "partsBuilder",
+    mode:
+      mode === "standardFighter" || mode === "training" || mode === "storySpar" || mode === "partsBuilder"
+        ? mode
+        : defaultGameSettings.mode,
     difficulty: difficulty === "gentle" || difficulty === "champion" ? difficulty : "standard",
     loadout:
       loadout === "winged" || loadout === "predator" || loadout === "beast" || loadout === "classic"

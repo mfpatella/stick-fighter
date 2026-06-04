@@ -439,13 +439,15 @@ export class TrainingScene extends Phaser.Scene {
   create() {
     this.simulation = new CombatSimulation({
       difficulty: this.settings.difficulty,
-      randomDrops: this.settings.randomDrops,
-      playerStartingParts: startingLoadouts[this.settings.loadout],
+      randomDrops: isPartsMode(this.settings) && this.settings.randomDrops,
+      playerStartingParts: isPartsMode(this.settings) ? startingLoadouts[this.settings.loadout] : [],
       opponentHealth: this.settings.guardHealth,
       playerFighter: this.settings.playerFighter,
       opponentFighter: this.settings.opponentFighter,
       noDeath: this.settings.matchType === "testing",
       opponentControlled: this.settings.matchType === "online",
+      partsEnabled: isPartsMode(this.settings),
+      standardTiming: this.settings.mode === "standardFighter",
       roundTimeSeconds: this.settings.roundTimeSeconds,
       winCondition: this.settings.winCondition
     });
@@ -2059,8 +2061,11 @@ export class TrainingScene extends Phaser.Scene {
       const missing = getMissingParts(player);
       const attachments = getAttachmentSummary(player);
       const abilitySummary = getAnimalAbilitySummary(player);
+      const partsMode = isPartsMode(this.settings);
       this.statusText.setText(
-        abilitySummary
+        !partsMode
+          ? `Standard fighter: ${getControlHint(player)}. Chain varied hits for stronger combos.`
+          : abilitySummary
           ? `Animal abilities: ${abilitySummary}.`
           : attachments
           ? `Attached: ${attachments}. Press E near loose parts to add more.`
@@ -2074,6 +2079,7 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private updateDomControls(player: FighterSnapshot) {
+    const partsMode = isPartsMode(this.settings);
     const hasCrocodile = player.bonusParts.some((part) => part.trait === "crocodile") || hasNaturalChomp(player);
     const hasTail = player.bonusParts.some((part) => part.category === "tail") || hasNaturalTail(player);
     const hasClaws = player.bonusParts.some((part) => part.category === "claws") || hasNaturalClaws(player);
@@ -2083,9 +2089,10 @@ export class TrainingScene extends Phaser.Scene {
 
     attackControls.forEach((control) => setAttackControl(control));
 
-    setControlVisible("control-chomp", hasCrocodile && !diamondActions.has("chomp"));
-    setControlVisible("control-tail", hasTail && !diamondActions.has("tail"));
-    setControlVisible("control-claws", hasClaws && !diamondActions.has("claw"));
+    setControlVisible("control-attach", partsMode);
+    setControlVisible("control-chomp", partsMode && hasCrocodile && !diamondActions.has("chomp"));
+    setControlVisible("control-tail", partsMode && hasTail && !diamondActions.has("tail"));
+    setControlVisible("control-claws", partsMode && hasClaws && !diamondActions.has("claw"));
 
     const jumpControl = document.getElementById("control-jump");
     if (jumpControl) {
@@ -3403,7 +3410,7 @@ function hasNaturalChomp(fighter: FighterSnapshot) {
 }
 
 function getObjectiveKind(settings: GameLaunchSettings): ObjectiveKind {
-  if (settings.matchType === "testing" || settings.matchType === "online") {
+  if (settings.matchType === "testing" || settings.matchType === "online" || settings.mode === "standardFighter") {
     return "none";
   }
 
@@ -3481,6 +3488,10 @@ function hasNaturalClaws(fighter: FighterSnapshot) {
   return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle";
 }
 
+function isPartsMode(settings: GameLaunchSettings) {
+  return settings.matchType === "testing" || settings.mode !== "standardFighter";
+}
+
 function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDefinition[] {
   const controls = (top: [string, TouchAction], left: [string, TouchAction], right: [string, TouchAction], bottom: [string, TouchAction]) => [
     { id: "control-attack-top", label: top[0], action: top[1] },
@@ -3493,8 +3504,32 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
     return controls(["Sling", "high"], ["Punch", "light"], ["Kick", "kick"], ["Sword", "heavy"]);
   }
 
+  if (fighter.key === "jonathan") {
+    return controls(["Shield", "high"], ["Counter", "light"], ["Kick", "kick"], ["Oath", "heavy"]);
+  }
+
+  if (fighter.key === "benaiah") {
+    return controls(["Lion Hit", "heavy"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);
+  }
+
+  if (fighter.key === "asahel") {
+    return controls(["High", "high"], ["Quick", "light"], ["Fleet Kick", "kick"], ["Dash Hit", "low"]);
+  }
+
   if (fighter.key === "goliath") {
     return controls(["Spear", "high"], ["Punch", "light"], ["Kick", "kick"], ["Sword", "heavy"]);
+  }
+
+  if (fighter.key === "ishbiBenob") {
+    return controls(["Spear", "high"], ["Hook", "light"], ["Kick", "kick"], ["Giant Hit", "heavy"]);
+  }
+
+  if (fighter.key === "saph") {
+    return controls(["Guard Hit", "high"], ["Jab", "light"], ["Low Kick", "low"], ["Crush", "heavy"]);
+  }
+
+  if (fighter.key === "lahmi") {
+    return controls(["Duel Cut", "high"], ["Jab", "light"], ["Kick", "kick"], ["Blade", "heavy"]);
   }
 
   if (fighter.key === "tRex") {
@@ -3561,6 +3596,10 @@ function getModeStatus(settings: GameLaunchSettings) {
 
   if (settings.matchType === "online") {
     return `Online versus: ${roundRule}`;
+  }
+
+  if (settings.mode === "standardFighter") {
+    return `Standard fighter: no limb removal, no part drops, ${roundRule}`;
   }
 
   if (settings.mode === "storySpar") {

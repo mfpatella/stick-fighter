@@ -3,7 +3,7 @@ import type { BaseFighterKey } from "./fighterCatalog";
 import type { LevelKey } from "./levels";
 import type { AvatarColor, AvatarFrame, MatchmakingMode } from "./multiplayerTypes";
 
-export type GameMode = "training" | "partsBuilder" | "storySpar";
+export type GameMode = "standardFighter" | "training" | "partsBuilder" | "storySpar";
 export type MatchType = "singlePlayer" | "online" | "testing";
 export type CpuDifficulty = "gentle" | "standard" | "champion";
 export type StartingLoadout = "classic" | "winged" | "predator" | "beast";
@@ -34,7 +34,7 @@ export type GameLaunchSettings = {
 
 export const defaultGameSettings: GameLaunchSettings = {
   matchType: "singlePlayer",
-  mode: "partsBuilder",
+  mode: "standardFighter",
   difficulty: "standard",
   loadout: "classic",
   randomDrops: true,

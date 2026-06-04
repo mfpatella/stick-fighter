@@ -139,6 +139,8 @@ export type CombatSimulationOptions = {
   opponentFighter?: BaseFighterKey;
   noDeath?: boolean;
   opponentControlled?: boolean;
+  partsEnabled?: boolean;
+  standardTiming?: boolean;
   roundTimeSeconds?: number;
   winCondition?: WinCondition;
 };
@@ -551,6 +553,8 @@ export class CombatSimulation {
       opponentFighter: options.opponentFighter ?? "guard",
       noDeath: options.noDeath ?? false,
       opponentControlled: options.opponentControlled ?? false,
+      partsEnabled: options.partsEnabled ?? true,
+      standardTiming: options.standardTiming ?? false,
       roundTimeSeconds: options.roundTimeSeconds ?? 0,
       winCondition: options.winCondition ?? "knockout"
     };
@@ -567,7 +571,9 @@ export class CombatSimulation {
     };
     this.state.opponent.health = this.options.opponentHealth;
     this.state.opponent.stats.maxHealth = this.options.opponentHealth;
-    this.options.playerStartingParts.forEach((part) => this.grantTrainingPart(part, "player"));
+    if (this.options.partsEnabled) {
+      this.options.playerStartingParts.forEach((part) => this.grantTrainingPart(part, "player"));
+    }
   }
 
   createSnapshot(): SimulationSnapshot {
@@ -605,6 +611,10 @@ export class CombatSimulation {
   }
 
   grantTrainingPart(kind: TrainingDropKind, owner: "player" | "opponent" = "player"): CombatEvent | null {
+    if (!this.options.partsEnabled) {
+      return null;
+    }
+
     const template = neutralPartCatalog.find((part) => part.part === kind);
     if (!template) {
       return null;
@@ -622,6 +632,10 @@ export class CombatSimulation {
   }
 
   spawnTrainingDrop(kind: TrainingDropKind): CombatEvent | null {
+    if (!this.options.partsEnabled) {
+      return null;
+    }
+
     const template = neutralPartCatalog.find((part) => part.part === kind);
     if (!template) {
       return null;
@@ -675,21 +689,21 @@ export class CombatSimulation {
     } else {
       this.updateOpponent(delta);
     }
-    if (input.reattachPressed) {
+    if (this.options.partsEnabled && input.reattachPressed) {
       const attach = this.tryAttachPart(this.state.player, "player");
       if (attach) {
         events.push(attach);
       }
     }
     if (this.options.opponentControlled) {
-      if (opponentInput.reattachPressed) {
+      if (this.options.partsEnabled && opponentInput.reattachPressed) {
         const attach = this.tryAttachPart(this.state.opponent, "opponent");
         if (attach) {
           events.push(attach);
         }
       }
     } else {
-      const cpuAttach = this.tryCpuAttachPart();
+      const cpuAttach = this.options.partsEnabled ? this.tryCpuAttachPart() : null;
       if (cpuAttach) {
         events.push(cpuAttach);
       }
@@ -939,7 +953,7 @@ export class CombatSimulation {
       fighter.stamina +
         (fighter.state === "block" || fighter.state === "blockstun" || fighter.state === "dash"
           ? 0
-          : 22 * fighter.stats.staminaRegen * delta)
+          : (this.options.standardTiming ? 24 : 22) * fighter.stats.staminaRegen * delta)
     );
   }
 
@@ -947,7 +961,7 @@ export class CombatSimulation {
     if (fighter.state === "attack" && fighter.attackKind) {
       const spec = attackSpecs[fighter.attackKind];
       fighter.attackElapsed += delta;
-      if (fighter.attackElapsed >= attackTotalDuration(spec)) {
+      if (fighter.attackElapsed >= attackTotalDuration(spec, this.options.standardTiming)) {
         const whiffed = !fighter.hasHitDuringAttack;
         fighter.attackKind = null;
         fighter.hasHitDuringAttack = false;
@@ -1048,7 +1062,7 @@ export class CombatSimulation {
   }
 
   private updateNeutralDrops(delta: number): CombatEvent | null {
-    if (!this.options.randomDrops) {
+    if (!this.options.partsEnabled || !this.options.randomDrops) {
       return null;
     }
 
@@ -1125,7 +1139,7 @@ export class CombatSimulation {
     }
 
     fighter.queuedAttack = availableAttack;
-    fighter.inputBufferTimer = frames(10);
+    fighter.inputBufferTimer = frames(this.options.standardTiming ? 13 : 10);
   }
 
   private tryBufferedAttack(fighter: FighterSnapshot) {
@@ -1155,7 +1169,7 @@ export class CombatSimulation {
     }
 
     const spec = attackSpecs[fighter.attackKind];
-    const postActive = fighter.attackElapsed >= spec.startup + spec.active + frames(1);
+    const postActive = fighter.attackElapsed >= spec.startup + spec.active + frames(this.options.standardTiming ? 0 : 1);
     if (!postActive) {
       return false;
     }
@@ -1241,7 +1255,7 @@ export class CombatSimulation {
 
     defender.health = Math.max(0, defender.health - (blocked ? 0 : damage));
     defender.stamina = Math.max(0, defender.stamina - (blocked ? 18 : 7));
-    defender.hitCooldown = blocked ? 0.14 : 0.28;
+    defender.hitCooldown = blocked ? 0.14 : this.options.standardTiming ? 0.22 : 0.28;
     attacker.hasHitDuringAttack = true;
 
     if (!blocked) {
@@ -1294,6 +1308,10 @@ export class CombatSimulation {
   }
 
   private detachTargetPart(attacker: FighterSnapshot, defender: FighterSnapshot, target: AttackTarget): BodyPart | null {
+    if (!this.options.partsEnabled) {
+      return null;
+    }
+
     if (this.state.detachedParts.length >= maxLooseParts) {
       return null;
     }
@@ -1600,8 +1618,8 @@ function createFighter(key: FighterSnapshot["key"], x: number): FighterSnapshot 
   };
 }
 
-function attackTotalDuration(spec: AttackSpec) {
-  return spec.startup + spec.active + spec.recovery;
+function attackTotalDuration(spec: AttackSpec, standardTiming = false) {
+  return spec.startup + spec.active + spec.recovery * (standardTiming ? 0.82 : 1);
 }
 
 function createBlockedComboResult(attacker: FighterSnapshot) {

@@ -12,7 +12,7 @@ export type LevelDefinition = {
   name: string;
   setting: string;
   maxPlayers: 2 | 4;
-  recommendedMode: "training" | "partsBuilder" | "storySpar";
+  recommendedMode: "standardFighter" | "training" | "partsBuilder" | "storySpar";
 };
 
 export const levels: Record<LevelKey, LevelDefinition> = {

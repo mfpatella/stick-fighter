@@ -58,7 +58,8 @@
             <label>
               <span>Mode</span>
               <select name="mode">
-                <option value="partsBuilder" selected>Parts Builder</option>
+                <option value="standardFighter" selected>Standard Fighter</option>
+                <option value="partsBuilder">Parts Builder</option>
                 <option value="training">Training Yard</option>
                 <option value="storySpar">Story Spar</option>
               </select>
@@ -379,7 +380,7 @@
           </div>
           <div class="control-cluster control-actions" aria-label="Combat actions">
             <div class="bonus-actions" aria-label="Context actions">
-              <button type="button" class="touch-button touch-button-bonus" data-touch-action="reattach">Attach</button>
+              <button id="control-attach" type="button" class="touch-button touch-button-bonus" data-touch-action="reattach">Attach</button>
               <button type="button" class="touch-button touch-button-bonus" data-touch-action="dash">Dodge</button>
               <button id="control-chomp" type="button" class="touch-button touch-button-bonus ability-control" data-touch-action="chomp" hidden>Chomp</button>
               <button id="control-tail" type="button" class="touch-button touch-button-bonus ability-control" data-touch-action="tail" hidden>Tail</button>
