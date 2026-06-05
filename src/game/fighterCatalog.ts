@@ -118,16 +118,16 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "Giant champion",
     description: "Huge reach, heavy power, and high health, but slow recovery through stamina and movement.",
     stats: {
-      maxHealth: 136,
+      maxHealth: 132,
       moveSpeed: 0.76,
       jumpPower: 0.68,
-      attackPower: 1.28,
-      staminaRegen: 0.78,
+      attackPower: 1.24,
+      staminaRegen: 0.8,
       staminaCost: 1.2,
       guardStrength: 1.12,
       dodgeSpeed: 0.68,
       bodyScale: 1.3,
-      reachScale: 1.18
+      reachScale: 1.16
     }
   },
   ishbiBenob: {
@@ -139,13 +139,13 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       maxHealth: 128,
       moveSpeed: 0.82,
       jumpPower: 0.74,
-      attackPower: 1.22,
-      staminaRegen: 0.82,
-      staminaCost: 1.14,
+      attackPower: 1.18,
+      staminaRegen: 0.84,
+      staminaCost: 1.12,
       guardStrength: 1.06,
       dodgeSpeed: 0.76,
       bodyScale: 1.22,
-      reachScale: 1.16
+      reachScale: 1.14
     }
   },
   saph: {
@@ -154,10 +154,10 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "Heavy guard",
     description: "Durable and steady, but easier to hit and slower to chase.",
     stats: {
-      maxHealth: 122,
+      maxHealth: 120,
       moveSpeed: 0.88,
       jumpPower: 0.82,
-      attackPower: 1.14,
+      attackPower: 1.12,
       staminaRegen: 0.9,
       staminaCost: 1.08,
       guardStrength: 1.02,
@@ -190,16 +190,16 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "Apex chomper",
     description: "Massive bite, tail reach, and heavy health with slow but still playable turning and stamina recovery.",
     stats: {
-      maxHealth: 142,
+      maxHealth: 138,
       moveSpeed: 0.76,
       jumpPower: 0.54,
-      attackPower: 1.34,
-      staminaRegen: 0.82,
-      staminaCost: 1.2,
+      attackPower: 1.28,
+      staminaRegen: 0.84,
+      staminaCost: 1.18,
       guardStrength: 0.86,
       dodgeSpeed: 0.64,
       bodyScale: 1.36,
-      reachScale: 1.24
+      reachScale: 1.2
     }
   },
   lion: {
@@ -211,7 +211,7 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       maxHealth: 108,
       moveSpeed: 1.14,
       jumpPower: 1.18,
-      attackPower: 1.12,
+      attackPower: 1.08,
       staminaRegen: 1.08,
       staminaCost: 1,
       guardStrength: 0.88,
@@ -226,13 +226,13 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "River tank",
     description: "Huge health, crushing bite, and stubborn guard with slow pressure movement and short hops.",
     stats: {
-      maxHealth: 152,
+      maxHealth: 146,
       moveSpeed: 0.7,
       jumpPower: 0.58,
-      attackPower: 1.22,
-      staminaRegen: 0.9,
-      staminaCost: 1.12,
-      guardStrength: 1.22,
+      attackPower: 1.18,
+      staminaRegen: 0.92,
+      staminaCost: 1.1,
+      guardStrength: 1.18,
       dodgeSpeed: 0.6,
       bodyScale: 1.34,
       reachScale: 1.08
@@ -244,13 +244,13 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "Relentless scrapper",
     description: "Tiny, quick, hard to pin down, and stamina-rich with lighter individual hits.",
     stats: {
-      maxHealth: 86,
+      maxHealth: 90,
       moveSpeed: 1.24,
       jumpPower: 1.08,
       attackPower: 0.94,
       staminaRegen: 1.24,
       staminaCost: 0.84,
-      guardStrength: 0.78,
+      guardStrength: 0.82,
       dodgeSpeed: 1.28,
       bodyScale: 0.82,
       reachScale: 0.86
@@ -262,16 +262,16 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "Air duelist",
     description: "Light and fragile, but excellent jumps, air control, claw strikes, and natural flight bursts.",
     stats: {
-      maxHealth: 88,
+      maxHealth: 92,
       moveSpeed: 1.1,
       jumpPower: 1.32,
-      attackPower: 0.98,
+      attackPower: 1,
       staminaRegen: 1.22,
       staminaCost: 0.92,
-      guardStrength: 0.74,
+      guardStrength: 0.78,
       dodgeSpeed: 1.22,
       bodyScale: 0.9,
-      reachScale: 0.92
+      reachScale: 0.94
     }
   },
   chefBoyardee: {
@@ -317,15 +317,15 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     description: "Slower movement balanced by excellent ranged pressure and heavy tech attacks.",
     stats: {
       maxHealth: 96,
-      moveSpeed: 0.82,
-      jumpPower: 0.42,
-      attackPower: 1.18,
+      moveSpeed: 0.86,
+      jumpPower: 0.56,
+      attackPower: 1.12,
       staminaRegen: 1.08,
       staminaCost: 1.05,
       guardStrength: 1,
-      dodgeSpeed: 0.78,
+      dodgeSpeed: 0.82,
       bodyScale: 1,
-      reachScale: 1.2
+      reachScale: 1.14
     }
   },
   helenKeller: {

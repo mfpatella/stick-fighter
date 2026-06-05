@@ -1315,8 +1315,9 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
   const sideLabel = stats.localSide === "player" ? "P1" : "P2";
   const packetLabel = packetAge === null ? "no remote" : `${packetAge}ms`;
   const medianLabel = medianAge === null ? "n/a" : `${medianAge}ms med`;
+  const syncLabel = stats.simulationChecksum.toString(16).padStart(8, "0").slice(-6);
 
-  netplayStatus.textContent = `${sideLabel} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${medianLabel}`;
+  netplayStatus.textContent = `${sideLabel} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${medianLabel} | sync ${syncLabel}`;
 }
 
 function adaptInputDelay(stats: OnlineNetplayStats) {

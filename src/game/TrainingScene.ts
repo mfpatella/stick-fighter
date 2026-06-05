@@ -13,6 +13,8 @@ import {
   fixedStep,
   getAttackBox,
   getHurtBox,
+  getProjectileBox,
+  getSimulationChecksum,
   getTargetHurtBox,
   groundY,
   isAttackActive,
@@ -306,12 +308,12 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     frameWidth: 181,
     frameHeight: 217,
     idle: { start: 0, count: 8 },
-    high: { start: 8, count: 6 },
-    heavy: { start: 16, count: 6 },
-    light: { start: 24, count: 6 },
-    low: { start: 32, count: 6 },
-    kick: { start: 16, count: 6 },
-    spinKick: { start: 32, count: 6 },
+    high: { start: 8, count: 4 },
+    heavy: { start: 16, count: 5 },
+    light: { start: 24, count: 4 },
+    low: { start: 32, count: 3 },
+    kick: { start: 16, count: 5 },
+    spinKick: { start: 32, count: 3 },
     scale: 0.76,
     baseBodyScale: 1,
     originX: 0.5,
@@ -324,12 +326,12 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     frameWidth: 181,
     frameHeight: 217,
     idle: { start: 0, count: 8 },
-    heavy: { start: 8, count: 6 },
-    high: { start: 16, count: 6 },
-    kick: { start: 24, count: 6 },
-    spinKick: { start: 24, count: 6 },
-    low: { start: 24, count: 6 },
-    light: { start: 32, count: 6 },
+    heavy: { start: 8, count: 5 },
+    high: { start: 16, count: 4 },
+    kick: { start: 24, count: 5 },
+    spinKick: { start: 24, count: 5 },
+    low: { start: 24, count: 5 },
+    light: { start: 32, count: 4 },
     scale: 0.76,
     baseBodyScale: 0.98,
     originX: 0.5,
@@ -343,12 +345,12 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     frameHeight: 217,
     idle: { start: 0, count: 8 },
     run: { start: 8, count: 5 },
-    high: { start: 16, count: 6 },
-    heavy: { start: 24, count: 5 },
-    low: { start: 32, count: 5 },
+    high: { start: 16, count: 4 },
+    heavy: { start: 24, count: 4 },
+    low: { start: 32, count: 4 },
     light: { start: 8, count: 5 },
     kick: { start: 8, count: 5 },
-    spinKick: { start: 32, count: 5 },
+    spinKick: { start: 32, count: 4 },
     scale: 0.82,
     baseBodyScale: 1,
     originX: 0.5,
@@ -362,11 +364,11 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     frameHeight: 217,
     idle: { start: 0, count: 8 },
     light: { start: 8, count: 6 },
-    high: { start: 16, count: 6 },
+    high: { start: 16, count: 4 },
     heavy: { start: 24, count: 6 },
-    low: { start: 32, count: 6 },
+    low: { start: 32, count: 4 },
     kick: { start: 24, count: 6 },
-    spinKick: { start: 32, count: 6 },
+    spinKick: { start: 32, count: 4 },
     scale: 0.76,
     baseBodyScale: 1,
     originX: 0.5,
@@ -438,6 +440,7 @@ export type OnlineNetplayStats = {
   predictedFrames: number;
   rollbackCount: number;
   bufferedRemoteFrames: number;
+  simulationChecksum: number;
 };
 
 type NetplayFrameInputs = {
@@ -911,7 +914,8 @@ export class TrainingScene extends Phaser.Scene {
       inputDelayFrames: this.onlineBridge.inputDelayFrames,
       predictedFrames: this.netplayPredictedFrames,
       rollbackCount: this.netplayRollbackCount,
-      bufferedRemoteFrames: this.onlineBridge.getBufferedRemoteFrames()
+      bufferedRemoteFrames: this.onlineBridge.getBufferedRemoteFrames(),
+      simulationChecksum: getSimulationChecksum(this.simulation.state)
     });
   }
 
@@ -1372,7 +1376,7 @@ export class TrainingScene extends Phaser.Scene {
     if (this.perfText.visible) {
       const fps = Math.round(this.game.loop.actualFps);
       this.perfText.setText(
-        `FPS ${fps} | frame ${Math.round(deltaMs)}ms | slow ${this.slowFrameCount} | fx ${this.effects.length} | parts ${this.simulation.state.detachedParts.length}`
+        `FPS ${fps} | frame ${Math.round(deltaMs)}ms | slow ${this.slowFrameCount} | fx ${this.effects.length} | parts ${this.simulation.state.detachedParts.length} | shots ${this.simulation.state.projectiles.length}`
       );
     }
     this.slowFrameCount = 0;
@@ -1441,6 +1445,13 @@ export class TrainingScene extends Phaser.Scene {
           this.spawnFloatingText("PERFECT", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#d8b45d");
           this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 76 : this.simulation.state.player.y - 76, event.attacker === "player" ? -1 : 1, true);
           pulseHaptics([18, 18, 24]);
+        } else if (event.guardCrush) {
+          this.blockFlashTimer = 0.28;
+          this.statusHoldTimer = 0.82;
+          this.statusText.setText("Guard crush! Pressure opened a punish window.");
+          this.spawnFloatingText("GUARD CRUSH", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#f07d3b");
+          this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 70 : this.simulation.state.player.y - 70, event.attacker === "player" ? -1 : 1, true);
+          pulseHaptics([28, 18, 34]);
         } else if (event.blocked) {
           this.blockFlashTimer = 0.16;
           this.statusHoldTimer = 0.38;
@@ -1457,6 +1468,11 @@ export class TrainingScene extends Phaser.Scene {
           );
           this.spawnFloatingText(`${formatPartName(event.detachedPart).toUpperCase()} OFF`, event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#f07d3b");
           pulseHaptics([18, 24, 18]);
+        } else if (event.counterHit) {
+          this.statusHoldTimer = 0.7;
+          this.statusText.setText("Counter hit. Punish startup and recovery for stronger combos.");
+          this.spawnFloatingText("COUNTER", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#fff3bf");
+          pulseHaptics([12, 18]);
         } else if (event.bonusStrikes > 0) {
           this.statusHoldTimer = 0.9;
           this.statusText.setText(
@@ -1584,8 +1600,8 @@ export class TrainingScene extends Phaser.Scene {
           event.draw
             ? "Round complete: draw by even health"
             : event.playerWon
-              ? "Round complete: David stands firm"
-              : "Round complete: press R to train again"
+              ? `Round complete: ${this.simulation.state.player.name} wins`
+              : `Round complete: ${this.simulation.state.opponent.name} wins`
         );
         this.spawnRoundEndFeedback(event.playerWon);
         window.dispatchEvent(
@@ -1694,10 +1710,11 @@ export class TrainingScene extends Phaser.Scene {
       return;
     }
 
+    const partsMode = isPartsMode(this.settings);
     const kind =
       this.settings.level === "covenantHall"
         ? "guard"
-        : this.settings.level === "trainingYard" || this.settings.level === "mightyArena"
+        : partsMode && (this.settings.level === "trainingYard" || this.settings.level === "mightyArena")
           ? "wild"
           : "stamina";
 
@@ -1734,8 +1751,14 @@ export class TrainingScene extends Phaser.Scene {
       this.spawnFloatingText("GUARD", player.x, player.y - 112, "#d8b45d");
     } else {
       const kind = Phaser.Math.RND.pick<TrainingDropKind>(["crocodileHead", "tail", "claws", "wings"]);
-      this.statusText.setText("Wild part cache opened.");
-      this.spawnTrainingDrop(kind);
+      if (isPartsMode(this.settings)) {
+        this.statusText.setText("Wild part cache opened.");
+        this.spawnTrainingDrop(kind);
+      } else {
+        player.stamina = Math.min(100, player.stamina + 28);
+        this.statusText.setText("Arena supply restored stamina.");
+        this.spawnFloatingText("STAMINA", player.x, player.y - 112, "#4e9a86");
+      }
     }
 
     this.statusHoldTimer = 0.9;
@@ -1929,13 +1952,14 @@ export class TrainingScene extends Phaser.Scene {
 
     const attacker = event.attacker === "player" ? this.simulation.state.player : this.simulation.state.opponent;
     const defender = event.attacker === "player" ? this.simulation.state.opponent : this.simulation.state.player;
-    const impactX = (attacker.x + defender.x) / 2 + attacker.facing * 16;
+    const impactX = event.impactX ?? (attacker.x + defender.x) / 2 + attacker.facing * 16;
     const impactY =
-      event.attackKind === "kick" || event.attackKind === "low" || event.attackKind === "tailStrike"
+      event.impactY ??
+      (event.attackKind === "kick" || event.attackKind === "low" || event.attackKind === "tailStrike"
         ? defender.y - 48
         : event.attackKind === "spinKick" || event.attackKind === "chomp"
           ? defender.y - 96
-          : defender.y - 74;
+          : defender.y - 74);
     const color = event.blocked ? 0xf2d06b : 0xf07d3b;
 
     this.spawnAnimatedEffect(event.blocked ? "spark-guard" : "spark-pop", impactX, impactY, event.blocked ? 1.42 : 1.65, attacker.facing === 1 ? 0 : 180);
@@ -2198,7 +2222,7 @@ export class TrainingScene extends Phaser.Scene {
       const partsMode = isPartsMode(this.settings);
       this.statusText.setText(
         !partsMode
-          ? `Standard fighter: ${getControlHint(player)}. Chain varied hits for stronger combos.`
+          ? `Standard fighter: ${getControlHint(player)}. Punish whiffs for counters; pressure blocks to crush guard.`
           : abilitySummary
           ? `Animal abilities: ${abilitySummary}.`
           : attachments
@@ -2244,11 +2268,85 @@ export class TrainingScene extends Phaser.Scene {
     this.drawShadows();
     this.drawFighter(player, "player");
     this.drawFighter(opponent, "opponent");
+    this.drawProjectiles();
     this.drawDebugHurtBoxes(player, opponent);
     this.drawDetachedParts();
     this.drawLevelPickup();
     this.drawEffects();
     this.drawDangerOverlay();
+  }
+
+  private drawProjectiles() {
+    for (const projectile of this.simulation.state.projectiles) {
+      const box = getProjectileBox(projectile);
+      const pulse = 0.5 + Math.sin(this.time.now / 70 + projectile.id) * 0.5;
+      const facing = projectile.facing;
+
+      if (projectile.kind === "stone") {
+        this.graphics.fillStyle(0x5f6670, 0.96);
+        this.graphics.fillCircle(projectile.x, projectile.y, 9);
+        this.graphics.lineStyle(2, 0xf1e6d2, 0.72);
+        this.graphics.strokeCircle(projectile.x, projectile.y, 11);
+      } else if (projectile.kind === "pizza") {
+        this.graphics.fillStyle(0xd8a84f, 0.96);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 40, 22);
+        this.graphics.fillStyle(0xd84726, 0.9);
+        this.graphics.fillCircle(projectile.x - 8, projectile.y - 2, 3);
+        this.graphics.fillCircle(projectile.x + 6, projectile.y + 3, 3);
+        this.graphics.lineStyle(2, 0xfff3bf, 0.52);
+        this.graphics.strokeEllipse(projectile.x, projectile.y, 44, 25);
+      } else if (projectile.kind === "ravioli") {
+        this.graphics.fillStyle(0xf2d06b, 0.96);
+        this.graphics.fillRoundedRect(projectile.x - 12, projectile.y - 9, 24, 18, 4);
+        this.graphics.lineStyle(2, 0xb58235, 0.75);
+        this.graphics.strokeRoundedRect(projectile.x - 12, projectile.y - 9, 24, 18, 4);
+      } else if (projectile.kind === "pasta") {
+        this.graphics.lineStyle(8, 0xd8a84f, 0.85);
+        this.graphics.beginPath();
+        this.graphics.moveTo(projectile.x - facing * 32, projectile.y);
+        this.graphics.lineTo(projectile.x - facing * 8, projectile.y - 7);
+        this.graphics.lineTo(projectile.x + facing * 18, projectile.y + 5);
+        this.graphics.lineTo(projectile.x + facing * 36, projectile.y - 3);
+        this.graphics.strokePath();
+        this.graphics.fillStyle(0x8f2f3f, 0.84);
+        this.graphics.fillCircle(projectile.x + facing * 38, projectile.y - 2, 8);
+      } else if (projectile.kind === "money") {
+        this.graphics.fillStyle(0x75a85b, 0.92);
+        for (let i = 0; i < 4; i += 1) {
+          this.graphics.fillRect(projectile.x - facing * (22 - i * 12), projectile.y - 10 + (i % 2) * 6, 18, 10);
+        }
+      } else if (projectile.kind === "rocket") {
+        this.graphics.fillStyle(0xe7d393, 0.96);
+        this.graphics.fillTriangle(projectile.x + facing * 26, projectile.y, projectile.x - facing * 18, projectile.y - 11, projectile.x - facing * 18, projectile.y + 11);
+        this.graphics.fillStyle(0x8f2f3f, 0.96);
+        this.graphics.fillRect(projectile.x - facing * 22, projectile.y - 7, 30, 14);
+        this.graphics.lineStyle(4, 0x3da8ff, 0.58 + pulse * 0.28);
+        this.graphics.lineBetween(projectile.x - facing * 28, projectile.y, projectile.x - facing * 56, projectile.y + 4);
+      } else if (projectile.kind === "laser") {
+        this.graphics.lineStyle(10, 0x3da8ff, 0.42);
+        this.graphics.lineBetween(projectile.x - facing * 52, projectile.y, projectile.x + facing * 52, projectile.y);
+        this.graphics.lineStyle(4, 0xfff3bf, 0.8);
+        this.graphics.lineBetween(projectile.x - facing * 48, projectile.y, projectile.x + facing * 48, projectile.y);
+      } else if (projectile.kind === "book") {
+        this.graphics.fillStyle(0x6b4f2a, 0.94);
+        this.graphics.fillRoundedRect(projectile.x - 17, projectile.y - 13, 34, 26, 3);
+        this.graphics.lineStyle(2, 0xd8b45d, 0.82);
+        this.graphics.strokeRoundedRect(projectile.x - 17, projectile.y - 13, 34, 26, 3);
+      } else {
+        this.graphics.fillStyle(0x75bdf2, 0.22);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 82, 27);
+        this.graphics.lineStyle(5, 0x75bdf2, 0.72);
+        this.graphics.beginPath();
+        this.graphics.arc(projectile.x - facing * 24, projectile.y + 2, 28, -0.2, 1.15, false);
+        this.graphics.arc(projectile.x + facing * 12, projectile.y - 1, 30, 2.45, 3.65, false);
+        this.graphics.strokePath();
+      }
+
+      if (this.settings.showHitboxes) {
+        this.graphics.lineStyle(2, 0xd8a01d, 0.9);
+        this.graphics.strokeRect(box.x, box.y, box.width, box.height);
+      }
+    }
   }
 
   private drawDebugHurtBoxes(player: FighterSnapshot, opponent: FighterSnapshot) {
