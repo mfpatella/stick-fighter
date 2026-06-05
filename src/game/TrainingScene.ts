@@ -109,10 +109,14 @@ type SheetFighterKey = Extract<
   | "abrahamLincoln"
   | "koolAidMan"
 >;
-type SheetRow = {
-  start: number;
-  count: number;
-};
+type SheetRow =
+  | {
+      start: number;
+      count: number;
+    }
+  | {
+      frames: number[];
+    };
 type CharacterSheetConfig = {
   textureKey: string;
   asset: string;
@@ -120,6 +124,10 @@ type CharacterSheetConfig = {
   missingAsset?: string;
   frameWidth: number;
   frameHeight: number;
+  contentFrameWidth?: number;
+  contentFrameHeight?: number;
+  contentPadX?: number;
+  contentPadTop?: number;
   idle: SheetRow;
   run?: SheetRow;
   light?: SheetRow;
@@ -137,6 +145,36 @@ type CharacterSheetConfig = {
   originY: number;
   yOffset: number;
 };
+
+function paddedRuntimeFrame(contentFrameWidth: number, contentFrameHeight: number, contentPadX: number, contentPadTop: number) {
+  return {
+    frameWidth: contentFrameWidth + contentPadX * 2,
+    frameHeight: contentFrameHeight + contentPadTop,
+    contentFrameWidth,
+    contentFrameHeight,
+    contentPadX,
+    contentPadTop
+  };
+}
+
+function getSheetRowCount(row: SheetRow) {
+  return "frames" in row ? row.frames.length : row.count;
+}
+
+function getSheetRowFrame(row: SheetRow, frameIndex: number) {
+  const count = getSheetRowCount(row);
+  if (count <= 0) {
+    return 0;
+  }
+
+  const clampedIndex = Phaser.Math.Clamp(Math.floor(frameIndex), 0, count - 1);
+  return "frames" in row ? row.frames[clampedIndex] : row.start + clampedIndex;
+}
+
+function getSheetRowCycleFrame(row: SheetRow, elapsedMs: number, speed: number) {
+  const count = getSheetRowCount(row);
+  return getSheetRowFrame(row, Math.floor(elapsedMs / speed) % Math.max(1, count));
+}
 
 type DetachedPartSheetConfig = {
   textureKey: string;
@@ -159,11 +197,10 @@ type DetachedPartSheetConfig = {
 const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   david: {
     textureKey: "character-david-actions",
-    asset: characterAssets.davidActions,
+    asset: characterAssets.davidRuntimeActions,
     missingTextureKey: "character-david-missing",
     missingAsset: characterAssets.davidMissing,
-    frameWidth: 181,
-    frameHeight: 217,
+    ...paddedRuntimeFrame(181, 217, 36, 18),
     idle: { start: 0, count: 8 },
     light: { start: 8, count: 8 },
     kick: { start: 16, count: 8 },
@@ -179,11 +216,10 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   goliath: {
     textureKey: "character-goliath-actions",
-    asset: characterAssets.goliathActions,
+    asset: characterAssets.goliathRuntimeActions,
     missingTextureKey: "character-goliath-missing",
     missingAsset: characterAssets.goliathMissing,
-    frameWidth: 181,
-    frameHeight: 217,
+    ...paddedRuntimeFrame(181, 217, 40, 18),
     idle: { start: 0, count: 8 },
     light: { start: 8, count: 8 },
     kick: { start: 16, count: 8 },
@@ -199,11 +235,10 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   tRex: {
     textureKey: "character-trex-actions",
-    asset: characterAssets.trexActions,
+    asset: characterAssets.trexRuntimeActions,
     missingTextureKey: "character-trex-missing",
     missingAsset: characterAssets.trexMissing,
-    frameWidth: 161,
-    frameHeight: 181,
+    ...paddedRuntimeFrame(161, 181, 42, 18),
     idle: { start: 0, count: 9 },
     run: { start: 9, count: 9 },
     chomp: { start: 18, count: 9 },
@@ -222,11 +257,10 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   hippo: {
     textureKey: "character-hippo-actions",
-    asset: characterAssets.hippoActions,
+    asset: characterAssets.hippoRuntimeActions,
     missingTextureKey: "character-hippo-missing",
     missingAsset: characterAssets.hippoMissing,
-    frameWidth: 161,
-    frameHeight: 181,
+    ...paddedRuntimeFrame(161, 181, 42, 18),
     idle: { start: 0, count: 9 },
     run: { start: 9, count: 9 },
     chomp: { start: 18, count: 9 },
@@ -245,11 +279,10 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   eagle: {
     textureKey: "character-eagle-actions",
-    asset: characterAssets.eagleActions,
+    asset: characterAssets.eagleRuntimeActions,
     missingTextureKey: "character-eagle-missing",
     missingAsset: characterAssets.eagleMissing,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...paddedRuntimeFrame(181, 181, 38, 18),
     idle: { start: 0, count: 8 },
     run: { start: 8, count: 8 },
     chomp: { start: 16, count: 8 },
@@ -268,9 +301,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   lion: {
     textureKey: "character-lion-actions",
-    asset: characterAssets.lionActions,
-    frameWidth: 181,
-    frameHeight: 217,
+    asset: characterAssets.lionRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 40, 20),
     idle: { start: 0, count: 8 },
     run: { start: 24, count: 6 },
     chomp: { start: 8, count: 6 },
@@ -289,9 +321,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   honeyBadger: {
     textureKey: "character-honey-badger-actions",
-    asset: characterAssets.honeyBadgerActions,
-    frameWidth: 181,
-    frameHeight: 217,
+    asset: characterAssets.honeyBadgerRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 40, 20),
     idle: { start: 0, count: 7 },
     run: { start: 0, count: 7 },
     clawSwipe: { start: 8, count: 6 },
@@ -310,16 +341,15 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   chefBoyardee: {
     textureKey: "character-chef-boyardee-actions",
-    asset: characterAssets.chefBoyardeeActions,
-    frameWidth: 181,
-    frameHeight: 217,
+    asset: characterAssets.chefBoyardeeRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 42, 20),
     idle: { start: 0, count: 8 },
-    high: { start: 8, count: 4 },
-    heavy: { start: 16, count: 5 },
-    light: { start: 24, count: 4 },
-    low: { start: 32, count: 3 },
-    kick: { start: 16, count: 5 },
-    spinKick: { start: 32, count: 3 },
+    high: { frames: [8, 9, 10, 11, 14, 15] },
+    heavy: { frames: [16, 17, 18, 23] },
+    light: { frames: [24, 25, 26, 27, 30, 31] },
+    low: { frames: [32, 33, 34, 39] },
+    kick: { frames: [16, 17, 18, 23] },
+    spinKick: { frames: [32, 33, 34, 39] },
     scale: 0.76,
     baseBodyScale: 1,
     originX: 0.5,
@@ -328,16 +358,15 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   marthaStewart: {
     textureKey: "character-martha-stewart-actions",
-    asset: characterAssets.marthaStewartActions,
-    frameWidth: 181,
-    frameHeight: 217,
+    asset: characterAssets.marthaStewartRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 42, 20),
     idle: { start: 0, count: 8 },
-    heavy: { start: 8, count: 5 },
-    high: { start: 16, count: 4 },
-    kick: { start: 24, count: 5 },
-    spinKick: { start: 24, count: 5 },
-    low: { start: 24, count: 5 },
-    light: { start: 32, count: 4 },
+    heavy: { frames: [8, 9, 10, 11, 12, 14, 15] },
+    high: { frames: [16, 17, 18, 19, 22, 23] },
+    kick: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    spinKick: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    low: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    light: { frames: [32, 33, 34, 35, 38, 39] },
     scale: 0.76,
     baseBodyScale: 0.98,
     originX: 0.5,
@@ -346,17 +375,16 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   stephenHawking: {
     textureKey: "character-stephen-hawking-actions",
-    asset: characterAssets.stephenHawkingActions,
-    frameWidth: 181,
-    frameHeight: 217,
+    asset: characterAssets.stephenHawkingRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 42, 20),
     idle: { start: 0, count: 8 },
-    run: { start: 8, count: 5 },
-    high: { start: 16, count: 4 },
-    heavy: { start: 24, count: 4 },
-    low: { start: 32, count: 4 },
-    light: { start: 8, count: 5 },
-    kick: { start: 8, count: 5 },
-    spinKick: { start: 32, count: 4 },
+    run: { frames: [8, 9, 10, 11, 12, 14, 15] },
+    high: { frames: [16, 17, 18, 19, 22, 23] },
+    heavy: { frames: [24, 25, 26, 27, 30, 31] },
+    low: { frames: [32, 33, 34, 35, 38, 39] },
+    light: { frames: [8, 9, 10, 11, 12, 14, 15] },
+    kick: { frames: [8, 9, 10, 11, 12, 14, 15] },
+    spinKick: { frames: [32, 33, 34, 35, 38, 39] },
     scale: 0.82,
     baseBodyScale: 1,
     originX: 0.5,
@@ -365,16 +393,15 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   helenKeller: {
     textureKey: "character-helen-keller-actions",
-    asset: characterAssets.helenKellerActions,
-    frameWidth: 181,
-    frameHeight: 217,
+    asset: characterAssets.helenKellerRuntimeActions,
+    ...paddedRuntimeFrame(260, 181, 42, 18),
     idle: { start: 0, count: 8 },
-    light: { start: 8, count: 6 },
-    high: { start: 16, count: 4 },
-    heavy: { start: 24, count: 6 },
-    low: { start: 32, count: 4 },
-    kick: { start: 24, count: 6 },
-    spinKick: { start: 32, count: 4 },
+    light: { frames: [8, 9, 10, 11, 12, 14, 15] },
+    high: { frames: [16, 17, 18, 19, 22, 23] },
+    heavy: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    low: { frames: [32, 33, 34, 35, 38, 39] },
+    kick: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    spinKick: { frames: [32, 33, 34, 35, 38, 39] },
     scale: 0.76,
     baseBodyScale: 1,
     originX: 0.5,
@@ -383,17 +410,16 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   turtle: {
     textureKey: "character-turtle-actions",
-    asset: characterAssets.turtleActions,
-    frameWidth: 140,
-    frameHeight: 233,
+    asset: characterAssets.turtleRuntimeActions,
+    ...paddedRuntimeFrame(220, 234, 34, 18),
     idle: { start: 0, count: 8 },
-    light: { start: 8, count: 3 },
-    heavy: { start: 8, count: 4 },
-    kick: { start: 16, count: 4 },
-    low: { start: 40, count: 6 },
-    spinKick: { start: 40, count: 5 },
-    high: { start: 32, count: 5 },
-    run: { start: 24, count: 6 },
+    light: { frames: [8, 9, 10, 11, 14, 15] },
+    heavy: { frames: [40, 41, 42, 43, 44, 46, 47] },
+    kick: { frames: [16, 17, 18, 19, 22, 23] },
+    low: { frames: [40, 41, 42, 43, 44, 46, 47] },
+    spinKick: { frames: [32, 33, 34, 35, 36, 38, 39] },
+    high: { frames: [32, 33, 34, 35, 36, 38, 39] },
+    run: { frames: [24, 25, 26, 27, 28, 30, 31] },
     scale: 0.94,
     baseBodyScale: 0.96,
     originX: 0.5,
@@ -402,17 +428,16 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   abrahamLincoln: {
     textureKey: "character-abraham-lincoln-actions",
-    asset: characterAssets.abrahamLincolnActions,
-    frameWidth: 140,
-    frameHeight: 233,
-    idle: { start: 0, count: 8 },
-    light: { start: 8, count: 4 },
-    heavy: { start: 16, count: 5 },
-    kick: { start: 16, count: 4 },
-    spinKick: { start: 32, count: 5 },
-    low: { start: 32, count: 4 },
-    high: { start: 24, count: 3 },
-    run: { start: 40, count: 6 },
+    asset: characterAssets.abrahamLincolnRuntimeActions,
+    ...paddedRuntimeFrame(220, 234, 38, 18),
+    idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
+    light: { frames: [8, 9, 10, 11, 14, 15] },
+    heavy: { frames: [16, 17, 18, 19, 22, 23] },
+    kick: { frames: [16, 17, 18, 19, 22, 23] },
+    spinKick: { frames: [40, 41, 42, 43, 46, 47] },
+    low: { frames: [40, 41, 42, 43, 46, 47] },
+    high: { frames: [32, 33, 34, 39] },
+    run: { frames: [40, 41, 42, 43, 46, 47] },
     scale: 0.82,
     baseBodyScale: 1.08,
     originX: 0.5,
@@ -421,16 +446,15 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   },
   koolAidMan: {
     textureKey: "character-kool-aid-man-actions",
-    asset: characterAssets.koolAidManActions,
-    frameWidth: 187,
-    frameHeight: 280,
-    idle: { start: 1, count: 5 },
-    light: { start: 7, count: 4 },
-    heavy: { start: 25, count: 3 },
-    kick: { start: 13, count: 4 },
-    low: { start: 13, count: 4 },
-    high: { start: 19, count: 2 },
-    spinKick: { start: 25, count: 3 },
+    asset: characterAssets.koolAidManRuntimeActions,
+    ...paddedRuntimeFrame(275, 280, 44, 20),
+    idle: { frames: [1, 2, 3, 4, 5] },
+    light: { frames: [7, 8, 9, 10, 11] },
+    heavy: { frames: [25, 26, 27, 28, 29] },
+    kick: { frames: [13, 14, 15, 16, 17] },
+    low: { frames: [13, 14, 15, 16, 17] },
+    high: { frames: [19, 20, 23] },
+    spinKick: { frames: [25, 26, 27, 28, 29] },
     scale: 0.74,
     baseBodyScale: 1.16,
     originX: 0.5,
@@ -2877,12 +2901,13 @@ export class TrainingScene extends Phaser.Scene {
       this.textures.exists(missingTextureKey);
     const textureKey = useMissingFrame ? missingTextureKey : config.textureKey;
     const frame = useMissingFrame ? missingFrame : this.getSheetSpriteFrame(fighter, config);
+    const spriteOrigin = useMissingFrame ? { x: config.originX, y: config.originY } : getCharacterSheetOrigin(config);
 
     sprite
       .setVisible(true)
       .setTexture(textureKey)
       .setFrame(frame)
-      .setOrigin(config.originX, config.originY)
+      .setOrigin(spriteOrigin.x, spriteOrigin.y)
       .setPosition(Math.round(fighter.x), Math.round(fighter.y + config.yOffset))
       .setScale(spriteScale)
       .setFlipX(fighter.facing < 0)
@@ -2955,8 +2980,6 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private getSheetSpriteFrame(fighter: FighterSnapshot, config: CharacterSheetConfig) {
-    const cycle = (row: SheetRow, speed: number) => row.start + (Math.floor(this.time.now / speed) % row.count);
-
     if (fighter.state === "attack" && fighter.attackKind) {
       const spec = attackSpecs[fighter.attackKind];
       const total = spec.startup + spec.active + spec.recovery;
@@ -2964,21 +2987,23 @@ export class TrainingScene extends Phaser.Scene {
       const row = getCharacterAttackRow(config, fighter.attackKind);
 
       if (row) {
-        return row.start + Math.min(row.count - 1, Math.floor(progress * row.count));
+        return getSheetRowFrame(row, Math.floor(progress * getSheetRowCount(row)));
       }
 
-      return config.idle.start;
+      return getSheetRowFrame(config.idle, 0);
     }
 
     if (fighter.state === "run" || fighter.state === "dash") {
-      return config.run ? cycle(config.run, fighter.state === "dash" ? 54 : 82) : cycle(config.idle, 92);
+      return config.run
+        ? getSheetRowCycleFrame(config.run, this.time.now, fighter.state === "dash" ? 54 : 82)
+        : getSheetRowCycleFrame(config.idle, this.time.now, 92);
     }
 
     if (fighter.state === "hit" || fighter.state === "blockstun") {
-      return config.idle.start + Math.min(config.idle.count - 1, Math.floor(config.idle.count * 0.78));
+      return getSheetRowFrame(config.idle, Math.floor(getSheetRowCount(config.idle) * 0.78));
     }
 
-    return cycle(config.idle, 180);
+    return getSheetRowCycleFrame(config.idle, this.time.now, 180);
   }
 
   private drawAnimalUnderlay(
@@ -3594,6 +3619,22 @@ export class TrainingScene extends Phaser.Scene {
 
 function getCharacterSheetConfig(key: FighterSnapshot["key"]) {
   return key in characterSheetConfigs ? characterSheetConfigs[key as SheetFighterKey] : null;
+}
+
+function getCharacterSheetOrigin(config: CharacterSheetConfig) {
+  if (
+    config.contentFrameWidth === undefined ||
+    config.contentFrameHeight === undefined ||
+    config.contentPadX === undefined ||
+    config.contentPadTop === undefined
+  ) {
+    return { x: config.originX, y: config.originY };
+  }
+
+  return {
+    x: (config.contentPadX + config.contentFrameWidth * config.originX) / config.frameWidth,
+    y: (config.contentPadTop + config.contentFrameHeight * config.originY) / config.frameHeight
+  };
 }
 
 function getDetachedPartSheetConfig(part: DetachedPart) {
