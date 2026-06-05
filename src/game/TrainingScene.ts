@@ -46,6 +46,9 @@ const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   marthaStewart: { color: 0x4f6c78, accent: 0xd8d8d8 },
   stephenHawking: { color: 0x252a32, accent: 0x3da8ff },
   helenKeller: { color: 0x273b51, accent: 0x75bdf2 },
+  turtle: { color: 0x3f8f2f, accent: 0xb58235 },
+  abrahamLincoln: { color: 0x202020, accent: 0xd8b45d },
+  koolAidMan: { color: 0xc92121, accent: 0x9fd0e7 },
   guard: { color: 0x2a2926, accent: 0x8b2635 },
   neutral: { color: 0x5d4a16, accent: 0xd8b45d }
 };
@@ -102,6 +105,9 @@ type SheetFighterKey = Extract<
   | "marthaStewart"
   | "stephenHawking"
   | "helenKeller"
+  | "turtle"
+  | "abrahamLincoln"
+  | "koolAidMan"
 >;
 type SheetRow = {
   start: number;
@@ -374,6 +380,62 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     originX: 0.5,
     originY: 0.88,
     yOffset: 1
+  },
+  turtle: {
+    textureKey: "character-turtle-actions",
+    asset: characterAssets.turtleActions,
+    frameWidth: 140,
+    frameHeight: 233,
+    idle: { start: 0, count: 8 },
+    light: { start: 8, count: 3 },
+    heavy: { start: 8, count: 4 },
+    kick: { start: 16, count: 4 },
+    low: { start: 40, count: 6 },
+    spinKick: { start: 40, count: 5 },
+    high: { start: 32, count: 5 },
+    run: { start: 24, count: 6 },
+    scale: 0.94,
+    baseBodyScale: 0.96,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 0
+  },
+  abrahamLincoln: {
+    textureKey: "character-abraham-lincoln-actions",
+    asset: characterAssets.abrahamLincolnActions,
+    frameWidth: 140,
+    frameHeight: 233,
+    idle: { start: 0, count: 8 },
+    light: { start: 8, count: 4 },
+    heavy: { start: 16, count: 5 },
+    kick: { start: 16, count: 4 },
+    spinKick: { start: 32, count: 5 },
+    low: { start: 32, count: 4 },
+    high: { start: 24, count: 3 },
+    run: { start: 40, count: 6 },
+    scale: 0.82,
+    baseBodyScale: 1.08,
+    originX: 0.5,
+    originY: 0.88,
+    yOffset: 1
+  },
+  koolAidMan: {
+    textureKey: "character-kool-aid-man-actions",
+    asset: characterAssets.koolAidManActions,
+    frameWidth: 187,
+    frameHeight: 280,
+    idle: { start: 1, count: 5 },
+    light: { start: 7, count: 4 },
+    heavy: { start: 25, count: 3 },
+    kick: { start: 13, count: 4 },
+    low: { start: 13, count: 4 },
+    high: { start: 19, count: 2 },
+    spinKick: { start: 25, count: 3 },
+    scale: 0.74,
+    baseBodyScale: 1.16,
+    originX: 0.5,
+    originY: 0.9,
+    yOffset: 3
   }
 };
 
@@ -2332,6 +2394,27 @@ export class TrainingScene extends Phaser.Scene {
         this.graphics.fillRoundedRect(projectile.x - 17, projectile.y - 13, 34, 26, 3);
         this.graphics.lineStyle(2, 0xd8b45d, 0.82);
         this.graphics.strokeRoundedRect(projectile.x - 17, projectile.y - 13, 34, 26, 3);
+      } else if (projectile.kind === "hat") {
+        this.graphics.fillStyle(0x151515, 0.96);
+        this.graphics.fillEllipse(projectile.x, projectile.y + 9, 42, 11);
+        this.graphics.fillRoundedRect(projectile.x - 14, projectile.y - 14, 28, 26, 4);
+        this.graphics.lineStyle(2, 0xd8b45d, 0.72);
+        this.graphics.strokeEllipse(projectile.x, projectile.y + 9, 44, 12);
+        this.graphics.strokeRoundedRect(projectile.x - 14, projectile.y - 14, 28, 26, 4);
+      } else if (projectile.kind === "juice") {
+        this.graphics.fillStyle(0xc92121, 0.3);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 92, 30);
+        this.graphics.lineStyle(8, 0xc92121, 0.78);
+        this.graphics.beginPath();
+        this.graphics.moveTo(projectile.x - facing * 44, projectile.y - 2);
+        this.graphics.lineTo(projectile.x - facing * 12, projectile.y - 8);
+        this.graphics.lineTo(projectile.x + facing * 18, projectile.y + 4);
+        this.graphics.lineTo(projectile.x + facing * 45, projectile.y - 4);
+        this.graphics.strokePath();
+        this.graphics.fillStyle(0xff5b4d, 0.85);
+        for (let i = 0; i < 5; i += 1) {
+          this.graphics.fillCircle(projectile.x + facing * (-36 + i * 18), projectile.y + (i % 2 === 0 ? -15 : 15), 4);
+        }
       } else {
         this.graphics.fillStyle(0x75bdf2, 0.22);
         this.graphics.fillEllipse(projectile.x, projectile.y, 82, 27);
@@ -3802,6 +3885,18 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
 
   if (fighter.key === "helenKeller") {
     return controls(["Book", "high"], ["Resolve", "light"], ["Water", "low"], ["Cane", "heavy"]);
+  }
+
+  if (fighter.key === "turtle") {
+    return controls(["Shell Roll", "powerKick"], ["Shell Punch", "light"], ["Kick", "kick"], ["Ground Slam", "low"]);
+  }
+
+  if (fighter.key === "abrahamLincoln") {
+    return controls(["Hat Toss", "high"], ["Honest Punch", "light"], ["Split Kick", "kick"], ["Abe Kick", "heavy"]);
+  }
+
+  if (fighter.key === "koolAidMan") {
+    return controls(["Juice Splash", "high"], ["Punch", "light"], ["Kick", "kick"], ["Wall Burst", "heavy"]);
   }
 
   return controls(["High", "high"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);

@@ -16,6 +16,9 @@ export type BaseFighterKey =
   | "marthaStewart"
   | "stephenHawking"
   | "helenKeller"
+  | "turtle"
+  | "abrahamLincoln"
+  | "koolAidMan"
   | "guard";
 
 export type FighterStats = {
@@ -346,6 +349,60 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       reachScale: 1.04
     }
   },
+  turtle: {
+    key: "turtle",
+    name: "Turtle",
+    role: "Shell tank",
+    description: "Compact armor, strong guard, shell rolls, and steady punch pressure with slower footwork.",
+    stats: {
+      maxHealth: 122,
+      moveSpeed: 0.84,
+      jumpPower: 0.82,
+      attackPower: 1.04,
+      staminaRegen: 1.04,
+      staminaCost: 0.94,
+      guardStrength: 1.28,
+      dodgeSpeed: 0.82,
+      bodyScale: 0.96,
+      reachScale: 0.96
+    }
+  },
+  abrahamLincoln: {
+    key: "abrahamLincoln",
+    name: "Abraham Lincoln",
+    role: "Tall duelist",
+    description: "Long-range hat tricks, honest punches, and big kicks balanced by tall hurtboxes.",
+    stats: {
+      maxHealth: 106,
+      moveSpeed: 0.98,
+      jumpPower: 1,
+      attackPower: 1.02,
+      staminaRegen: 1.02,
+      staminaCost: 0.98,
+      guardStrength: 1.02,
+      dodgeSpeed: 0.96,
+      bodyScale: 1.08,
+      reachScale: 1.08
+    }
+  },
+  koolAidMan: {
+    key: "koolAidMan",
+    name: "Kool-Aid Man",
+    role: "Juice bruiser",
+    description: "Big glass-body pressure, heavy wall-burst attacks, and a ranged juice splash balanced by slower movement.",
+    stats: {
+      maxHealth: 128,
+      moveSpeed: 0.86,
+      jumpPower: 0.82,
+      attackPower: 1.14,
+      staminaRegen: 0.96,
+      staminaCost: 1.08,
+      guardStrength: 1.14,
+      dodgeSpeed: 0.78,
+      bodyScale: 1.16,
+      reachScale: 1.08
+    }
+  },
   guard: {
     key: "guard",
     name: "Training Guard",
@@ -383,6 +440,9 @@ export const playerFighterKeys: BaseFighterKey[] = [
   "chefBoyardee",
   "marthaStewart",
   "stephenHawking",
-  "helenKeller"
+  "helenKeller",
+  "turtle",
+  "abrahamLincoln",
+  "koolAidMan"
 ];
 export const opponentFighterKeys: BaseFighterKey[] = ["guard", ...playerFighterKeys];

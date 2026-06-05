@@ -54,6 +54,9 @@ const fighterPortraitAssets: Partial<Record<BaseFighterKey, string>> = {
   marthaStewart: characterAssets.marthaStewartIcon,
   stephenHawking: characterAssets.stephenHawkingIcon,
   helenKeller: characterAssets.helenKellerIcon,
+  turtle: characterAssets.turtleIcon,
+  abrahamLincoln: characterAssets.abrahamLincolnIcon,
+  koolAidMan: characterAssets.koolAidManIcon,
   tRex: characterAssets.trexIcon
 };
 
@@ -1524,8 +1527,28 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     tags.push("Flight");
   }
 
-  if (fighterKey === "chefBoyardee" || fighterKey === "marthaStewart" || fighterKey === "stephenHawking" || fighterKey === "helenKeller") {
+  if (
+    fighterKey === "chefBoyardee" ||
+    fighterKey === "marthaStewart" ||
+    fighterKey === "stephenHawking" ||
+    fighterKey === "helenKeller" ||
+    fighterKey === "turtle" ||
+    fighterKey === "abrahamLincoln" ||
+    fighterKey === "koolAidMan"
+  ) {
     tags.push("Sheet moves");
+  }
+
+  if (fighterKey === "turtle") {
+    tags.push("Shell guard");
+  }
+
+  if (fighterKey === "abrahamLincoln") {
+    tags.push("Hat toss");
+  }
+
+  if (fighterKey === "koolAidMan") {
+    tags.push("Juice splash");
   }
 
   return tags.length > 0 ? tags : ["Balanced"];
@@ -1575,6 +1598,15 @@ function getFighterMoveList(fighterKey: BaseFighterKey) {
   }
   if (fighterKey === "helenKeller") {
     moves.push("Book cast", "Cane sweep", "Water wave", "Resolve guard");
+  }
+  if (fighterKey === "turtle") {
+    moves.push("Shell punch", "Turtle kick", "Shell roll", "Ground slam");
+  }
+  if (fighterKey === "abrahamLincoln") {
+    moves.push("Hat toss", "Honest punch", "Split kick", "Abe kick");
+  }
+  if (fighterKey === "koolAidMan") {
+    moves.push("Juice splash", "Punch combo", "Pitcher kick", "Wall burst");
   }
 
   return moves.slice(0, 9);

@@ -715,6 +715,9 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="marthaStewart"]::before,
 .fighter-icon-grid button[data-fighter-key="stephenHawking"]::before,
 .fighter-icon-grid button[data-fighter-key="helenKeller"]::before,
+.fighter-icon-grid button[data-fighter-key="turtle"]::before,
+.fighter-icon-grid button[data-fighter-key="abrahamLincoln"]::before,
+.fighter-icon-grid button[data-fighter-key="koolAidMan"]::before,
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   content: "";
   width: 39px;
@@ -766,6 +769,18 @@ h2 {
   background-image: url("/assets/characters/helen-keller/helen-keller-icon.png");
 }
 
+.fighter-icon-grid button[data-fighter-key="turtle"]::before {
+  background-image: url("/assets/characters/turtle/turtle-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="abrahamLincoln"]::before {
+  background-image: url("/assets/characters/abraham-lincoln/abraham-lincoln-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="koolAidMan"]::before {
+  background-image: url("/assets/characters/kool-aid-man/kool-aid-man-icon.png");
+}
+
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   background-image: url("/assets/characters/trex/trex-icon.png");
 }
@@ -791,6 +806,9 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="marthaStewart"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="stephenHawking"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="helenKeller"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="turtle"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="abrahamLincoln"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="koolAidMan"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
   border-color: var(--accent);
   background-color: #fff7df;
@@ -837,6 +855,18 @@ h2 {
 
 .fighter-icon-grid button[data-fighter-key="helenKeller"].is-selected::before {
   background-image: url("/assets/characters/helen-keller/helen-keller-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="turtle"].is-selected::before {
+  background-image: url("/assets/characters/turtle/turtle-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="abrahamLincoln"].is-selected::before {
+  background-image: url("/assets/characters/abraham-lincoln/abraham-lincoln-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="koolAidMan"].is-selected::before {
+  background-image: url("/assets/characters/kool-aid-man/kool-aid-man-icon.png");
 }
 
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {

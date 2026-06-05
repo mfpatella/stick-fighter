@@ -127,7 +127,18 @@ export type DetachedPart = {
   grounded: boolean;
 };
 
-export type ProjectileKind = "stone" | "pizza" | "ravioli" | "pasta" | "money" | "rocket" | "laser" | "book" | "water";
+export type ProjectileKind =
+  | "stone"
+  | "pizza"
+  | "ravioli"
+  | "pasta"
+  | "money"
+  | "rocket"
+  | "laser"
+  | "book"
+  | "water"
+  | "hat"
+  | "juice";
 
 export type ProjectileSnapshot = {
   id: number;
@@ -594,6 +605,12 @@ const projectileSpecs: Partial<Record<FighterKey, Partial<Record<AttackKind, Pro
   helenKeller: {
     high: { kind: "book", spawn: frames(10), speed: 560, yOffset: -86, width: 38, height: 30, damageScale: 0.86, knockbackScale: 0.92, life: 0.78, gravity: 60 },
     low: { kind: "water", spawn: frames(12), speed: 520, yOffset: -50, width: 84, height: 28, damageScale: 0.78, knockbackScale: 0.76, life: 0.62 }
+  },
+  abrahamLincoln: {
+    high: { kind: "hat", spawn: frames(10), speed: 620, yOffset: -93, width: 38, height: 32, damageScale: 0.84, knockbackScale: 0.9, life: 0.78, gravity: 40 }
+  },
+  koolAidMan: {
+    high: { kind: "juice", spawn: frames(10), speed: 580, yOffset: -76, width: 92, height: 34, damageScale: 0.82, knockbackScale: 0.82, life: 0.62, gravity: 30 }
   }
 };
 
@@ -2727,7 +2744,7 @@ function hasNaturalClaws(fighter: FighterSnapshot) {
 }
 
 function isNaturalGuarder(fighter: FighterSnapshot) {
-  return fighter.key === "hippo" || fighter.key === "tRex";
+  return fighter.key === "hippo" || fighter.key === "tRex" || fighter.key === "turtle" || fighter.key === "koolAidMan";
 }
 
 function getNaturalChompBonus(fighter: FighterSnapshot) {
