@@ -146,10 +146,16 @@ type CharacterSheetConfig = {
   yOffset: number;
 };
 
-function paddedRuntimeFrame(contentFrameWidth: number, contentFrameHeight: number, contentPadX: number, contentPadTop: number) {
+function paddedRuntimeFrame(
+  contentFrameWidth: number,
+  contentFrameHeight: number,
+  contentPadX: number,
+  contentPadTop: number,
+  contentPadBottom = 0
+) {
   return {
     frameWidth: contentFrameWidth + contentPadX * 2,
-    frameHeight: contentFrameHeight + contentPadTop,
+    frameHeight: contentFrameHeight + contentPadTop + contentPadBottom,
     contentFrameWidth,
     contentFrameHeight,
     contentPadX,
@@ -359,7 +365,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   marthaStewart: {
     textureKey: "character-martha-stewart-actions",
     asset: characterAssets.marthaStewartRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 42, 20),
+    ...paddedRuntimeFrame(220, 280, 42, 20, 24),
     idle: { start: 0, count: 8 },
     heavy: { frames: [8, 9, 10, 11, 12, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -394,7 +400,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   helenKeller: {
     textureKey: "character-helen-keller-actions",
     asset: characterAssets.helenKellerRuntimeActions,
-    ...paddedRuntimeFrame(260, 181, 42, 18),
+    ...paddedRuntimeFrame(260, 181, 42, 18, 24),
     idle: { start: 0, count: 8 },
     light: { frames: [8, 9, 10, 11, 12, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -429,7 +435,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   abrahamLincoln: {
     textureKey: "character-abraham-lincoln-actions",
     asset: characterAssets.abrahamLincolnRuntimeActions,
-    ...paddedRuntimeFrame(220, 234, 38, 18),
+    ...paddedRuntimeFrame(220, 234, 38, 18, 24),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 14, 15] },
     heavy: { frames: [16, 17, 18, 19, 22, 23] },
@@ -1367,8 +1373,12 @@ export class TrainingScene extends Phaser.Scene {
       align: "center",
       color: "#334039",
       fontFamily: "Arial",
-      fontSize: "18px",
-      fontStyle: "bold"
+      fontSize: "15px",
+      fontStyle: "bold",
+      wordWrap: {
+        width: 720,
+        useAdvancedWrap: true
+      }
     });
     this.statusText.setOrigin(0.5);
 
@@ -2308,7 +2318,7 @@ export class TrainingScene extends Phaser.Scene {
       const partsMode = isPartsMode(this.settings);
       this.statusText.setText(
         !partsMode
-          ? `Standard fighter: ${getControlHint(player)}. Punish whiffs for counters; pressure blocks to crush guard.`
+          ? "Standard: punish whiffs, build combos, pressure guard."
           : abilitySummary
           ? `Animal abilities: ${abilitySummary}.`
           : attachments
@@ -3937,7 +3947,7 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
   }
 
   if (fighter.key === "koolAidMan") {
-    return controls(["Juice Splash", "high"], ["Punch", "light"], ["Kick", "kick"], ["Wall Burst", "heavy"]);
+    return controls(["Splash", "high"], ["Punch", "light"], ["Kick", "kick"], ["Wall Burst", "heavy"]);
   }
 
   return controls(["High", "high"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);
@@ -3979,7 +3989,7 @@ function getModeStatus(settings: GameLaunchSettings) {
         : "health lead wins";
 
   if (settings.matchType === "testing") {
-    return "Testing lab: spawn parts freely, no deaths, exit from the menu button";
+    return "Testing lab: spawn parts, no deaths, exit from menu";
   }
 
   if (settings.matchType === "online") {
@@ -3987,7 +3997,7 @@ function getModeStatus(settings: GameLaunchSettings) {
   }
 
   if (settings.mode === "standardFighter") {
-    return `Standard fighter: no limb removal, no part drops, ${roundRule}`;
+    return `Standard fighter: clean duel, ${roundRule}`;
   }
 
   if (settings.mode === "storySpar") {

@@ -2032,8 +2032,8 @@ h2 {
 
   .attack-diamond,
   .shell:has(#fight-screen:not([hidden])) .attack-diamond {
-    --diamond-size: 152px;
-    --diamond-button: 52px;
+    --diamond-size: 182px;
+    --diamond-button: 56px;
   }
 
   .bonus-actions,
@@ -2060,24 +2060,24 @@ h2 {
 @media (max-width: 360px) {
   .controls,
   .shell:has(#fight-screen:not([hidden])) .controls {
-    grid-template-columns: 70px 144px;
+    grid-template-columns: 70px 150px;
   }
 
   .attack-diamond,
   .shell:has(#fight-screen:not([hidden])) .attack-diamond {
-    --diamond-size: 140px;
-    --diamond-button: 48px;
+    --diamond-size: 162px;
+    --diamond-button: 50px;
   }
 
   .bonus-actions,
   .shell:has(#fight-screen:not([hidden])) .bonus-actions {
-    width: 144px;
+    width: 150px;
   }
 }
 
 @media (max-width: 360px) {
   body.is-fighting .controls {
-    grid-template-columns: 70px 144px;
+    grid-template-columns: 70px 150px;
   }
 
   body.is-fighting .control-actions {
@@ -2089,12 +2089,12 @@ h2 {
   }
 
   body.is-fighting .attack-diamond {
-    --diamond-size: 140px;
-    --diamond-button: 48px;
+    --diamond-size: 162px;
+    --diamond-button: 50px;
   }
 
   body.is-fighting .bonus-actions {
-    width: 144px;
+    width: 150px;
   }
 
   body.is-fighting .joystick {
@@ -2202,8 +2202,8 @@ body.is-fighting .control-actions {
   right: max(12px, env(safe-area-inset-right));
   bottom: max(10px, env(safe-area-inset-bottom));
   display: block;
-  --diamond-size: clamp(170px, 43vw, 218px);
-  --diamond-button: clamp(56px, 14vw, 72px);
+  --diamond-size: clamp(180px, 44vw, 230px);
+  --diamond-button: clamp(50px, 12vw, 64px);
   --bonus-rail-width: clamp(50px, 12vw, 62px);
   --bonus-button-height: clamp(27px, 6.8vw, 31px);
   --bonus-button-gap: 4px;
@@ -2263,7 +2263,12 @@ body.is-fighting .bonus-actions::-webkit-scrollbar {
   body.is-fighting .touch-button.diamond-button {
     min-height: 0 !important;
     padding: 0 !important;
-    font-size: clamp(0.62rem, 2.2vw, 0.78rem) !important;
+    font-size: clamp(0.54rem, 1.95vw, 0.7rem) !important;
+    line-height: 0.92;
+    overflow-wrap: anywhere;
+    text-align: center;
+    text-wrap: balance;
+    white-space: normal;
   }
 
 body.is-fighting .touch-button-bonus {
@@ -2330,13 +2335,13 @@ body.is-fighting .touch-button-bonus {
   }
 
   body.is-fighting .attack-diamond {
-    --diamond-size: clamp(154px, 42vh, 190px) !important;
-    --diamond-button: clamp(50px, 13.4vh, 64px) !important;
+    --diamond-size: clamp(158px, 42vh, 194px) !important;
+    --diamond-button: clamp(46px, 12vh, 58px) !important;
   }
 
   body.is-fighting .control-actions {
-    --diamond-size: clamp(154px, 42vh, 190px);
-    --diamond-button: clamp(50px, 13.4vh, 64px);
+    --diamond-size: clamp(158px, 42vh, 194px);
+    --diamond-button: clamp(46px, 12vh, 58px);
     --bonus-rail-width: clamp(48px, 11vh, 58px);
     --bonus-button-height: clamp(25px, 6.8vh, 30px);
     --bonus-button-gap: 4px;
