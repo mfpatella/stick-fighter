@@ -16,6 +16,524 @@
     sans-serif;
 }
 
+/* 2026 combat UI overhaul */
+:root {
+  --ink: #f7f0dc;
+  --muted: #aeb7aa;
+  --panel: #17252b;
+  --panel-strong: #f5ead0;
+  --line: #11181c;
+  --edge: #51656a;
+  --accent: #d43f2f;
+  --gold: #e4b348;
+  --cool: #46a7a1;
+  --field: #eff0dd;
+  color: var(--ink);
+  background:
+    linear-gradient(90deg, rgb(13 19 24 / 95%), rgb(22 35 39 / 82) 34%, transparent 34%),
+    linear-gradient(135deg, #0d1318 0%, #17272c 46%, #3c4b41 100%);
+}
+
+body {
+  color: var(--ink);
+  background:
+    linear-gradient(90deg, rgb(12 18 23 / 98%) 0 23%, transparent 23%),
+    linear-gradient(180deg, #101820 0%, #203338 48%, #52634f 100%);
+}
+
+.shell {
+  width: min(1180px, calc(100vw - 36px));
+  padding: 20px 0;
+}
+
+.topbar {
+  position: relative;
+  min-height: 74px;
+  margin-bottom: 14px;
+  border: 1px solid rgb(247 240 220 / 16%);
+  border-radius: 8px;
+  padding: 14px 18px;
+  background:
+    linear-gradient(90deg, rgb(16 24 30 / 96%), rgb(25 40 43 / 92)),
+    #101820;
+  box-shadow: 0 16px 44px rgb(0 0 0 / 24%);
+}
+
+.topbar::after {
+  position: absolute;
+  right: 18px;
+  bottom: -1px;
+  left: 18px;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, var(--accent), var(--gold), var(--cool));
+}
+
+.topbar .eyebrow,
+.menu-header .eyebrow,
+.lobby-header .eyebrow,
+.fight-header .eyebrow,
+.round-panel .eyebrow {
+  color: var(--gold);
+}
+
+h1,
+h2 {
+  color: var(--ink);
+  text-shadow: 0 2px 0 rgb(0 0 0 / 24%);
+}
+
+.mode-pill,
+.menu-button,
+.icon-button {
+  border-color: rgb(247 240 220 / 20%);
+  background: rgb(255 255 255 / 8%);
+  color: var(--ink);
+}
+
+.mode-pill {
+  color: var(--gold);
+}
+
+.install-card {
+  border-color: rgb(228 179 72 / 34%);
+  background: linear-gradient(90deg, rgb(245 234 208 / 95%), rgb(230 214 170 / 92%));
+}
+
+.install-card-copy strong,
+.install-card-copy span {
+  color: #162328;
+}
+
+.menu-overlay,
+.lobby-screen,
+.fight-screen {
+  border: 1px solid rgb(247 240 220 / 16%);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgb(21 34 39 / 96%), rgb(13 19 24 / 96)),
+    #101820;
+  box-shadow:
+    0 26px 70px rgb(0 0 0 / 34%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.menu-overlay {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  grid-template-areas:
+    "head head"
+    "tabs form";
+  gap: 16px;
+  padding: 18px;
+}
+
+.menu-header {
+  grid-area: head;
+  min-height: 68px;
+  border-bottom: 1px solid rgb(247 240 220 / 12%);
+  padding-bottom: 14px;
+}
+
+.menu-tabs {
+  grid-area: tabs;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  margin: 0;
+  border-right: 1px solid rgb(247 240 220 / 12%);
+  padding-right: 14px;
+}
+
+.menu-tab {
+  display: flex;
+  justify-content: flex-start;
+  min-height: 48px;
+  border-color: rgb(247 240 220 / 14%);
+  background: rgb(255 255 255 / 6%);
+  color: var(--ink);
+}
+
+.menu-tab.is-active {
+  border-color: rgb(228 179 72 / 70%);
+  background: linear-gradient(90deg, rgb(212 63 47 / 92%), rgb(151 42 36 / 92%));
+  color: #fff8e6;
+  box-shadow: 0 8px 22px rgb(212 63 47 / 24%);
+}
+
+.menu-form {
+  grid-area: form;
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  margin: 0;
+}
+
+.menu-panel {
+  gap: 12px;
+}
+
+.menu-panel label,
+.profile-setup,
+.auth-panel,
+.fighter-icon-panel,
+.fighter-preview-card,
+.lobby-card,
+.round-panel,
+.balance-telemetry,
+.stats-summary,
+.avatar-preview,
+.menu-note {
+  border-color: rgb(247 240 220 / 14%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 3%)),
+    rgb(20 32 37 / 88%);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+
+.menu-panel label > span,
+.fighter-icon-heading span,
+.profile-copy span,
+.auth-panel span,
+.avatar-preview span,
+.fighter-preview-card p,
+.fighter-stat span,
+.move-list li,
+.menu-note,
+.lobby-card p,
+.lobby-card span,
+.netplay-status {
+  color: var(--muted);
+}
+
+.menu-panel select,
+.menu-panel input[type="text"],
+.menu-panel input[type="email"],
+.menu-panel input[type="password"] {
+  min-height: 42px;
+  border-color: rgb(247 240 220 / 18%);
+  background: rgb(9 15 18 / 70%);
+  color: var(--ink);
+}
+
+.menu-panel select option {
+  color: #101820;
+}
+
+.menu-panel input[type="range"] {
+  accent-color: var(--accent);
+}
+
+.menu-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: 0;
+  border-top: 1px solid rgb(247 240 220 / 12%);
+  padding-top: 14px;
+  background: linear-gradient(180deg, transparent, rgb(13 19 24 / 96%) 34%);
+}
+
+.primary-action,
+.menu-actions .primary-action,
+.lobby-actions .primary-action,
+.round-actions .primary-action {
+  min-height: 48px;
+  border-color: rgb(228 179 72 / 72%);
+  background: linear-gradient(180deg, #e04a34, #9f2c27);
+  color: #fff8e6;
+  box-shadow: 0 8px 22px rgb(212 63 47 / 28%);
+}
+
+.menu-actions button,
+.secondary-action,
+.auth-actions button,
+.lobby-actions button,
+.round-actions button,
+.install-action,
+.install-dismiss,
+.training-tools button,
+.touch-button {
+  border-color: rgb(247 240 220 / 18%);
+  background: rgb(255 255 255 / 8%);
+  color: var(--ink);
+}
+
+.fighter-preview {
+  gap: 12px;
+}
+
+.fighter-preview-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+}
+
+.fighter-preview-card::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(135deg, rgb(228 179 72 / 12%), transparent 32%),
+    linear-gradient(315deg, rgb(70 167 161 / 12%), transparent 38%);
+  pointer-events: none;
+}
+
+.fighter-preview-card h3,
+.fighter-preview-card p,
+.fighter-card-art,
+.fighter-tags,
+.fighter-stat-grid,
+.move-list {
+  position: relative;
+}
+
+.fighter-preview-card h3 {
+  color: #fff8e6;
+}
+
+.fighter-card-art {
+  min-height: 108px;
+  border-color: rgb(247 240 220 / 12%);
+  background: radial-gradient(circle at 50% 48%, rgb(228 179 72 / 16%), transparent 68%);
+}
+
+.fighter-card-art img {
+  max-height: 132px;
+  filter: drop-shadow(0 14px 20px rgb(0 0 0 / 32%));
+}
+
+.fighter-tags span {
+  border-color: rgb(228 179 72 / 28%);
+  background: rgb(228 179 72 / 12%);
+  color: var(--gold);
+}
+
+.fighter-stat meter {
+  accent-color: var(--accent);
+}
+
+.fighter-icon-grid button {
+  min-height: 44px;
+  border-color: rgb(247 240 220 / 14%);
+  background: rgb(255 255 255 / 6%);
+  color: var(--ink);
+}
+
+.fighter-icon-grid button::before {
+  background: rgb(228 179 72 / 16%);
+  color: var(--gold);
+}
+
+.fighter-icon-grid button.is-selected {
+  border-color: rgb(228 179 72 / 70%);
+  background: rgb(212 63 47 / 22%);
+}
+
+.lobby-screen {
+  gap: 18px;
+}
+
+.lobby-grid {
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1fr) minmax(260px, 1fr);
+}
+
+.lobby-card strong,
+.round-panel h2 {
+  color: #fff8e6;
+}
+
+.fight-screen {
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.fight-header {
+  position: relative;
+  z-index: 25;
+  min-height: 58px;
+  border: 1px solid rgb(247 240 220 / 16%);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgb(13 19 24 / 94%), rgb(23 37 43 / 88%));
+  box-shadow: 0 12px 28px rgb(0 0 0 / 24%);
+}
+
+#game {
+  min-height: 470px;
+  border: 1px solid rgb(247 240 220 / 18%);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #f4ecd4, #e8ddb9),
+    var(--field);
+  box-shadow:
+    0 18px 46px rgb(0 0 0 / 30%),
+    inset 0 0 0 1px rgb(255 255 255 / 35%);
+}
+
+.controls {
+  position: fixed;
+  z-index: 40;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: max(14px, env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: 140px minmax(260px, 1fr);
+  align-items: end;
+  pointer-events: none;
+}
+
+.control-cluster {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+.control-actions {
+  justify-self: end;
+}
+
+.joystick {
+  width: 116px;
+  height: 116px;
+  border-color: rgb(17 24 28 / 28%);
+  background: rgb(247 240 220 / 82%);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 18%);
+}
+
+.joystick-thumb {
+  background: rgb(212 63 47 / 86%);
+  border-color: rgb(17 24 28 / 54%);
+}
+
+.attack-diamond {
+  --diamond-size: 204px;
+  --diamond-button: 72px;
+}
+
+.touch-button {
+  border-color: rgb(17 24 28 / 24%);
+  background: rgb(247 240 220 / 88%);
+  color: #17252b;
+  box-shadow: 0 10px 22px rgb(0 0 0 / 16%);
+}
+
+.touch-button-guard {
+  background: rgb(228 179 72 / 92%);
+}
+
+.touch-button-bonus {
+  background: rgb(23 37 43 / 88%);
+  color: var(--ink);
+}
+
+.training-tools {
+  border: 1px solid rgb(247 240 220 / 14%);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgb(13 19 24 / 82%);
+}
+
+.round-overlay {
+  border-radius: 8px;
+  background: rgb(13 19 24 / 58%);
+}
+
+.round-panel {
+  background: linear-gradient(180deg, rgb(23 37 43 / 98%), rgb(13 19 24 / 98%));
+}
+
+@media (max-width: 860px) {
+  body {
+    background: linear-gradient(180deg, #101820 0%, #203338 58%, #52634f 100%);
+  }
+
+  .shell {
+    width: min(100vw - 16px, 1180px);
+    padding: 10px 0 max(12px, env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    min-height: 58px;
+    padding: 10px 12px;
+  }
+
+  .menu-overlay {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "head"
+      "tabs"
+      "form";
+    padding: 12px;
+  }
+
+  .menu-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-right: 0;
+    border-bottom: 1px solid rgb(247 240 220 / 12%);
+    padding: 0 0 10px;
+  }
+
+  .menu-tab {
+    justify-content: center;
+    min-height: 42px;
+    padding-inline: 6px;
+  }
+
+  .menu-panel,
+  .profile-setup,
+  .auth-panel,
+  .lobby-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-panel {
+    align-items: stretch;
+  }
+
+  .auth-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .fighter-preview,
+  .stats-summary,
+  .avatar-preview {
+    grid-column: 1;
+  }
+
+  .fight-header {
+    align-items: stretch;
+  }
+
+  #game {
+    min-height: 360px;
+  }
+
+  .controls {
+    grid-template-columns: 112px minmax(190px, 1fr);
+    gap: 6px;
+  }
+
+  .joystick {
+    width: 96px;
+    height: 96px;
+  }
+
+  .attack-diamond {
+    --diamond-size: 178px;
+    --diamond-button: 62px;
+  }
+
+  .touch-button {
+    font-size: 0.72rem;
+  }
+}
+
 @font-face {
   font-family: "Kenney Future";
   src: url("/assets/vendor/kenney/ui-pack/Kenney%20Future.ttf") format("truetype");
@@ -2409,5 +2927,383 @@ body.is-fighting .touch-button-bonus {
 
   body.is-fighting .bonus-actions {
     width: var(--bonus-rail-width) !important;
+  }
+}
+
+/* End-of-file cascade lock for the combat UI overhaul. */
+body {
+  color: #f7f0dc;
+  background:
+    linear-gradient(90deg, rgb(12 18 23 / 98%) 0 23%, transparent 23%),
+    linear-gradient(180deg, #101820 0%, #203338 48%, #52634f 100%) !important;
+}
+
+.topbar,
+.menu-overlay,
+.lobby-screen {
+  border-color: rgb(247 240 220 / 16%) !important;
+  background:
+    linear-gradient(180deg, rgb(21 34 39 / 96%), rgb(13 19 24 / 96)),
+    #101820 !important;
+  color: #f7f0dc;
+  box-shadow:
+    0 26px 70px rgb(0 0 0 / 34%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.menu-overlay {
+  display: grid !important;
+  grid-template-columns: 168px minmax(0, 1fr);
+  grid-template-areas:
+    "head head"
+    "tabs form";
+  gap: 16px;
+}
+
+.menu-header {
+  grid-area: head;
+  border-bottom: 1px solid rgb(247 240 220 / 12%);
+  padding-bottom: 14px;
+}
+
+.menu-tabs {
+  grid-area: tabs;
+  display: grid !important;
+  align-content: start;
+  gap: 8px;
+  margin: 0 !important;
+  border-right: 1px solid rgb(247 240 220 / 12%);
+  padding-right: 14px;
+}
+
+.menu-form {
+  grid-area: form;
+  display: grid;
+  gap: 16px;
+  margin: 0 !important;
+}
+
+.menu-actions {
+  position: static !important;
+  z-index: auto;
+  background: transparent !important;
+}
+
+.menu-tab,
+.menu-actions button,
+.secondary-action,
+.auth-actions button,
+.lobby-actions button,
+.round-actions button,
+.menu-button,
+.icon-button {
+  border-color: rgb(247 240 220 / 18%) !important;
+  background: rgb(255 255 255 / 8%) !important;
+  color: #f7f0dc !important;
+}
+
+.menu-tab.is-active,
+.primary-action,
+.menu-actions .primary-action,
+.lobby-actions .primary-action,
+.round-actions .primary-action {
+  border-color: rgb(228 179 72 / 72%) !important;
+  background: linear-gradient(180deg, #e04a34, #9f2c27) !important;
+  color: #fff8e6 !important;
+  box-shadow: 0 8px 22px rgb(212 63 47 / 28%);
+}
+
+.menu-panel label,
+.profile-setup,
+.auth-panel,
+.fighter-icon-panel,
+.fighter-preview-card,
+.lobby-card,
+.balance-telemetry,
+.stats-summary,
+.avatar-preview,
+.menu-note,
+.round-panel {
+  border-color: rgb(247 240 220 / 14%) !important;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 3%)),
+    rgb(20 32 37 / 88%) !important;
+  color: #f7f0dc;
+}
+
+.menu-panel label > span,
+.fighter-icon-heading span,
+.profile-copy span,
+.auth-panel span,
+.avatar-preview span,
+.fighter-preview-card p,
+.fighter-stat span,
+.move-list li,
+.menu-note,
+.lobby-card p,
+.lobby-card span,
+.netplay-status {
+  color: #aeb7aa !important;
+}
+
+.menu-panel select,
+.menu-panel input[type="text"],
+.menu-panel input[type="email"],
+.menu-panel input[type="password"] {
+  border-color: rgb(247 240 220 / 18%) !important;
+  background: rgb(9 15 18 / 70%) !important;
+  color: #f7f0dc !important;
+  min-width: 0;
+  padding-right: 28px;
+  font-size: clamp(0.78rem, 1.5vw, 0.95rem);
+  text-overflow: ellipsis;
+}
+
+.menu-panel select option {
+  color: #101820;
+}
+
+.fighter-preview-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.fighter-preview-card::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(135deg, rgb(228 179 72 / 12%), transparent 32%),
+    linear-gradient(315deg, rgb(70 167 161 / 12%), transparent 38%);
+  pointer-events: none;
+}
+
+.fighter-preview-card > * {
+  position: relative;
+}
+
+.fighter-card-art img {
+  filter: drop-shadow(0 14px 20px rgb(0 0 0 / 32%));
+}
+
+.fighter-tags span {
+  border-color: rgb(228 179 72 / 28%) !important;
+  background: rgb(228 179 72 / 12%) !important;
+  color: #e4b348 !important;
+}
+
+.fight-screen {
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.fight-header {
+  border: 1px solid rgb(247 240 220 / 16%) !important;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgb(13 19 24 / 94%), rgb(23 37 43 / 88%)) !important;
+  color: #f7f0dc;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 24%);
+}
+
+#game {
+  border-color: rgb(247 240 220 / 18%) !important;
+  background:
+    linear-gradient(180deg, #f4ecd4, #e8ddb9),
+    #eff0dd !important;
+}
+
+body.is-fighting .touch-button {
+  border-color: rgb(17 24 28 / 24%) !important;
+  background: rgb(247 240 220 / 88%) !important;
+  color: #17252b !important;
+  box-shadow: 0 10px 22px rgb(0 0 0 / 16%);
+}
+
+body.is-fighting .touch-button-guard {
+  background: rgb(228 179 72 / 92%) !important;
+}
+
+body.is-fighting .touch-button-bonus {
+  background: rgb(23 37 43 / 88%) !important;
+  color: #f7f0dc !important;
+}
+
+body.is-fighting .joystick {
+  border-color: rgb(17 24 28 / 28%) !important;
+  background: rgb(247 240 220 / 82%) !important;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 18%);
+}
+
+body.is-fighting .joystick-thumb {
+  background: rgb(212 63 47 / 86%) !important;
+}
+
+@media (max-width: 860px) {
+  .menu-overlay {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "head"
+      "tabs"
+      "form";
+  }
+
+  .menu-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-right: 0;
+    border-bottom: 1px solid rgb(247 240 220 / 12%);
+    padding: 0 0 10px;
+  }
+
+  .menu-tab {
+    justify-content: center;
+    padding-inline: 6px;
+  }
+
+  .menu-panel,
+  .profile-setup,
+  .auth-panel,
+  .lobby-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Fight-mode viewport lock: keeps the stage, hitboxes, and touch controls from wrapping off-screen. */
+body.is-fighting {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+
+body.is-fighting .shell,
+body.is-fighting .fight-screen {
+  position: fixed !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body.is-fighting .topbar,
+body.is-fighting .install-card,
+body.is-fighting #menu-overlay,
+body.is-fighting #lobby-screen {
+  display: none !important;
+}
+
+body.is-fighting #game {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  aspect-ratio: auto !important;
+  transform: none !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body.is-fighting #game canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+body.is-fighting .fight-header {
+  position: fixed !important;
+  z-index: 80 !important;
+  top: max(8px, env(safe-area-inset-top)) !important;
+  right: max(8px, env(safe-area-inset-right)) !important;
+  left: auto !important;
+  width: auto !important;
+  max-width: calc(100vw - 16px) !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+body.is-fighting .fight-header > div:first-child,
+body.is-fighting .netplay-status {
+  display: none !important;
+}
+
+body.is-fighting .fight-actions,
+body.is-fighting #exit-fight {
+  pointer-events: auto !important;
+}
+
+body.is-fighting .controls {
+  position: fixed !important;
+  z-index: 70 !important;
+  inset: auto max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)) !important;
+  display: grid !important;
+  grid-template-columns: minmax(78px, 0.34fr) minmax(178px, 0.66fr) !important;
+  align-items: end !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+}
+
+body.is-fighting .control-cluster,
+body.is-fighting .control-move,
+body.is-fighting .control-actions {
+  position: static !important;
+  inset: auto !important;
+  min-width: 0 !important;
+  transform: none !important;
+}
+
+body.is-fighting .control-move {
+  justify-self: start !important;
+  align-self: end !important;
+}
+
+body.is-fighting .control-actions {
+  --diamond-size: clamp(160px, 44vw, 214px);
+  --diamond-button: clamp(48px, 12vw, 60px);
+  --bonus-rail-width: clamp(46px, 12vw, 58px);
+  --bonus-button-height: clamp(25px, 7vw, 30px);
+  justify-self: end !important;
+  align-self: end !important;
+  width: min(calc(var(--diamond-size) + var(--bonus-rail-width) + 10px), 100%) !important;
+  height: var(--diamond-size) !important;
+}
+
+body.is-fighting .round-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 90 !important;
+}
+
+@media (max-width: 380px) {
+  body.is-fighting .controls {
+    grid-template-columns: minmax(70px, 0.32fr) minmax(164px, 0.68fr) !important;
+    gap: 6px !important;
+  }
+
+  body.is-fighting .control-actions {
+    --diamond-size: clamp(148px, 42vw, 176px);
+    --diamond-button: clamp(44px, 11.5vw, 52px);
+    --bonus-rail-width: clamp(42px, 11vw, 50px);
+    --bonus-button-height: 24px;
   }
 }
