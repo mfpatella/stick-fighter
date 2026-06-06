@@ -138,7 +138,16 @@ export type ProjectileKind =
   | "book"
   | "water"
   | "hat"
-  | "juice";
+  | "juice"
+  | "slime"
+  | "marshmallow"
+  | "purpleBlast"
+  | "meatball"
+  | "slipper"
+  | "perfume"
+  | "cake"
+  | "fish"
+  | "paper";
 
 export type ProjectileSnapshot = {
   id: number;
@@ -611,6 +620,155 @@ const projectileSpecs: Partial<Record<FighterKey, Partial<Record<AttackKind, Pro
   },
   koolAidMan: {
     high: { kind: "juice", spawn: frames(10), speed: 580, yOffset: -76, width: 92, height: 34, damageScale: 0.82, knockbackScale: 0.82, life: 0.62, gravity: 30 }
+  },
+  slimer: {
+    high: { kind: "slime", spawn: frames(8), speed: 610, yOffset: -76, width: 86, height: 30, damageScale: 0.78, knockbackScale: 0.74, life: 0.66, gravity: 24 },
+    low: { kind: "slime", spawn: frames(10), speed: 420, yOffset: -34, width: 104, height: 34, damageScale: 0.72, knockbackScale: 0.7, life: 0.58, gravity: 180 }
+  },
+  stayPuft: {
+    high: { kind: "marshmallow", spawn: frames(10), speed: 520, yOffset: -78, width: 48, height: 36, damageScale: 0.82, knockbackScale: 0.92, life: 0.76, gravity: 90 },
+    low: { kind: "marshmallow", spawn: frames(12), speed: 360, yOffset: -36, width: 96, height: 30, damageScale: 0.78, knockbackScale: 1, life: 0.58, gravity: 240 }
+  },
+  dorothy: {
+    high: { kind: "purpleBlast", spawn: frames(10), speed: 650, yOffset: -86, width: 88, height: 34, damageScale: 0.78, knockbackScale: 0.82, life: 0.58 },
+    low: { kind: "book", spawn: frames(11), speed: 550, yOffset: -72, width: 38, height: 28, damageScale: 0.78, knockbackScale: 0.84, life: 0.74, gravity: 60 }
+  },
+  sophia: {
+    high: { kind: "meatball", spawn: frames(10), speed: 540, yOffset: -74, width: 32, height: 28, damageScale: 0.8, knockbackScale: 0.88, life: 0.72, gravity: 100 },
+    low: { kind: "slipper", spawn: frames(10), speed: 610, yOffset: -62, width: 44, height: 24, damageScale: 0.76, knockbackScale: 0.8, life: 0.7, gravity: 70 }
+  },
+  blanche: {
+    high: { kind: "perfume", spawn: frames(9), speed: 620, yOffset: -82, width: 96, height: 36, damageScale: 0.74, knockbackScale: 0.68, life: 0.62 },
+    light: { kind: "perfume", spawn: frames(9), speed: 560, yOffset: -76, width: 84, height: 34, damageScale: 0.72, knockbackScale: 0.64, life: 0.56 }
+  },
+  rose: {
+    high: { kind: "cake", spawn: frames(10), speed: 500, yOffset: -72, width: 46, height: 30, damageScale: 0.78, knockbackScale: 0.86, life: 0.72, gravity: 120 },
+    light: { kind: "fish", spawn: frames(10), speed: 580, yOffset: -68, width: 52, height: 28, damageScale: 0.78, knockbackScale: 0.82, life: 0.7, gravity: 60 },
+    low: { kind: "paper", spawn: frames(12), speed: 480, yOffset: -58, width: 76, height: 34, damageScale: 0.72, knockbackScale: 0.68, life: 0.68 }
+  }
+};
+
+type AttackBoxTuning = Partial<Pick<AttackSpec, "reach" | "width" | "height" | "yOffset">>;
+
+const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKind, AttackBoxTuning>>>> = {
+  tRex: {
+    chomp: { reach: 78, width: 96, height: 58, yOffset: -112 },
+    tailStrike: { reach: 112, width: 124, height: 44, yOffset: -44 },
+    kick: { reach: 86, width: 96, height: 52, yOffset: -56 },
+    low: { reach: 86, width: 104, height: 42, yOffset: -34 },
+    heavy: { reach: 90, width: 108, height: 52, yOffset: -50 }
+  },
+  hippo: {
+    chomp: { reach: 76, width: 102, height: 64, yOffset: -106 },
+    light: { reach: 72, width: 88, height: 54, yOffset: -72 },
+    low: { reach: 88, width: 116, height: 44, yOffset: -34 },
+    heavy: { reach: 90, width: 116, height: 54, yOffset: -52 },
+    spinKick: { reach: 94, width: 120, height: 56, yOffset: -58 }
+  },
+  eagle: {
+    clawSwipe: { reach: 84, width: 96, height: 58, yOffset: -78 },
+    heavy: { reach: 94, width: 106, height: 62, yOffset: -88 },
+    kick: { reach: 78, width: 86, height: 52, yOffset: -58 },
+    spinKick: { reach: 90, width: 102, height: 60, yOffset: -86 }
+  },
+  lion: {
+    chomp: { reach: 68, width: 84, height: 54, yOffset: -100 },
+    clawSwipe: { reach: 78, width: 92, height: 54, yOffset: -74 },
+    kick: { reach: 92, width: 104, height: 48, yOffset: -54 },
+    spinKick: { reach: 92, width: 104, height: 58, yOffset: -82 }
+  },
+  honeyBadger: {
+    clawSwipe: { reach: 68, width: 84, height: 46, yOffset: -62 },
+    chomp: { reach: 62, width: 76, height: 44, yOffset: -72 },
+    kick: { reach: 72, width: 82, height: 44, yOffset: -42 },
+    spinKick: { reach: 92, width: 104, height: 52, yOffset: -54 }
+  },
+  chefBoyardee: {
+    heavy: { reach: 94, width: 110, height: 56, yOffset: -66 },
+    kick: { reach: 94, width: 110, height: 56, yOffset: -66 },
+    low: { reach: 92, width: 122, height: 34, yOffset: -48 },
+    light: { reach: 78, width: 82, height: 42, yOffset: -74 }
+  },
+  marthaStewart: {
+    heavy: { reach: 94, width: 110, height: 52, yOffset: -76 },
+    high: { reach: 86, width: 98, height: 44, yOffset: -84 },
+    light: { reach: 86, width: 92, height: 48, yOffset: -70 },
+    kick: { reach: 92, width: 100, height: 54, yOffset: -58 },
+    spinKick: { reach: 96, width: 108, height: 62, yOffset: -82 }
+  },
+  stephenHawking: {
+    light: { reach: 88, width: 96, height: 54, yOffset: -68 },
+    kick: { reach: 88, width: 96, height: 54, yOffset: -68 },
+    low: { reach: 112, width: 128, height: 46, yOffset: -48 },
+    spinKick: { reach: 112, width: 128, height: 48, yOffset: -48 }
+  },
+  helenKeller: {
+    heavy: { reach: 106, width: 118, height: 48, yOffset: -64 },
+    kick: { reach: 106, width: 118, height: 48, yOffset: -64 },
+    light: { reach: 78, width: 86, height: 46, yOffset: -74 },
+    low: { reach: 96, width: 120, height: 34, yOffset: -48 }
+  },
+  turtle: {
+    light: { reach: 74, width: 86, height: 46, yOffset: -68 },
+    kick: { reach: 82, width: 92, height: 48, yOffset: -54 },
+    low: { reach: 96, width: 118, height: 44, yOffset: -38 },
+    heavy: { reach: 112, width: 126, height: 54, yOffset: -54 },
+    spinKick: { reach: 114, width: 128, height: 58, yOffset: -58 }
+  },
+  abrahamLincoln: {
+    light: { reach: 78, width: 88, height: 46, yOffset: -72 },
+    kick: { reach: 98, width: 106, height: 52, yOffset: -58 },
+    heavy: { reach: 98, width: 106, height: 52, yOffset: -58 },
+    spinKick: { reach: 104, width: 116, height: 60, yOffset: -86 }
+  },
+  koolAidMan: {
+    light: { reach: 82, width: 94, height: 54, yOffset: -72 },
+    kick: { reach: 82, width: 96, height: 50, yOffset: -58 },
+    heavy: { reach: 108, width: 122, height: 64, yOffset: -68 },
+    spinKick: { reach: 108, width: 122, height: 64, yOffset: -68 }
+  },
+  slimer: {
+    light: { reach: 86, width: 104, height: 46, yOffset: -76 },
+    chomp: { reach: 94, width: 112, height: 44, yOffset: -78 },
+    heavy: { reach: 84, width: 104, height: 62, yOffset: -74 },
+    kick: { reach: 88, width: 106, height: 50, yOffset: -66 },
+    low: { reach: 76, width: 100, height: 34, yOffset: -40 },
+    spinKick: { reach: 90, width: 108, height: 64, yOffset: -76 }
+  },
+  stayPuft: {
+    light: { reach: 88, width: 112, height: 62, yOffset: -82 },
+    heavy: { reach: 112, width: 132, height: 72, yOffset: -82 },
+    kick: { reach: 98, width: 118, height: 60, yOffset: -58 },
+    low: { reach: 106, width: 138, height: 48, yOffset: -36 },
+    spinKick: { reach: 124, width: 144, height: 74, yOffset: -76 }
+  },
+  dorothy: {
+    light: { reach: 86, width: 98, height: 50, yOffset: -76 },
+    heavy: { reach: 92, width: 108, height: 52, yOffset: -76 },
+    kick: { reach: 98, width: 106, height: 52, yOffset: -58 },
+    low: { reach: 86, width: 96, height: 42, yOffset: -66 },
+    spinKick: { reach: 100, width: 110, height: 58, yOffset: -78 }
+  },
+  sophia: {
+    light: { reach: 82, width: 94, height: 48, yOffset: -74 },
+    heavy: { reach: 104, width: 118, height: 42, yOffset: -62 },
+    kick: { reach: 86, width: 96, height: 50, yOffset: -56 },
+    low: { reach: 102, width: 120, height: 38, yOffset: -46 },
+    spinKick: { reach: 96, width: 110, height: 52, yOffset: -58 }
+  },
+  blanche: {
+    light: { reach: 84, width: 96, height: 48, yOffset: -76 },
+    heavy: { reach: 96, width: 110, height: 52, yOffset: -70 },
+    kick: { reach: 100, width: 110, height: 54, yOffset: -58 },
+    low: { reach: 94, width: 108, height: 44, yOffset: -52 },
+    spinKick: { reach: 104, width: 114, height: 58, yOffset: -74 }
+  },
+  rose: {
+    light: { reach: 82, width: 94, height: 48, yOffset: -72 },
+    heavy: { reach: 104, width: 116, height: 56, yOffset: -64 },
+    kick: { reach: 98, width: 108, height: 52, yOffset: -56 },
+    low: { reach: 88, width: 104, height: 42, yOffset: -52 },
+    spinKick: { reach: 102, width: 116, height: 58, yOffset: -70 }
   }
 };
 
@@ -1243,10 +1401,14 @@ export class CombatSimulation {
     if (!blocked) {
       defender.state = "hit";
       defender.stunTimer = (projectile.hitStun + combo.extraHitStun + (counterHit ? frames(4) : 0)) * getHitStunTakenMultiplier(defender);
-      defender.vx = projectile.facing * projectile.knockback * combo.knockbackMultiplier * getKnockbackTakenMultiplier(defender);
+      defender.vx =
+        projectile.facing *
+        (projectile.knockback + getComboReactionPush(combo.count)) *
+        combo.knockbackMultiplier *
+        getKnockbackTakenMultiplier(defender);
       defender.vy =
-        projectile.kind === "rocket" || projectile.kind === "stone"
-          ? (-95 - combo.extraLaunch * 0.5) * getLaunchTakenMultiplier(defender)
+        projectile.kind === "rocket" || projectile.kind === "stone" || combo.count >= 3
+          ? (-95 - combo.extraLaunch * 0.58) * getLaunchTakenMultiplier(defender)
           : defender.vy;
       this.hitStopTimer = spec.hitStop + combo.extraHitStop + (projectile.kind === "laser" ? frames(1) : 0);
       if (projectile.owner === "opponent" && !this.options.opponentControlled) {
@@ -1364,7 +1526,7 @@ export class CombatSimulation {
     const opponent = this.getOpponentForFighter(fighter);
     const directionToOpponent = opponent.x >= fighter.x ? 1 : -1;
     const distance = Math.abs(opponent.x - fighter.x);
-    const reach = attackSpecs[kind].reach * fighter.stats.reachScale;
+    const reach = getTunedAttackBoxValue(fighter, kind, "reach") * fighter.stats.reachScale;
     const canStepIn = fighter.y >= groundY && distance > 54 && distance < reach + 92;
 
     if (hasAnyHead(fighter)) {
@@ -1531,9 +1693,17 @@ export class CombatSimulation {
     if (!blocked) {
       defender.state = "hit";
       defender.stunTimer = (spec.hitStun + combo.extraHitStun + (counterHit ? frames(5) : 0)) * getHitStunTakenMultiplier(defender);
-      defender.vx = attacker.facing * spec.knockback * combo.knockbackMultiplier * getKnockbackTakenMultiplier(defender);
+      defender.vx =
+        attacker.facing *
+        (spec.knockback + getComboReactionPush(combo.count)) *
+        combo.knockbackMultiplier *
+        getKnockbackTakenMultiplier(defender);
       defender.vy =
-        (spec.kind === "heavy" || spec.kind === "high" || spec.kind === "spinKick" || spec.kind === "chomp") &&
+        (spec.kind === "heavy" ||
+          spec.kind === "high" ||
+          spec.kind === "spinKick" ||
+          spec.kind === "chomp" ||
+          combo.count >= 3) &&
         defender.y >= groundY
           ? (-135 - combo.extraLaunch - (counterHit ? 26 : 0)) * getLaunchTakenMultiplier(defender)
           : defender.vy;
@@ -1906,21 +2076,41 @@ export function getSimulationChecksum(state: CombatState) {
 }
 
 export function getAttackBox(fighter: FighterSnapshot): Rect {
-  const spec = attackSpecs[fighter.attackKind ?? "light"];
-  const reach = spec.reach * fighter.stats.reachScale;
-  const width = spec.width * (fighter.stats.reachScale > 1 ? 1 + (fighter.stats.reachScale - 1) * 0.45 : 1);
-  const height = spec.height * Math.min(1.16, fighter.stats.bodyScale);
+  const kind = fighter.attackKind ?? "light";
+  const spec = attackSpecs[kind];
+  const tuning = fighterAttackBoxTuning[fighter.key]?.[kind];
+  const tunedReach = tuning?.reach ?? spec.reach;
+  const tunedWidth = tuning?.width ?? spec.width;
+  const tunedHeight = tuning?.height ?? spec.height;
+  const tunedYOffset = tuning?.yOffset ?? spec.yOffset;
+  const visualReach = tunedReach * fighter.stats.reachScale;
+  const width = tunedWidth * (fighter.stats.reachScale > 1 ? 1 + (fighter.stats.reachScale - 1) * 0.45 : 1);
+  const height = tunedHeight * Math.min(1.16, fighter.stats.bodyScale);
   const left =
     fighter.facing === 1
-      ? fighter.x + reach - width / 2
-      : fighter.x - reach - width / 2;
+      ? fighter.x + visualReach - width / 2
+      : fighter.x - visualReach - width / 2;
 
   return {
     x: left,
-    y: fighter.y + spec.yOffset * fighter.stats.bodyScale,
+    y: fighter.y + tunedYOffset * fighter.stats.bodyScale,
     width,
     height
   };
+}
+
+function getTunedAttackBoxValue(fighter: FighterSnapshot, kind: AttackKind, key: keyof AttackBoxTuning): number {
+  const tuning = fighterAttackBoxTuning[fighter.key]?.[kind];
+  if (key === "reach") {
+    return tuning?.reach ?? attackSpecs[kind].reach;
+  }
+  if (key === "width") {
+    return tuning?.width ?? attackSpecs[kind].width;
+  }
+  if (key === "height") {
+    return tuning?.height ?? attackSpecs[kind].height;
+  }
+  return tuning?.yOffset ?? attackSpecs[kind].yOffset;
 }
 
 export function getProjectileBox(projectile: ProjectileSnapshot): Rect {
@@ -2046,6 +2236,10 @@ function createBlockedComboResult(attacker: FighterSnapshot) {
   };
 }
 
+function getComboReactionPush(comboCount: number) {
+  return comboCount <= 1 ? 0 : Math.min(92, (comboCount - 1) * 24);
+}
+
 function advanceCombo(attacker: FighterSnapshot, kind: AttackKind) {
   const previousCount = attacker.comboTimer > 0 ? attacker.comboCount : 0;
   const stale = previousCount > 0 && attacker.lastComboAttack === kind;
@@ -2060,8 +2254,8 @@ function advanceCombo(attacker: FighterSnapshot, kind: AttackKind) {
       count: nextCount,
       stale: true,
       damageMultiplier: 0.76,
-      knockbackMultiplier: 0.68,
-      extraHitStun: -frames(3),
+      knockbackMultiplier: 0.82,
+      extraHitStun: -frames(2),
       extraLaunch: 0,
       extraHitStop: 0
     };
@@ -2071,11 +2265,11 @@ function advanceCombo(attacker: FighterSnapshot, kind: AttackKind) {
   return {
     count: nextCount,
     stale: false,
-    damageMultiplier: 1 + Math.min(0.26, chainBonus * 0.065),
-    knockbackMultiplier: 1 + Math.min(0.48, chainBonus * 0.12),
-    extraHitStun: frames(Math.min(8, chainBonus * 2.5)),
-    extraLaunch: nextCount >= 3 ? Math.min(86, (nextCount - 2) * 30) : 0,
-    extraHitStop: nextCount >= 4 ? frames(2) : nextCount >= 3 ? frames(1) : 0
+    damageMultiplier: 1 + Math.min(0.3, chainBonus * 0.07),
+    knockbackMultiplier: 1 + Math.min(0.68, chainBonus * 0.17),
+    extraHitStun: frames(Math.min(11, chainBonus * 3)),
+    extraLaunch: nextCount >= 3 ? Math.min(112, (nextCount - 2) * 40) : 0,
+    extraHitStop: nextCount >= 4 ? frames(3) : nextCount >= 3 ? frames(2) : nextCount >= 2 ? frames(1) : 0
   };
 }
 
@@ -2141,36 +2335,36 @@ export function getTargetHurtBox(fighter: FighterSnapshot, target: AttackTarget)
   const scale = fighter.stats.bodyScale;
   if (target === "head") {
     return {
-      x: fighter.x - 22 * scale,
-      y: fighter.y - 128 * scale,
-      width: 44 * scale,
-      height: 44 * scale
+      x: fighter.x - 27 * scale,
+      y: fighter.y - 133 * scale,
+      width: 54 * scale,
+      height: 54 * scale
     };
   }
 
   if (target === "arm") {
     return {
-      x: fighter.x - 54 * scale,
-      y: fighter.y - 94 * scale,
-      width: 108 * scale,
-      height: 48 * scale
+      x: fighter.x - 62 * scale,
+      y: fighter.y - 100 * scale,
+      width: 124 * scale,
+      height: 58 * scale
     };
   }
 
   if (target === "leg") {
     return {
-      x: fighter.x - 46 * scale,
-      y: fighter.y - 46 * scale,
-      width: 92 * scale,
-      height: 48 * scale
+      x: fighter.x - 54 * scale,
+      y: fighter.y - 52 * scale,
+      width: 108 * scale,
+      height: 58 * scale
     };
   }
 
   return {
-    x: fighter.x - 28 * scale,
-    y: fighter.y - 98 * scale,
-    width: 56 * scale,
-    height: 76 * scale
+    x: fighter.x - 34 * scale,
+    y: fighter.y - 104 * scale,
+    width: 68 * scale,
+    height: 84 * scale
   };
 }
 
@@ -2732,7 +2926,7 @@ function canFly(fighter: FighterSnapshot) {
 }
 
 function hasNaturalChomp(fighter: FighterSnapshot) {
-  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo" || fighter.key === "honeyBadger";
+  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo" || fighter.key === "honeyBadger" || fighter.key === "slimer";
 }
 
 function hasNaturalTail(fighter: FighterSnapshot) {
@@ -2744,7 +2938,7 @@ function hasNaturalClaws(fighter: FighterSnapshot) {
 }
 
 function isNaturalGuarder(fighter: FighterSnapshot) {
-  return fighter.key === "hippo" || fighter.key === "tRex" || fighter.key === "turtle" || fighter.key === "koolAidMan";
+  return fighter.key === "hippo" || fighter.key === "tRex" || fighter.key === "turtle" || fighter.key === "koolAidMan" || fighter.key === "stayPuft";
 }
 
 function getNaturalChompBonus(fighter: FighterSnapshot) {

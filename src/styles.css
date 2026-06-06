@@ -718,6 +718,12 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="turtle"]::before,
 .fighter-icon-grid button[data-fighter-key="abrahamLincoln"]::before,
 .fighter-icon-grid button[data-fighter-key="koolAidMan"]::before,
+.fighter-icon-grid button[data-fighter-key="slimer"]::before,
+.fighter-icon-grid button[data-fighter-key="stayPuft"]::before,
+.fighter-icon-grid button[data-fighter-key="dorothy"]::before,
+.fighter-icon-grid button[data-fighter-key="sophia"]::before,
+.fighter-icon-grid button[data-fighter-key="blanche"]::before,
+.fighter-icon-grid button[data-fighter-key="rose"]::before,
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   content: "";
   width: 39px;
@@ -781,6 +787,30 @@ h2 {
   background-image: url("/assets/characters/kool-aid-man/kool-aid-man-icon.png");
 }
 
+.fighter-icon-grid button[data-fighter-key="slimer"]::before {
+  background-image: url("/assets/characters/slimer/slimer-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="stayPuft"]::before {
+  background-image: url("/assets/characters/stay-puft/stay-puft-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="dorothy"]::before {
+  background-image: url("/assets/characters/dorothy/dorothy-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="sophia"]::before {
+  background-image: url("/assets/characters/sophia/sophia-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="blanche"]::before {
+  background-image: url("/assets/characters/blanche/blanche-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="rose"]::before {
+  background-image: url("/assets/characters/rose/rose-icon.png");
+}
+
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   background-image: url("/assets/characters/trex/trex-icon.png");
 }
@@ -809,6 +839,12 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="turtle"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="abrahamLincoln"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="koolAidMan"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="slimer"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="stayPuft"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="dorothy"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="sophia"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="blanche"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="rose"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
   border-color: var(--accent);
   background-color: #fff7df;
@@ -867,6 +903,30 @@ h2 {
 
 .fighter-icon-grid button[data-fighter-key="koolAidMan"].is-selected::before {
   background-image: url("/assets/characters/kool-aid-man/kool-aid-man-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="slimer"].is-selected::before {
+  background-image: url("/assets/characters/slimer/slimer-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="stayPuft"].is-selected::before {
+  background-image: url("/assets/characters/stay-puft/stay-puft-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="dorothy"].is-selected::before {
+  background-image: url("/assets/characters/dorothy/dorothy-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="sophia"].is-selected::before {
+  background-image: url("/assets/characters/sophia/sophia-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="blanche"].is-selected::before {
+  background-image: url("/assets/characters/blanche/blanche-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="rose"].is-selected::before {
+  background-image: url("/assets/characters/rose/rose-icon.png");
 }
 
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {

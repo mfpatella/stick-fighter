@@ -19,6 +19,12 @@ export type BaseFighterKey =
   | "turtle"
   | "abrahamLincoln"
   | "koolAidMan"
+  | "slimer"
+  | "stayPuft"
+  | "dorothy"
+  | "sophia"
+  | "blanche"
+  | "rose"
   | "guard";
 
 export type FighterStats = {
@@ -403,6 +409,114 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       reachScale: 1.08
     }
   },
+  slimer: {
+    key: "slimer",
+    name: "Slimer",
+    role: "Ectoplasm trickster",
+    description: "Floaty speed, slippery projectiles, and tricky dash pressure balanced by low health.",
+    stats: {
+      maxHealth: 88,
+      moveSpeed: 1.16,
+      jumpPower: 1.26,
+      attackPower: 0.96,
+      staminaRegen: 1.18,
+      staminaCost: 0.92,
+      guardStrength: 0.78,
+      dodgeSpeed: 1.2,
+      bodyScale: 0.9,
+      reachScale: 1.02
+    }
+  },
+  stayPuft: {
+    key: "stayPuft",
+    name: "Stay Puft",
+    role: "Marshmallow colossus",
+    description: "Massive health, huge body checks, and slow armored pressure with weak mobility.",
+    stats: {
+      maxHealth: 146,
+      moveSpeed: 0.7,
+      jumpPower: 0.7,
+      attackPower: 1.18,
+      staminaRegen: 0.9,
+      staminaCost: 1.14,
+      guardStrength: 1.2,
+      dodgeSpeed: 0.64,
+      bodyScale: 1.34,
+      reachScale: 1.14
+    }
+  },
+  dorothy: {
+    key: "dorothy",
+    name: "Dorothy",
+    role: "Commanding tactician",
+    description: "Precise handbag strikes, beam zoning, and a sharp high kick with steady fundamentals.",
+    stats: {
+      maxHealth: 102,
+      moveSpeed: 1.02,
+      jumpPower: 0.96,
+      attackPower: 1.02,
+      staminaRegen: 1.06,
+      staminaCost: 0.98,
+      guardStrength: 1.02,
+      dodgeSpeed: 1,
+      bodyScale: 1,
+      reachScale: 1.04
+    }
+  },
+  sophia: {
+    key: "sophia",
+    name: "Sophia",
+    role: "Cane counter-fighter",
+    description: "Compact hurtbox, cane hooks, and tossed-food pressure with shorter movement bursts.",
+    stats: {
+      maxHealth: 96,
+      moveSpeed: 0.94,
+      jumpPower: 0.88,
+      attackPower: 1.04,
+      staminaRegen: 1.12,
+      staminaCost: 0.94,
+      guardStrength: 1.08,
+      dodgeSpeed: 0.98,
+      bodyScale: 0.94,
+      reachScale: 1.04
+    }
+  },
+  blanche: {
+    key: "blanche",
+    name: "Blanche",
+    role: "Charm duelist",
+    description: "Fast footwork, perfume zoning, fan snaps, and stylish kicks balanced by lighter defense.",
+    stats: {
+      maxHealth: 98,
+      moveSpeed: 1.08,
+      jumpPower: 1,
+      attackPower: 1,
+      staminaRegen: 1.1,
+      staminaCost: 0.96,
+      guardStrength: 0.94,
+      dodgeSpeed: 1.1,
+      bodyScale: 0.98,
+      reachScale: 1.04
+    }
+  },
+  rose: {
+    key: "rose",
+    name: "Rose",
+    role: "Wholesome wildcard",
+    description: "Reliable stamina, playful projectiles, and surprising hug rushes with moderate speed.",
+    stats: {
+      maxHealth: 108,
+      moveSpeed: 0.96,
+      jumpPower: 0.94,
+      attackPower: 0.98,
+      staminaRegen: 1.14,
+      staminaCost: 0.92,
+      guardStrength: 1.08,
+      dodgeSpeed: 0.96,
+      bodyScale: 0.98,
+      reachScale: 1.02
+    }
+  },
   guard: {
     key: "guard",
     name: "Training Guard",
@@ -443,6 +557,12 @@ export const playerFighterKeys: BaseFighterKey[] = [
   "helenKeller",
   "turtle",
   "abrahamLincoln",
-  "koolAidMan"
+  "koolAidMan",
+  "slimer",
+  "stayPuft",
+  "dorothy",
+  "sophia",
+  "blanche",
+  "rose"
 ];
 export const opponentFighterKeys: BaseFighterKey[] = ["guard", ...playerFighterKeys];

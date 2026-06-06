@@ -57,6 +57,12 @@ const fighterPortraitAssets: Partial<Record<BaseFighterKey, string>> = {
   turtle: characterAssets.turtleIcon,
   abrahamLincoln: characterAssets.abrahamLincolnIcon,
   koolAidMan: characterAssets.koolAidManIcon,
+  slimer: characterAssets.slimerIcon,
+  stayPuft: characterAssets.stayPuftIcon,
+  dorothy: characterAssets.dorothyIcon,
+  sophia: characterAssets.sophiaIcon,
+  blanche: characterAssets.blancheIcon,
+  rose: characterAssets.roseIcon,
   tRex: characterAssets.trexIcon
 };
 
@@ -1534,7 +1540,13 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     fighterKey === "helenKeller" ||
     fighterKey === "turtle" ||
     fighterKey === "abrahamLincoln" ||
-    fighterKey === "koolAidMan"
+    fighterKey === "koolAidMan" ||
+    fighterKey === "slimer" ||
+    fighterKey === "stayPuft" ||
+    fighterKey === "dorothy" ||
+    fighterKey === "sophia" ||
+    fighterKey === "blanche" ||
+    fighterKey === "rose"
   ) {
     tags.push("Sheet moves");
   }
@@ -1549,6 +1561,18 @@ function getFighterTags(fighterKey: BaseFighterKey) {
 
   if (fighterKey === "koolAidMan") {
     tags.push("Juice splash");
+  }
+
+  if (fighterKey === "slimer") {
+    tags.push("Floaty", "Slime");
+  }
+
+  if (fighterKey === "stayPuft") {
+    tags.push("Big body", "Armor");
+  }
+
+  if (fighterKey === "dorothy" || fighterKey === "sophia" || fighterKey === "blanche" || fighterKey === "rose") {
+    tags.push("Golden Girl");
   }
 
   return tags.length > 0 ? tags : ["Balanced"];
@@ -1607,6 +1631,24 @@ function getFighterMoveList(fighterKey: BaseFighterKey) {
   }
   if (fighterKey === "koolAidMan") {
     moves.push("Juice splash", "Punch combo", "Pitcher kick", "Wall burst");
+  }
+  if (fighterKey === "slimer") {
+    moves.push("Slime spit", "Tongue lash", "Ghostly charge", "Goo burst");
+  }
+  if (fighterKey === "stayPuft") {
+    moves.push("Heavy punch", "Marshmallow toss", "Belly slam", "Wall-burst charge");
+  }
+  if (fighterKey === "dorothy") {
+    moves.push("Bag swing", "Stare beam", "Book toss", "High kick");
+  }
+  if (fighterKey === "sophia") {
+    moves.push("Purse swing", "Meatball toss", "Cane hook", "Slipper toss");
+  }
+  if (fighterKey === "blanche") {
+    moves.push("Perfume spray", "Fan snap", "Charm burst", "High kick");
+  }
+  if (fighterKey === "rose") {
+    moves.push("Cheesecake toss", "Fish throw", "Story gust", "Hug rush");
   }
 
   return moves.slice(0, 9);

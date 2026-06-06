@@ -49,6 +49,12 @@ const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   turtle: { color: 0x3f8f2f, accent: 0xb58235 },
   abrahamLincoln: { color: 0x202020, accent: 0xd8b45d },
   koolAidMan: { color: 0xc92121, accent: 0x9fd0e7 },
+  slimer: { color: 0x6fcf2f, accent: 0xb9f255 },
+  stayPuft: { color: 0xf4f0e4, accent: 0x2e5f9f },
+  dorothy: { color: 0x918a82, accent: 0xa6783f },
+  sophia: { color: 0x7c6b5b, accent: 0x8b5b2e },
+  blanche: { color: 0x9b3e72, accent: 0xf2a9d6 },
+  rose: { color: 0xe9b5a6, accent: 0xf2d06b },
   guard: { color: 0x2a2926, accent: 0x8b2635 },
   neutral: { color: 0x5d4a16, accent: 0xd8b45d }
 };
@@ -108,6 +114,12 @@ type SheetFighterKey = Extract<
   | "turtle"
   | "abrahamLincoln"
   | "koolAidMan"
+  | "slimer"
+  | "stayPuft"
+  | "dorothy"
+  | "sophia"
+  | "blanche"
+  | "rose"
 >;
 type SheetRow =
   | {
@@ -271,10 +283,10 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     run: { start: 9, count: 9 },
     chomp: { start: 18, count: 9 },
     tailStrike: { start: 27, count: 9 },
-    kick: { start: 36, count: 6 },
+    kick: { frames: [39, 40, 41] },
     spinKick: { start: 27, count: 6 },
-    low: { start: 36, count: 6 },
-    heavy: { start: 36, count: 6 },
+    low: { frames: [36, 37, 40, 41] },
+    heavy: { frames: [36, 37, 40, 41] },
     light: { start: 18, count: 6 },
     high: { start: 18, count: 6 },
     scale: 1.07,
@@ -372,7 +384,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     kick: { frames: [24, 25, 26, 27, 28, 30, 31] },
     spinKick: { frames: [24, 25, 26, 27, 28, 30, 31] },
     low: { frames: [24, 25, 26, 27, 28, 30, 31] },
-    light: { frames: [32, 33, 34, 35, 38, 39] },
+    light: { frames: [32, 33, 34, 38, 39] },
     scale: 0.76,
     baseBodyScale: 0.98,
     originX: 0.5,
@@ -384,12 +396,12 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.stephenHawkingRuntimeActions,
     ...paddedRuntimeFrame(220, 280, 42, 20),
     idle: { start: 0, count: 8 },
-    run: { frames: [8, 9, 10, 11, 12, 14, 15] },
+    run: { frames: [8, 10, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
     heavy: { frames: [24, 25, 26, 27, 30, 31] },
     low: { frames: [32, 33, 34, 35, 38, 39] },
-    light: { frames: [8, 9, 10, 11, 12, 14, 15] },
-    kick: { frames: [8, 9, 10, 11, 12, 14, 15] },
+    light: { frames: [8, 10, 14, 15] },
+    kick: { frames: [8, 10, 14, 15] },
     spinKick: { frames: [32, 33, 34, 35, 38, 39] },
     scale: 0.82,
     baseBodyScale: 1,
@@ -405,7 +417,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     light: { frames: [8, 9, 10, 11, 12, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
     heavy: { frames: [24, 25, 26, 27, 28, 30, 31] },
-    low: { frames: [32, 33, 34, 35, 38, 39] },
+    low: { frames: [32, 33, 34, 35, 39] },
     kick: { frames: [24, 25, 26, 27, 28, 30, 31] },
     spinKick: { frames: [32, 33, 34, 35, 38, 39] },
     scale: 0.76,
@@ -420,9 +432,9 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     ...paddedRuntimeFrame(220, 234, 34, 18),
     idle: { start: 0, count: 8 },
     light: { frames: [8, 9, 10, 11, 14, 15] },
-    heavy: { frames: [40, 41, 42, 43, 44, 46, 47] },
+    heavy: { frames: [40, 41, 42, 47] },
     kick: { frames: [16, 17, 18, 19, 22, 23] },
-    low: { frames: [40, 41, 42, 43, 44, 46, 47] },
+    low: { frames: [40, 41, 42, 47] },
     spinKick: { frames: [32, 33, 34, 35, 36, 38, 39] },
     high: { frames: [32, 33, 34, 35, 36, 38, 39] },
     run: { frames: [24, 25, 26, 27, 28, 30, 31] },
@@ -466,6 +478,111 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     originX: 0.5,
     originY: 0.82,
     yOffset: 3
+  },
+  slimer: {
+    textureKey: "character-slimer-actions",
+    asset: characterAssets.slimerRuntimeActions,
+    ...paddedRuntimeFrame(220, 234, 84, 22, 24),
+    idle: { frames: [0, 1, 2, 3, 4, 5, 7] },
+    run: { frames: [16, 17, 19, 20, 21, 23] },
+    high: { frames: [8, 9, 10, 15] },
+    light: { frames: [24, 25, 26, 27, 29, 30, 31] },
+    chomp: { frames: [24, 25, 26, 27, 29, 30, 31] },
+    heavy: { frames: [40, 41, 42, 43, 44, 46, 47] },
+    spinKick: { frames: [40, 41, 42, 43, 44, 46, 47] },
+    low: { frames: [32, 33, 34, 39] },
+    kick: { frames: [16, 17, 19, 20, 21, 23] },
+    scale: 0.9,
+    baseBodyScale: 0.9,
+    originX: 0.5,
+    originY: 0.78,
+    yOffset: -8
+  },
+  stayPuft: {
+    textureKey: "character-stay-puft-actions",
+    asset: characterAssets.stayPuftRuntimeActions,
+    ...paddedRuntimeFrame(220, 234, 84, 22, 24),
+    idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
+    light: { frames: [8, 9, 10, 11, 14, 15] },
+    heavy: { frames: [40, 41, 42, 43, 44, 45, 46, 47] },
+    high: { frames: [16, 17, 18, 19, 22, 23] },
+    low: { frames: [32, 33, 34, 35, 36, 37, 39] },
+    kick: { frames: [24, 25, 26, 27, 28, 29, 30, 31] },
+    spinKick: { frames: [40, 41, 42, 43, 44, 45, 46, 47] },
+    run: { frames: [40, 41, 42, 47] },
+    scale: 0.88,
+    baseBodyScale: 1.34,
+    originX: 0.5,
+    originY: 0.86,
+    yOffset: 1
+  },
+  dorothy: {
+    textureKey: "character-dorothy-actions",
+    asset: characterAssets.dorothyRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 66, 20, 24),
+    idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
+    light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
+    heavy: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
+    high: { frames: [16, 17, 18, 19, 20, 23] },
+    low: { frames: [24, 25, 26, 27, 30, 31] },
+    kick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    spinKick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    scale: 0.76,
+    baseBodyScale: 1,
+    originX: 0.5,
+    originY: 0.97,
+    yOffset: 1
+  },
+  sophia: {
+    textureKey: "character-sophia-actions",
+    asset: characterAssets.sophiaRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 72, 20, 24),
+    idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
+    light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
+    heavy: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    high: { frames: [16, 17, 18, 19, 22, 23] },
+    low: { frames: [32, 33, 34, 35, 38, 39] },
+    kick: { frames: [32, 33, 34, 35, 38, 39] },
+    spinKick: { frames: [32, 33, 34, 35, 38, 39] },
+    scale: 0.72,
+    baseBodyScale: 0.94,
+    originX: 0.5,
+    originY: 0.97,
+    yOffset: 1
+  },
+  blanche: {
+    textureKey: "character-blanche-actions",
+    asset: characterAssets.blancheRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 76, 20, 24),
+    idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
+    light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
+    high: { frames: [16, 17, 18, 19, 22, 23] },
+    heavy: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    low: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    kick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    spinKick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    scale: 0.76,
+    baseBodyScale: 0.98,
+    originX: 0.5,
+    originY: 0.97,
+    yOffset: 1
+  },
+  rose: {
+    textureKey: "character-rose-actions",
+    asset: characterAssets.roseRuntimeActions,
+    ...paddedRuntimeFrame(220, 280, 76, 20, 24),
+    idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
+    high: { frames: [8, 9, 10, 11, 14, 15] },
+    light: { frames: [16, 17, 18, 19, 22, 23] },
+    heavy: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    low: { frames: [24, 25, 26, 27, 30, 31] },
+    kick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    spinKick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    scale: 0.74,
+    baseBodyScale: 0.98,
+    originX: 0.5,
+    originY: 0.97,
+    yOffset: 1
   }
 };
 
@@ -2449,6 +2566,69 @@ export class TrainingScene extends Phaser.Scene {
         for (let i = 0; i < 5; i += 1) {
           this.graphics.fillCircle(projectile.x + facing * (-36 + i * 18), projectile.y + (i % 2 === 0 ? -15 : 15), 4);
         }
+      } else if (projectile.kind === "slime") {
+        this.graphics.fillStyle(0x8ee53f, 0.34);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 94, 34);
+        this.graphics.lineStyle(7, 0x78c922, 0.78);
+        this.graphics.beginPath();
+        this.graphics.moveTo(projectile.x - facing * 44, projectile.y);
+        this.graphics.lineTo(projectile.x - facing * 14, projectile.y - 7);
+        this.graphics.lineTo(projectile.x + facing * 18, projectile.y + 3);
+        this.graphics.lineTo(projectile.x + facing * 44, projectile.y - 4);
+        this.graphics.strokePath();
+        this.graphics.fillStyle(0xb9f255, 0.84);
+        for (let i = 0; i < 5; i += 1) {
+          this.graphics.fillCircle(projectile.x + facing * (-34 + i * 16), projectile.y + (i % 2 === 0 ? -12 : 12), 3 + (i % 2));
+        }
+      } else if (projectile.kind === "marshmallow") {
+        this.graphics.fillStyle(0xf6f1e3, 0.96);
+        this.graphics.fillRoundedRect(projectile.x - 18, projectile.y - 13, 36, 26, 9);
+        this.graphics.lineStyle(2, 0x9fd0e7, 0.62);
+        this.graphics.strokeRoundedRect(projectile.x - 18, projectile.y - 13, 36, 26, 9);
+      } else if (projectile.kind === "purpleBlast") {
+        this.graphics.lineStyle(9, 0xc66bff, 0.36);
+        this.graphics.lineBetween(projectile.x - facing * 50, projectile.y, projectile.x + facing * 50, projectile.y);
+        this.graphics.lineStyle(4, 0xf4d4ff, 0.78);
+        this.graphics.lineBetween(projectile.x - facing * 44, projectile.y, projectile.x + facing * 44, projectile.y);
+        this.graphics.fillStyle(0xc66bff, 0.86);
+        this.graphics.fillCircle(projectile.x + facing * 40, projectile.y, 8 + pulse * 3);
+      } else if (projectile.kind === "meatball") {
+        this.graphics.fillStyle(0x8f2f3f, 0.94);
+        this.graphics.fillCircle(projectile.x, projectile.y, 13);
+        this.graphics.lineStyle(3, 0xd84726, 0.7);
+        this.graphics.strokeCircle(projectile.x, projectile.y, 15);
+      } else if (projectile.kind === "slipper") {
+        this.graphics.fillStyle(0x7b405b, 0.94);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 46, 20);
+        this.graphics.lineStyle(2, 0xf2a9d6, 0.72);
+        this.graphics.strokeEllipse(projectile.x, projectile.y, 50, 23);
+      } else if (projectile.kind === "perfume") {
+        this.graphics.fillStyle(0xf2a9d6, 0.2);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 98, 42);
+        this.graphics.lineStyle(4, 0xf2a9d6, 0.56);
+        for (let i = 0; i < 3; i += 1) {
+          this.graphics.lineBetween(projectile.x - facing * (42 - i * 18), projectile.y - 12 + i * 10, projectile.x + facing * (24 + i * 8), projectile.y - 5 + i * 8);
+        }
+      } else if (projectile.kind === "cake") {
+        this.graphics.fillStyle(0xf2d06b, 0.96);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 44, 26);
+        this.graphics.fillStyle(0x8f2f3f, 0.86);
+        this.graphics.fillCircle(projectile.x + facing * 6, projectile.y - 8, 4);
+        this.graphics.lineStyle(2, 0xffffff, 0.66);
+        this.graphics.strokeEllipse(projectile.x, projectile.y, 48, 29);
+      } else if (projectile.kind === "fish") {
+        this.graphics.fillStyle(0x9fd0e7, 0.92);
+        this.graphics.fillEllipse(projectile.x, projectile.y, 42, 18);
+        this.graphics.fillTriangle(projectile.x - facing * 24, projectile.y, projectile.x - facing * 38, projectile.y - 12, projectile.x - facing * 38, projectile.y + 12);
+        this.graphics.fillStyle(0x1f2a35, 0.86);
+        this.graphics.fillCircle(projectile.x + facing * 12, projectile.y - 3, 2);
+      } else if (projectile.kind === "paper") {
+        this.graphics.fillStyle(0xfff3bf, 0.86);
+        for (let i = 0; i < 4; i += 1) {
+          this.graphics.fillRect(projectile.x - facing * (28 - i * 14), projectile.y - 10 + (i % 2) * 7, 19, 12);
+        }
+        this.graphics.lineStyle(2, 0xd8b45d, 0.52);
+        this.graphics.strokeEllipse(projectile.x, projectile.y, 74, 28);
       } else {
         this.graphics.fillStyle(0x75bdf2, 0.22);
         this.graphics.fillEllipse(projectile.x, projectile.y, 82, 27);
@@ -3776,7 +3956,7 @@ function getAnimalAbilitySummary(fighter: FighterSnapshot) {
 }
 
 function hasNaturalChomp(fighter: FighterSnapshot) {
-  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo" || fighter.key === "honeyBadger";
+  return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo" || fighter.key === "honeyBadger" || fighter.key === "slimer";
 }
 
 function getObjectiveKind(settings: GameLaunchSettings): ObjectiveKind {
@@ -3948,6 +4128,30 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
 
   if (fighter.key === "koolAidMan") {
     return controls(["Splash", "high"], ["Punch", "light"], ["Kick", "kick"], ["Wall Burst", "heavy"]);
+  }
+
+  if (fighter.key === "slimer") {
+    return controls(["Slime Spit", "high"], ["Tongue", "chomp"], ["Haunt", "powerKick"], ["Goo Burst", "low"]);
+  }
+
+  if (fighter.key === "stayPuft") {
+    return controls(["Toss", "high"], ["Punch", "light"], ["Belly Slam", "kick"], ["Wall Burst", "heavy"]);
+  }
+
+  if (fighter.key === "dorothy") {
+    return controls(["Stare Beam", "high"], ["Bag Swing", "light"], ["High Kick", "kick"], ["Book Toss", "low"]);
+  }
+
+  if (fighter.key === "sophia") {
+    return controls(["Meatball", "high"], ["Purse", "light"], ["Cane Hook", "heavy"], ["Slipper", "low"]);
+  }
+
+  if (fighter.key === "blanche") {
+    return controls(["Perfume", "high"], ["Fan Snap", "light"], ["High Kick", "kick"], ["Charm", "heavy"]);
+  }
+
+  if (fighter.key === "rose") {
+    return controls(["Cheesecake", "high"], ["Fish Toss", "light"], ["Hug Rush", "heavy"], ["Story Gust", "low"]);
   }
 
   return controls(["High", "high"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);
