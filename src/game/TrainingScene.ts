@@ -244,7 +244,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.trexRuntimeActions,
     missingTextureKey: "character-trex-missing",
     missingAsset: characterAssets.trexMissing,
-    ...paddedRuntimeFrame(161, 181, 42, 18),
+    ...paddedRuntimeFrame(161, 181, 56, 18),
     idle: { start: 0, count: 9 },
     run: { start: 9, count: 9 },
     chomp: { start: 18, count: 9 },
@@ -266,7 +266,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.hippoRuntimeActions,
     missingTextureKey: "character-hippo-missing",
     missingAsset: characterAssets.hippoMissing,
-    ...paddedRuntimeFrame(161, 181, 42, 18),
+    ...paddedRuntimeFrame(161, 181, 56, 18),
     idle: { start: 0, count: 9 },
     run: { start: 9, count: 9 },
     chomp: { start: 18, count: 9 },
@@ -322,7 +322,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     scale: 0.84,
     baseBodyScale: 1.04,
     originX: 0.5,
-    originY: 0.88,
+    originY: 0.93,
     yOffset: 1
   },
   honeyBadger: {
@@ -342,7 +342,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     scale: 0.72,
     baseBodyScale: 0.82,
     originX: 0.5,
-    originY: 0.88,
+    originY: 0.82,
     yOffset: 2
   },
   chefBoyardee: {
@@ -359,7 +359,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     scale: 0.76,
     baseBodyScale: 1,
     originX: 0.5,
-    originY: 0.88,
+    originY: 0.93,
     yOffset: 1
   },
   marthaStewart: {
@@ -376,7 +376,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     scale: 0.76,
     baseBodyScale: 0.98,
     originX: 0.5,
-    originY: 0.88,
+    originY: 0.97,
     yOffset: 1
   },
   stephenHawking: {
@@ -394,7 +394,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     scale: 0.82,
     baseBodyScale: 1,
     originX: 0.5,
-    originY: 0.88,
+    originY: 0.84,
     yOffset: 1
   },
   helenKeller: {
@@ -411,7 +411,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     scale: 0.76,
     baseBodyScale: 1,
     originX: 0.5,
-    originY: 0.88,
+    originY: 0.99,
     yOffset: 1
   },
   turtle: {
@@ -435,20 +435,20 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   abrahamLincoln: {
     textureKey: "character-abraham-lincoln-actions",
     asset: characterAssets.abrahamLincolnRuntimeActions,
-    ...paddedRuntimeFrame(220, 234, 38, 18, 24),
+    ...paddedRuntimeFrame(220, 280, 56, 20),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
-    light: { frames: [8, 9, 10, 11, 14, 15] },
-    heavy: { frames: [16, 17, 18, 19, 22, 23] },
-    kick: { frames: [16, 17, 18, 19, 22, 23] },
-    spinKick: { frames: [40, 41, 42, 43, 46, 47] },
-    low: { frames: [40, 41, 42, 43, 46, 47] },
-    high: { frames: [32, 33, 34, 39] },
-    run: { frames: [40, 41, 42, 43, 46, 47] },
+    light: { frames: [8, 9, 10, 12, 13, 15] },
+    heavy: { frames: [16, 17, 18, 21, 23] },
+    kick: { frames: [16, 17, 18, 21, 23] },
+    spinKick: { frames: [32, 33, 37, 38, 39] },
+    low: { frames: [32, 33, 37, 38, 39] },
+    high: { frames: [24, 25, 26, 29, 30, 31] },
+    run: { frames: [32, 33, 34, 37, 38, 39] },
     scale: 0.82,
     baseBodyScale: 1.08,
     originX: 0.5,
-    originY: 0.88,
-    yOffset: 1
+    originY: 0.99,
+    yOffset: 0
   },
   koolAidMan: {
     textureKey: "character-kool-aid-man-actions",
@@ -464,7 +464,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     scale: 0.74,
     baseBodyScale: 1.16,
     originX: 0.5,
-    originY: 0.9,
+    originY: 0.82,
     yOffset: 3
   }
 };
