@@ -369,7 +369,7 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
         : settings.matchType !== "testing" && !settings.trainingTools;
   }
   if (beginButton) {
-    beginButton.textContent = "Continue";
+    beginButton.textContent = "Start Fight";
   }
   if (openMenuButton) {
     openMenuButton.hidden = false;

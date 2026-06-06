@@ -134,6 +134,8 @@ type CharacterSheetConfig = {
   asset: string;
   missingTextureKey?: string;
   missingAsset?: string;
+  missingFrameWidth?: number;
+  missingFrameHeight?: number;
   frameWidth: number;
   frameHeight: number;
   contentFrameWidth?: number;
@@ -218,6 +220,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.davidRuntimeActions,
     missingTextureKey: "character-david-missing",
     missingAsset: characterAssets.davidMissing,
+    missingFrameWidth: 181,
+    missingFrameHeight: 181,
     ...paddedRuntimeFrame(181, 217, 36, 18),
     idle: { start: 0, count: 8 },
     light: { start: 8, count: 8 },
@@ -237,6 +241,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.goliathRuntimeActions,
     missingTextureKey: "character-goliath-missing",
     missingAsset: characterAssets.goliathMissing,
+    missingFrameWidth: 181,
+    missingFrameHeight: 181,
     ...paddedRuntimeFrame(181, 217, 40, 18),
     idle: { start: 0, count: 8 },
     light: { start: 8, count: 8 },
@@ -278,6 +284,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.hippoRuntimeActions,
     missingTextureKey: "character-hippo-missing",
     missingAsset: characterAssets.hippoMissing,
+    missingFrameWidth: 181,
+    missingFrameHeight: 181,
     ...paddedRuntimeFrame(161, 181, 56, 18),
     idle: { start: 0, count: 9 },
     run: { start: 9, count: 9 },
@@ -300,27 +308,29 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.eagleRuntimeActions,
     missingTextureKey: "character-eagle-missing",
     missingAsset: characterAssets.eagleMissing,
-    ...paddedRuntimeFrame(181, 181, 38, 18),
-    idle: { start: 0, count: 8 },
-    run: { start: 8, count: 8 },
-    chomp: { start: 16, count: 8 },
-    heavy: { start: 24, count: 8 },
-    low: { start: 32, count: 8 },
-    kick: { start: 32, count: 8 },
-    spinKick: { start: 24, count: 8 },
-    light: { start: 40, count: 8 },
-    high: { start: 40, count: 8 },
-    clawSwipe: { start: 40, count: 8 },
-    scale: 0.87,
+    frameWidth: 181,
+    frameHeight: 181,
+    idle: { frames: [40, 47] },
+    run: { frames: [41, 42, 43, 47] },
+    chomp: { frames: [43, 47] },
+    heavy: { frames: [45, 46, 47] },
+    low: { frames: [44, 45, 47] },
+    kick: { frames: [44, 45, 47] },
+    spinKick: { frames: [45, 46, 47] },
+    light: { frames: [43, 44, 47] },
+    high: { frames: [45, 46, 47] },
+    clawSwipe: { frames: [44, 45, 47] },
+    scale: 1.02,
     baseBodyScale: 0.9,
     originX: 0.5,
-    originY: 0.82,
-    yOffset: 1
+    originY: 0.91,
+    yOffset: -2
   },
   lion: {
     textureKey: "character-lion-actions",
     asset: characterAssets.lionRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 40, 20),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { start: 0, count: 8 },
     run: { start: 24, count: 6 },
     chomp: { start: 8, count: 6 },
@@ -331,16 +341,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     heavy: { start: 8, count: 6 },
     light: { start: 16, count: 6 },
     high: { start: 16, count: 6 },
-    scale: 0.84,
+    scale: 1,
     baseBodyScale: 1.04,
     originX: 0.5,
-    originY: 0.93,
+    originY: 0.92,
     yOffset: 1
   },
   honeyBadger: {
     textureKey: "character-honey-badger-actions",
     asset: characterAssets.honeyBadgerRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 40, 20),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { start: 0, count: 7 },
     run: { start: 0, count: 7 },
     clawSwipe: { start: 8, count: 6 },
@@ -351,16 +362,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     heavy: { start: 32, count: 5 },
     light: { start: 8, count: 6 },
     high: { start: 16, count: 5 },
-    scale: 0.72,
+    scale: 0.98,
     baseBodyScale: 0.82,
     originX: 0.5,
-    originY: 0.82,
+    originY: 0.9,
     yOffset: 2
   },
   chefBoyardee: {
     textureKey: "character-chef-boyardee-actions",
     asset: characterAssets.chefBoyardeeRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 42, 20),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { start: 0, count: 8 },
     high: { frames: [8, 9, 10, 11, 14, 15] },
     heavy: { frames: [16, 17, 18, 23] },
@@ -368,16 +380,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     low: { frames: [32, 33, 34, 39] },
     kick: { frames: [16, 17, 18, 23] },
     spinKick: { frames: [32, 33, 34, 39] },
-    scale: 0.76,
+    scale: 1,
     baseBodyScale: 1,
     originX: 0.5,
-    originY: 0.93,
+    originY: 0.92,
     yOffset: 1
   },
   marthaStewart: {
     textureKey: "character-martha-stewart-actions",
     asset: characterAssets.marthaStewartRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 42, 20, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { start: 0, count: 8 },
     heavy: { frames: [8, 9, 10, 11, 12, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -385,16 +398,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     spinKick: { frames: [24, 25, 26, 27, 28, 30, 31] },
     low: { frames: [24, 25, 26, 27, 28, 30, 31] },
     light: { frames: [32, 33, 34, 38, 39] },
-    scale: 0.76,
+    scale: 1,
     baseBodyScale: 0.98,
     originX: 0.5,
-    originY: 0.97,
+    originY: 0.92,
     yOffset: 1
   },
   stephenHawking: {
     textureKey: "character-stephen-hawking-actions",
     asset: characterAssets.stephenHawkingRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 42, 20),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { start: 0, count: 8 },
     run: { frames: [8, 10, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -403,16 +417,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     light: { frames: [8, 10, 14, 15] },
     kick: { frames: [8, 10, 14, 15] },
     spinKick: { frames: [32, 33, 34, 35, 38, 39] },
-    scale: 0.82,
+    scale: 0.98,
     baseBodyScale: 1,
     originX: 0.5,
-    originY: 0.84,
+    originY: 0.91,
     yOffset: 1
   },
   helenKeller: {
     textureKey: "character-helen-keller-actions",
     asset: characterAssets.helenKellerRuntimeActions,
-    ...paddedRuntimeFrame(260, 181, 42, 18, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { start: 0, count: 8 },
     light: { frames: [8, 9, 10, 11, 12, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -420,16 +435,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     low: { frames: [32, 33, 34, 35, 39] },
     kick: { frames: [24, 25, 26, 27, 28, 30, 31] },
     spinKick: { frames: [32, 33, 34, 35, 38, 39] },
-    scale: 0.76,
+    scale: 0.98,
     baseBodyScale: 1,
     originX: 0.5,
-    originY: 0.99,
+    originY: 0.94,
     yOffset: 1
   },
   turtle: {
     textureKey: "character-turtle-actions",
     asset: characterAssets.turtleRuntimeActions,
-    ...paddedRuntimeFrame(220, 234, 34, 18),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { start: 0, count: 8 },
     light: { frames: [8, 9, 10, 11, 14, 15] },
     heavy: { frames: [40, 41, 42, 47] },
@@ -438,10 +454,10 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     spinKick: { frames: [32, 33, 34, 35, 36, 38, 39] },
     high: { frames: [32, 33, 34, 35, 36, 38, 39] },
     run: { frames: [24, 25, 26, 27, 28, 30, 31] },
-    scale: 0.94,
+    scale: 1.06,
     baseBodyScale: 0.96,
     originX: 0.5,
-    originY: 0.88,
+    originY: 0.91,
     yOffset: 0
   },
   abrahamLincoln: {
@@ -465,7 +481,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   koolAidMan: {
     textureKey: "character-kool-aid-man-actions",
     asset: characterAssets.koolAidManRuntimeActions,
-    ...paddedRuntimeFrame(275, 280, 44, 20),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { frames: [1, 2, 3, 4, 5] },
     light: { frames: [7, 8, 9, 10, 11] },
     heavy: { frames: [25, 26, 27, 28, 29] },
@@ -473,16 +490,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     low: { frames: [13, 14, 15, 16, 17] },
     high: { frames: [19, 20, 23] },
     spinKick: { frames: [25, 26, 27, 28, 29] },
-    scale: 0.74,
+    scale: 1.02,
     baseBodyScale: 1.16,
     originX: 0.5,
-    originY: 0.82,
-    yOffset: 3
+    originY: 0.91,
+    yOffset: 1
   },
   slimer: {
     textureKey: "character-slimer-actions",
     asset: characterAssets.slimerRuntimeActions,
-    ...paddedRuntimeFrame(220, 234, 84, 22, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { frames: [0, 1, 2, 3, 4, 5, 7] },
     run: { frames: [16, 17, 19, 20, 21, 23] },
     high: { frames: [8, 9, 10, 15] },
@@ -492,7 +510,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     spinKick: { frames: [40, 41, 42, 43, 44, 46, 47] },
     low: { frames: [32, 33, 34, 39] },
     kick: { frames: [16, 17, 19, 20, 21, 23] },
-    scale: 0.9,
+    scale: 1.02,
     baseBodyScale: 0.9,
     originX: 0.5,
     originY: 0.78,
@@ -501,7 +519,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   stayPuft: {
     textureKey: "character-stay-puft-actions",
     asset: characterAssets.stayPuftRuntimeActions,
-    ...paddedRuntimeFrame(220, 234, 84, 22, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 14, 15] },
     heavy: { frames: [40, 41, 42, 43, 44, 45, 46, 47] },
@@ -510,16 +529,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     kick: { frames: [24, 25, 26, 27, 28, 29, 30, 31] },
     spinKick: { frames: [40, 41, 42, 43, 44, 45, 46, 47] },
     run: { frames: [40, 41, 42, 47] },
-    scale: 0.88,
+    scale: 1.04,
     baseBodyScale: 1.34,
     originX: 0.5,
-    originY: 0.86,
+    originY: 0.91,
     yOffset: 1
   },
   dorothy: {
     textureKey: "character-dorothy-actions",
     asset: characterAssets.dorothyRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 66, 20, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
     heavy: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
@@ -527,16 +547,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     low: { frames: [24, 25, 26, 27, 30, 31] },
     kick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
     spinKick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
-    scale: 0.76,
+    scale: 0.98,
     baseBodyScale: 1,
     originX: 0.5,
-    originY: 0.97,
+    originY: 0.94,
     yOffset: 1
   },
   sophia: {
     textureKey: "character-sophia-actions",
     asset: characterAssets.sophiaRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 72, 20, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
     heavy: { frames: [24, 25, 26, 27, 28, 30, 31] },
@@ -544,16 +565,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     low: { frames: [32, 33, 34, 35, 38, 39] },
     kick: { frames: [32, 33, 34, 35, 38, 39] },
     spinKick: { frames: [32, 33, 34, 35, 38, 39] },
-    scale: 0.72,
+    scale: 0.94,
     baseBodyScale: 0.94,
     originX: 0.5,
-    originY: 0.97,
+    originY: 0.94,
     yOffset: 1
   },
   blanche: {
     textureKey: "character-blanche-actions",
     asset: characterAssets.blancheRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 76, 20, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -561,16 +583,17 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     low: { frames: [24, 25, 26, 27, 28, 30, 31] },
     kick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
     spinKick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
-    scale: 0.76,
+    scale: 0.98,
     baseBodyScale: 0.98,
     originX: 0.5,
-    originY: 0.97,
+    originY: 0.94,
     yOffset: 1
   },
   rose: {
     textureKey: "character-rose-actions",
     asset: characterAssets.roseRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 76, 20, 24),
+    frameWidth: 181,
+    frameHeight: 181,
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     high: { frames: [8, 9, 10, 11, 14, 15] },
     light: { frames: [16, 17, 18, 19, 22, 23] },
@@ -578,10 +601,10 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     low: { frames: [24, 25, 26, 27, 30, 31] },
     kick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
     spinKick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
-    scale: 0.74,
+    scale: 0.98,
     baseBodyScale: 0.98,
     originX: 0.5,
-    originY: 0.97,
+    originY: 0.94,
     yOffset: 1
   }
 };
@@ -591,17 +614,17 @@ const detachedPartSheetConfigs: Partial<Record<SheetFighterKey, DetachedPartShee
     textureKey: "character-david-parts",
     asset: characterAssets.davidParts,
     frameWidth: 181,
-    frameHeight: 272,
+    frameHeight: 181,
     scale: 0.34,
-    frames: { leftArm: 0, rightArm: 1, leftLeg: 2, rightLeg: 3 }
+    frames: { leftArm: 16, rightArm: 17, leftLeg: 20, rightLeg: 21 }
   },
   goliath: {
     textureKey: "character-goliath-parts",
     asset: characterAssets.goliathParts,
     frameWidth: 181,
-    frameHeight: 272,
+    frameHeight: 181,
     scale: 0.38,
-    frames: { leftArm: 0, rightArm: 1, leftLeg: 2, rightLeg: 3 }
+    frames: { leftArm: 16, rightArm: 18, leftLeg: 20, rightLeg: 22 }
   },
   tRex: {
     textureKey: "character-trex-parts",
@@ -623,9 +646,9 @@ const detachedPartSheetConfigs: Partial<Record<SheetFighterKey, DetachedPartShee
     textureKey: "character-eagle-parts",
     asset: characterAssets.eagleParts,
     frameWidth: 181,
-    frameHeight: 272,
+    frameHeight: 181,
     scale: 0.36,
-    frames: { leftArm: 0, rightArm: 8, leftLeg: 16, rightLeg: 17, wings: 0, claws: 18, tail: 24, head: 29 }
+    frames: { leftArm: 16, rightArm: 17, leftLeg: 16, rightLeg: 17, wings: 0, claws: 18, tail: 24, head: 28 }
   }
 };
 
@@ -769,8 +792,8 @@ export class TrainingScene extends Phaser.Scene {
       });
       if (config.missingTextureKey && config.missingAsset) {
         this.load.spritesheet(config.missingTextureKey, config.missingAsset, {
-          frameWidth: 181,
-          frameHeight: 272
+          frameWidth: config.missingFrameWidth ?? 181,
+          frameHeight: config.missingFrameHeight ?? 272
         });
       }
     });

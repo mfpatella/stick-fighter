@@ -101,6 +101,8 @@ export type FighterSnapshot = {
   comboCount: number;
   comboTimer: number;
   lastComboAttack: AttackKind | null;
+  receivedHitCount: number;
+  receivedHitTimer: number;
   parts: AttachedParts;
   bonusParts: AttachedBonusPart[];
 };
@@ -302,6 +304,7 @@ const pushboxWidth = 44;
 const coyoteFrames = 6;
 const jumpBufferFrames = 7;
 const dashCooldownFrames = 20;
+const pressureRecoveryHitCount = 3;
 
 const neutralPartCatalog: Array<Omit<AttachedBonusPart, "id" | "sourceOwner">> = [
   {
@@ -649,6 +652,23 @@ const projectileSpecs: Partial<Record<FighterKey, Partial<Record<AttackKind, Pro
 };
 
 type AttackBoxTuning = Partial<Pick<AttackSpec, "reach" | "width" | "height" | "yOffset">>;
+type HurtBoxTuning = {
+  width?: number;
+  height?: number;
+  yOffset?: number;
+  headWidth?: number;
+  headHeight?: number;
+  headYOffset?: number;
+  armWidth?: number;
+  armHeight?: number;
+  armYOffset?: number;
+  legWidth?: number;
+  legHeight?: number;
+  legYOffset?: number;
+  bodyWidth?: number;
+  bodyHeight?: number;
+  bodyYOffset?: number;
+};
 
 const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKind, AttackBoxTuning>>>> = {
   tRex: {
@@ -770,6 +790,24 @@ const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKi
     low: { reach: 88, width: 104, height: 42, yOffset: -52 },
     spinKick: { reach: 102, width: 116, height: 58, yOffset: -70 }
   }
+};
+
+const fighterHurtBoxTuning: Partial<Record<FighterKey, HurtBoxTuning>> = {
+  goliath: { width: 58, height: 132, headWidth: 62, armWidth: 136, legWidth: 118, bodyWidth: 78 },
+  tRex: { width: 96, height: 118, yOffset: -4, headWidth: 78, headHeight: 48, headYOffset: -118, armWidth: 142, armHeight: 58, armYOffset: -86, legWidth: 136, legYOffset: -46, bodyWidth: 108, bodyHeight: 78, bodyYOffset: -86 },
+  hippo: { width: 98, height: 112, yOffset: -2, headWidth: 82, headHeight: 50, headYOffset: -110, armWidth: 146, armHeight: 60, armYOffset: -82, legWidth: 138, legYOffset: -44, bodyWidth: 112, bodyHeight: 76, bodyYOffset: -80 },
+  eagle: { width: 64, height: 112, yOffset: -8, headWidth: 58, headHeight: 48, headYOffset: -118, armWidth: 138, armHeight: 62, armYOffset: -86, legWidth: 102, legYOffset: -50, bodyWidth: 70, bodyHeight: 78, bodyYOffset: -86 },
+  lion: { width: 86, height: 96, yOffset: -2, headWidth: 68, headHeight: 48, headYOffset: -102, armWidth: 126, armYOffset: -78, legWidth: 126, legYOffset: -44, bodyWidth: 94, bodyHeight: 70, bodyYOffset: -76 },
+  honeyBadger: { width: 66, height: 82, yOffset: 0, headWidth: 52, headHeight: 42, headYOffset: -82, armWidth: 104, armHeight: 48, armYOffset: -64, legWidth: 100, legYOffset: -34, bodyWidth: 72, bodyHeight: 58, bodyYOffset: -62 },
+  turtle: { width: 70, height: 96, yOffset: 0, headWidth: 54, headYOffset: -94, armWidth: 112, armYOffset: -72, legWidth: 116, legYOffset: -38, bodyWidth: 84, bodyHeight: 66, bodyYOffset: -70 },
+  koolAidMan: { width: 76, height: 126, headWidth: 68, armWidth: 140, legWidth: 126, bodyWidth: 92 },
+  slimer: { width: 74, height: 98, yOffset: -14, headWidth: 66, headHeight: 46, headYOffset: -96, armWidth: 130, armHeight: 52, armYOffset: -78, legWidth: 114, legYOffset: -42, bodyWidth: 86, bodyHeight: 68, bodyYOffset: -76 },
+  stayPuft: { width: 92, height: 132, headWidth: 78, armWidth: 152, legWidth: 142, bodyWidth: 108 },
+  abrahamLincoln: { width: 56, height: 132, headWidth: 58, armWidth: 132, legWidth: 116, bodyWidth: 72 },
+  stephenHawking: { width: 70, height: 112, yOffset: 0, headWidth: 56, headYOffset: -108, armWidth: 126, armYOffset: -76, legWidth: 128, legYOffset: -44, bodyWidth: 82, bodyHeight: 74, bodyYOffset: -76 },
+  sophia: { width: 48, height: 106, headWidth: 50, armWidth: 118, legWidth: 104, bodyWidth: 64 },
+  blanche: { width: 52, height: 114, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 },
+  rose: { width: 52, height: 112, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 }
 };
 
 export class CombatSimulation {
@@ -1171,6 +1209,7 @@ export class CombatSimulation {
     fighter.hitCooldown = Math.max(0, fighter.hitCooldown - delta);
     fighter.stunTimer = Math.max(0, fighter.stunTimer - delta);
     fighter.comboTimer = Math.max(0, fighter.comboTimer - delta);
+    fighter.receivedHitTimer = Math.max(0, fighter.receivedHitTimer - delta);
     fighter.coyoteTimer = fighter.y >= groundY ? frames(coyoteFrames) : Math.max(0, fighter.coyoteTimer - delta);
 
     if (fighter.inputBufferTimer === 0) {
@@ -1180,6 +1219,10 @@ export class CombatSimulation {
     if (fighter.comboTimer === 0) {
       fighter.comboCount = 0;
       fighter.lastComboAttack = null;
+    }
+
+    if (fighter.receivedHitTimer === 0) {
+      fighter.receivedHitCount = 0;
     }
 
     fighter.stamina = Math.min(
@@ -1365,13 +1408,13 @@ export class CombatSimulation {
       return null;
     }
 
+    const spec = attackSpecs[projectile.attackKind];
     const projectileBox = getProjectileBox(projectile);
-    if (!rectsIntersect(projectileBox, getHurtBox(defender))) {
+    if (!rectsIntersect(projectileBox, getHurtBox(defender)) && !rectsIntersect(projectileBox, getTargetHurtBox(defender, spec.target))) {
       return null;
     }
 
     const attacker = projectile.owner === "player" ? this.state.player : this.state.opponent;
-    const spec = attackSpecs[projectile.attackKind];
     if (projectile.owner === "player") {
       this.playerAttackMemory[spec.kind] = (this.playerAttackMemory[spec.kind] ?? 0) + 1;
     }
@@ -1399,22 +1442,26 @@ export class CombatSimulation {
     attacker.hasHitDuringAttack = true;
 
     if (!blocked) {
+      const pressure = advanceReceivedHitPressure(defender);
       defender.state = "hit";
       defender.stunTimer = (projectile.hitStun + combo.extraHitStun + (counterHit ? frames(4) : 0)) * getHitStunTakenMultiplier(defender);
       defender.vx =
         projectile.facing *
-        (projectile.knockback + getComboReactionPush(combo.count)) *
+        (projectile.knockback + getComboReactionPush(combo.count) + pressure.extraKnockback) *
         combo.knockbackMultiplier *
         getKnockbackTakenMultiplier(defender);
       defender.vy =
-        projectile.kind === "rocket" || projectile.kind === "stone" || combo.count >= 3
-          ? (-95 - combo.extraLaunch * 0.58) * getLaunchTakenMultiplier(defender)
+        projectile.kind === "rocket" || projectile.kind === "stone" || combo.count >= 3 || pressure.breakaway
+          ? (-95 - combo.extraLaunch * 0.58 - pressure.extraLaunch) * getLaunchTakenMultiplier(defender)
           : defender.vy;
+      defender.hitCooldown = Math.max(defender.hitCooldown, pressure.extraHitCooldown);
+      defender.invulnerableTimer = Math.max(defender.invulnerableTimer, pressure.extraInvulnerable);
       this.hitStopTimer = spec.hitStop + combo.extraHitStop + (projectile.kind === "laser" ? frames(1) : 0);
       if (projectile.owner === "opponent" && !this.options.opponentControlled) {
         this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, combo.count >= 3 ? 0.32 : 0.18);
       }
     } else {
+      resetReceivedHitPressure(defender);
       defender.comboCount = 0;
       defender.comboTimer = 0;
       defender.lastComboAttack = null;
@@ -1655,11 +1702,9 @@ export class CombatSimulation {
       };
     }
 
-    if (!rectsIntersect(attackerBox, getHurtBox(defender))) {
-      return null;
-    }
-
-    if (this.options.partsEnabled && !rectsIntersect(attackerBox, getTargetHurtBox(defender, spec.target))) {
+    const hurtBox = getHurtBox(defender);
+    const targetBox = getTargetHurtBox(defender, spec.target);
+    if (!rectsIntersect(attackerBox, hurtBox) && !rectsIntersect(attackerBox, targetBox)) {
       return null;
     }
 
@@ -1691,11 +1736,12 @@ export class CombatSimulation {
     attacker.hasHitDuringAttack = true;
 
     if (!blocked) {
+      const pressure = advanceReceivedHitPressure(defender);
       defender.state = "hit";
       defender.stunTimer = (spec.hitStun + combo.extraHitStun + (counterHit ? frames(5) : 0)) * getHitStunTakenMultiplier(defender);
       defender.vx =
         attacker.facing *
-        (spec.knockback + getComboReactionPush(combo.count)) *
+        (spec.knockback + getComboReactionPush(combo.count) + pressure.extraKnockback) *
         combo.knockbackMultiplier *
         getKnockbackTakenMultiplier(defender);
       defender.vy =
@@ -1703,15 +1749,19 @@ export class CombatSimulation {
           spec.kind === "high" ||
           spec.kind === "spinKick" ||
           spec.kind === "chomp" ||
-          combo.count >= 3) &&
+          combo.count >= 3 ||
+          pressure.breakaway) &&
         defender.y >= groundY
-          ? (-135 - combo.extraLaunch - (counterHit ? 26 : 0)) * getLaunchTakenMultiplier(defender)
+          ? (-135 - combo.extraLaunch - pressure.extraLaunch - (counterHit ? 26 : 0)) * getLaunchTakenMultiplier(defender)
           : defender.vy;
+      defender.hitCooldown = Math.max(defender.hitCooldown, pressure.extraHitCooldown);
+      defender.invulnerableTimer = Math.max(defender.invulnerableTimer, pressure.extraInvulnerable);
       this.hitStopTimer = spec.hitStop + combo.extraHitStop + (counterHit ? frames(1) : 0);
       if (attackerId === "opponent" && !this.options.opponentControlled) {
         this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, combo.count >= 3 ? 0.36 : 0.2);
       }
     } else {
+      resetReceivedHitPressure(defender);
       defender.comboCount = 0;
       defender.comboTimer = 0;
       defender.lastComboAttack = null;
@@ -1926,8 +1976,10 @@ export class CombatSimulation {
       return;
     }
 
-    const scaledPushbox = pushboxWidth * ((player.stats.bodyScale + opponent.stats.bodyScale) / 2);
-    const overlap = scaledPushbox - Math.abs(player.x - opponent.x);
+    const playerHalfPushbox = Math.max((pushboxWidth * player.stats.bodyScale) / 2, getHurtBox(player).width * 0.34);
+    const opponentHalfPushbox = Math.max((pushboxWidth * opponent.stats.bodyScale) / 2, getHurtBox(opponent).width * 0.34);
+    const minDistance = playerHalfPushbox + opponentHalfPushbox;
+    const overlap = minDistance - Math.abs(player.x - opponent.x);
     if (overlap <= 0) {
       return;
     }
@@ -1936,6 +1988,15 @@ export class CombatSimulation {
     const push = overlap / 2;
     player.x = clamp(player.x + direction * push, 64, 896);
     opponent.x = clamp(opponent.x - direction * push, 64, 896);
+
+    const remainingOverlap = minDistance - Math.abs(player.x - opponent.x);
+    if (remainingOverlap > 0) {
+      if (player.x === 64 || player.x === 896) {
+        opponent.x = clamp(opponent.x - direction * remainingOverlap, 64, 896);
+      } else if (opponent.x === 64 || opponent.x === 896) {
+        player.x = clamp(player.x + direction * remainingOverlap, 64, 896);
+      }
+    }
 
     if (Math.sign(player.vx) !== direction) {
       player.vx *= 0.65;
@@ -2000,11 +2061,13 @@ export class CombatSimulation {
 }
 
 export function getHurtBox(fighter: FighterSnapshot): Rect {
-  const width = fighterWidth * fighter.stats.bodyScale;
-  const height = fighterHeight * fighter.stats.bodyScale;
+  const tuning = fighterHurtBoxTuning[fighter.key];
+  const scale = fighter.stats.bodyScale;
+  const width = (tuning?.width ?? fighterWidth) * scale;
+  const height = (tuning?.height ?? fighterHeight) * scale;
   return {
     x: fighter.x - width / 2,
-    y: fighter.y - height,
+    y: fighter.y - height + (tuning?.yOffset ?? 0) * scale,
     width,
     height
   };
@@ -2163,6 +2226,8 @@ function createFighter(key: FighterSnapshot["key"], x: number): FighterSnapshot 
     comboCount: 0,
     comboTimer: 0,
     lastComboAttack: null,
+    receivedHitCount: 0,
+    receivedHitTimer: 0,
     parts: createAttachedParts(),
     bonusParts: []
   };
@@ -2183,6 +2248,8 @@ function hashFighter(hash: number, fighter: FighterSnapshot) {
   hash = hashNumber(hash, fighter.hasFiredProjectile ? 1 : 0);
   hash = hashNumber(hash, fighter.comboCount);
   hash = hashString(hash, fighter.lastComboAttack ?? "none");
+  hash = hashNumber(hash, fighter.receivedHitCount);
+  hash = hashNumber(hash, Math.round(fighter.receivedHitTimer * combatFps));
   hash = hashNumber(hash, fighter.parts.leftArm ? 1 : 0);
   hash = hashNumber(hash, fighter.parts.rightArm ? 1 : 0);
   hash = hashNumber(hash, fighter.parts.leftLeg ? 1 : 0);
@@ -2238,6 +2305,30 @@ function createBlockedComboResult(attacker: FighterSnapshot) {
 
 function getComboReactionPush(comboCount: number) {
   return comboCount <= 1 ? 0 : Math.min(92, (comboCount - 1) * 24);
+}
+
+function advanceReceivedHitPressure(defender: FighterSnapshot) {
+  const previousCount = defender.receivedHitTimer > 0 ? defender.receivedHitCount : 0;
+  const count = Math.min(5, previousCount + 1);
+  const breakaway = count >= pressureRecoveryHitCount;
+  const breakawayScale = Math.max(0, count - pressureRecoveryHitCount + 1);
+
+  defender.receivedHitCount = count;
+  defender.receivedHitTimer = breakaway ? 1.35 : 1.05;
+
+  return {
+    count,
+    breakaway,
+    extraKnockback: breakaway ? Math.min(180, 72 + breakawayScale * 36) : 0,
+    extraLaunch: breakaway ? Math.min(130, 48 + breakawayScale * 28) : 0,
+    extraHitCooldown: breakaway ? frames(Math.min(25, 18 + breakawayScale * 3)) : 0,
+    extraInvulnerable: breakaway ? frames(Math.min(12, 5 + breakawayScale)) : 0
+  };
+}
+
+function resetReceivedHitPressure(fighter: FighterSnapshot) {
+  fighter.receivedHitCount = 0;
+  fighter.receivedHitTimer = 0;
 }
 
 function advanceCombo(attacker: FighterSnapshot, kind: AttackKind) {
@@ -2333,38 +2424,47 @@ function getChipDamage(spec: AttackSpec) {
 
 export function getTargetHurtBox(fighter: FighterSnapshot, target: AttackTarget): Rect {
   const scale = fighter.stats.bodyScale;
+  const tuning = fighterHurtBoxTuning[fighter.key];
   if (target === "head") {
+    const width = (tuning?.headWidth ?? 54) * scale;
+    const height = (tuning?.headHeight ?? 54) * scale;
     return {
-      x: fighter.x - 27 * scale,
-      y: fighter.y - 133 * scale,
-      width: 54 * scale,
-      height: 54 * scale
+      x: fighter.x - width / 2,
+      y: fighter.y + (tuning?.headYOffset ?? -133) * scale,
+      width,
+      height
     };
   }
 
   if (target === "arm") {
+    const width = (tuning?.armWidth ?? 124) * scale;
+    const height = (tuning?.armHeight ?? 58) * scale;
     return {
-      x: fighter.x - 62 * scale,
-      y: fighter.y - 100 * scale,
-      width: 124 * scale,
-      height: 58 * scale
+      x: fighter.x - width / 2,
+      y: fighter.y + (tuning?.armYOffset ?? -100) * scale,
+      width,
+      height
     };
   }
 
   if (target === "leg") {
+    const width = (tuning?.legWidth ?? 108) * scale;
+    const height = (tuning?.legHeight ?? 58) * scale;
     return {
-      x: fighter.x - 54 * scale,
-      y: fighter.y - 52 * scale,
-      width: 108 * scale,
-      height: 58 * scale
+      x: fighter.x - width / 2,
+      y: fighter.y + (tuning?.legYOffset ?? -52) * scale,
+      width,
+      height
     };
   }
 
+  const width = (tuning?.bodyWidth ?? 68) * scale;
+  const height = (tuning?.bodyHeight ?? 84) * scale;
   return {
-    x: fighter.x - 34 * scale,
-    y: fighter.y - 104 * scale,
-    width: 68 * scale,
-    height: 84 * scale
+    x: fighter.x - width / 2,
+    y: fighter.y + (tuning?.bodyYOffset ?? -104) * scale,
+    width,
+    height
   };
 }
 
