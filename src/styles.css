@@ -3307,3 +3307,451 @@ body.is-fighting .round-overlay {
     --bonus-button-height: 24px;
   }
 }
+
+/* Coliseum command-console theme inspired by the latest arena target. */
+:root {
+  --ui-void: #030812;
+  --ui-steel: #08131d;
+  --ui-steel-2: #0d1f2c;
+  --ui-panel: #07111a;
+  --ui-panel-2: #0a1b27;
+  --ui-line: #30495e;
+  --ui-line-strong: #6f8395;
+  --ui-red: #a20f17;
+  --ui-red-hot: #d92329;
+  --ui-blue: #0d5e8c;
+  --ui-gold: #f0bf4d;
+  --ui-green: #38d84f;
+  --ui-cream: #f8f2df;
+  --ui-muted: #b7c1c7;
+}
+
+body:not(.is-fighting) {
+  min-height: 100dvh;
+  background:
+    linear-gradient(90deg, rgb(6 11 18 / 96%) 0 18%, transparent 18%),
+    radial-gradient(circle at 50% 18%, rgb(43 78 94 / 24%), transparent 34rem),
+    linear-gradient(180deg, #02050a 0%, #071522 54%, #030812 100%) !important;
+  color: var(--ui-cream);
+}
+
+body:not(.is-fighting) .shell {
+  width: min(1580px, calc(100vw - 14px));
+  padding: 8px 0 14px;
+}
+
+.topbar {
+  min-height: 58px !important;
+  border: 1px solid rgb(111 131 149 / 38%) !important;
+  border-radius: 0 !important;
+  padding: 9px 18px !important;
+  background:
+    linear-gradient(180deg, rgb(7 16 25 / 98%), rgb(3 8 15 / 98%)),
+    var(--ui-void) !important;
+  box-shadow: inset 0 -1px 0 rgb(240 191 77 / 22%), 0 14px 34px rgb(0 0 0 / 36%) !important;
+}
+
+.topbar h1 {
+  color: var(--ui-cream) !important;
+  font-size: clamp(1.65rem, 3vw, 2.55rem) !important;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.topbar h1::after {
+  content: " FIGHTER";
+  color: var(--ui-red-hot);
+}
+
+.mode-pill {
+  border-color: rgb(240 191 77 / 28%) !important;
+  background: rgb(255 255 255 / 5%) !important;
+  color: var(--ui-green) !important;
+}
+
+.menu-overlay,
+.lobby-screen {
+  border: 1px solid rgb(111 131 149 / 46%) !important;
+  border-radius: 2px !important;
+  background:
+    linear-gradient(180deg, rgb(8 18 28 / 96%), rgb(3 8 14 / 98%)),
+    var(--ui-panel) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 4%),
+    0 18px 42px rgb(0 0 0 / 42%) !important;
+}
+
+.menu-overlay {
+  grid-template-columns: 286px minmax(0, 1fr) !important;
+  gap: 16px !important;
+  min-height: min(680px, calc(100dvh - 88px));
+  padding: 0 !important;
+}
+
+.menu-header {
+  min-height: 72px;
+  border-bottom: 1px solid rgb(111 131 149 / 34%) !important;
+  padding: 14px 18px !important;
+  background: linear-gradient(90deg, rgb(8 19 29 / 95%), rgb(5 11 18 / 84%));
+}
+
+.menu-tabs {
+  gap: 8px !important;
+  border-right: 1px solid rgb(111 131 149 / 36%) !important;
+  padding: 0 !important;
+  background: linear-gradient(180deg, rgb(2 7 12 / 64%), rgb(7 16 25 / 36%));
+}
+
+.menu-tab {
+  position: relative;
+  justify-content: flex-start !important;
+  min-height: 98px !important;
+  border: 1px solid rgb(111 131 149 / 32%) !important;
+  border-radius: 0 !important;
+  padding: 18px 22px !important;
+  background: linear-gradient(180deg, rgb(10 27 39 / 76%), rgb(5 12 18 / 82%)) !important;
+  color: var(--ui-cream) !important;
+  font-size: clamp(1.2rem, 2vw, 1.85rem) !important;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.menu-tab::before {
+  width: 52px;
+  margin-right: 16px;
+  color: var(--ui-cream);
+  font-size: 2rem;
+  text-align: center;
+}
+
+.menu-tab[data-menu-tab="play"]::before {
+  content: "X";
+}
+
+.menu-tab[data-menu-tab="fighter"]::before {
+  content: "P1";
+}
+
+.menu-tab[data-menu-tab="rules"]::before {
+  content: "R";
+}
+
+.menu-tab[data-menu-tab="online"]::before {
+  content: "ON";
+}
+
+.menu-tab.is-active {
+  border-color: rgb(240 191 77 / 70%) !important;
+  background: linear-gradient(90deg, #b31318, #771017) !important;
+  box-shadow: inset 8px 0 0 var(--ui-gold), 0 8px 24px rgb(162 15 23 / 28%) !important;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 0 100%);
+}
+
+.menu-form {
+  padding: 18px 18px 16px 0 !important;
+}
+
+.menu-panel,
+.profile-setup,
+.auth-panel,
+.fighter-icon-panel,
+.fighter-preview-card,
+.lobby-card,
+.balance-telemetry,
+.stats-summary,
+.avatar-preview,
+.menu-note,
+.round-panel {
+  border: 1px solid rgb(111 131 149 / 42%) !important;
+  border-radius: 2px !important;
+  background:
+    linear-gradient(180deg, rgb(10 23 34 / 92%), rgb(4 10 16 / 96%)),
+    var(--ui-panel) !important;
+  color: var(--ui-cream) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%) !important;
+}
+
+.menu-panel label > span,
+.fighter-icon-heading span,
+.profile-copy span,
+.auth-panel span,
+.avatar-preview span,
+.fighter-preview-card p,
+.fighter-stat span,
+.move-list li,
+.menu-note,
+.lobby-card p,
+.lobby-card span,
+.netplay-status {
+  color: var(--ui-muted) !important;
+}
+
+.menu-panel select,
+.menu-panel input[type="text"],
+.menu-panel input[type="email"],
+.menu-panel input[type="password"] {
+  border-color: rgb(111 131 149 / 62%) !important;
+  border-radius: 2px !important;
+  background: linear-gradient(180deg, rgb(13 31 44 / 92%), rgb(3 8 12 / 94%)) !important;
+  color: var(--ui-cream) !important;
+}
+
+.fighter-preview-card h3 {
+  border-bottom: 3px solid var(--ui-red);
+  margin: -2px -2px 12px;
+  padding: 10px 12px;
+  background: linear-gradient(90deg, rgb(136 16 22 / 88%), rgb(75 10 14 / 78%));
+  color: var(--ui-cream);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+#opponent-fighter-card h3 {
+  border-bottom-color: var(--ui-blue);
+  background: linear-gradient(90deg, rgb(12 73 108 / 88%), rgb(7 31 48 / 82%));
+}
+
+.fighter-card-art {
+  border: 1px solid rgb(240 191 77 / 38%) !important;
+  border-radius: 2px !important;
+  background:
+    linear-gradient(180deg, rgb(173 119 45 / 24%), rgb(48 31 17 / 36%)),
+    radial-gradient(circle at 50% 92%, rgb(240 191 77 / 24%), transparent 48%) !important;
+}
+
+.fighter-stat meter {
+  height: 10px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 8%);
+}
+
+.fighter-stat meter::-webkit-meter-optimum-value {
+  background: linear-gradient(90deg, #d51c26, #f0bf4d, #28c854);
+}
+
+.fighter-tags span {
+  border-color: rgb(240 191 77 / 46%) !important;
+  background: rgb(240 191 77 / 13%) !important;
+  color: var(--ui-gold) !important;
+}
+
+.primary-action,
+.menu-actions .primary-action,
+.lobby-actions .primary-action,
+.round-actions .primary-action {
+  min-height: 58px !important;
+  border: 1px solid rgb(240 191 77 / 74%) !important;
+  border-radius: 2px !important;
+  padding-inline: clamp(22px, 5vw, 72px) !important;
+  background:
+    linear-gradient(180deg, #c71920, #821017),
+    var(--ui-red) !important;
+  color: #fff8e8 !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), 0 12px 28px rgb(0 0 0 / 28%) !important;
+  font-size: clamp(1.15rem, 2.3vw, 2rem) !important;
+  text-transform: uppercase;
+  clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%);
+}
+
+.menu-actions button,
+.secondary-action,
+.auth-actions button,
+.lobby-actions button,
+.round-actions button,
+.menu-button,
+.icon-button {
+  border: 1px solid rgb(111 131 149 / 56%) !important;
+  border-radius: 2px !important;
+  background: linear-gradient(180deg, rgb(14 31 44 / 86%), rgb(5 12 19 / 92%)) !important;
+  color: var(--ui-cream) !important;
+  text-transform: uppercase;
+}
+
+.lobby-header,
+.lobby-actions,
+.round-actions {
+  border-color: rgb(111 131 149 / 38%) !important;
+}
+
+.round-overlay {
+  background: rgb(2 6 11 / 72%) !important;
+  backdrop-filter: blur(4px);
+}
+
+.round-panel h2 {
+  color: var(--ui-gold) !important;
+}
+
+body.is-fighting #game {
+  background: #100b07 !important;
+}
+
+body.is-fighting .fight-header {
+  border: 1px solid rgb(111 131 149 / 54%) !important;
+  border-radius: 3px !important;
+  background: linear-gradient(180deg, rgb(8 18 28 / 94%), rgb(3 7 12 / 96%)) !important;
+  box-shadow: 0 10px 22px rgb(0 0 0 / 34%) !important;
+}
+
+body.is-fighting #exit-fight {
+  border-color: rgb(111 131 149 / 64%) !important;
+  background: linear-gradient(180deg, rgb(16 31 42 / 94%), rgb(5 9 15 / 96%)) !important;
+  color: var(--ui-cream) !important;
+}
+
+body.is-fighting .joystick {
+  border: 2px solid rgb(255 255 255 / 48%) !important;
+  background: radial-gradient(circle, rgb(255 255 255 / 20%), rgb(16 21 24 / 54%)) !important;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 36%), inset 0 0 0 1px rgb(255 255 255 / 18%) !important;
+}
+
+body.is-fighting .joystick-thumb {
+  border: 2px solid rgb(0 0 0 / 34%);
+  background: radial-gradient(circle at 35% 30%, #ff5a4d, #a20f17) !important;
+}
+
+body.is-fighting .touch-button {
+  border: 2px solid rgb(15 19 23 / 88%) !important;
+  border-radius: 8px !important;
+  background: linear-gradient(180deg, #0d5e8c, #07334f) !important;
+  color: #f8f2df !important;
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 12%),
+    0 8px 18px rgb(0 0 0 / 32%) !important;
+  text-shadow: 0 2px 0 rgb(0 0 0 / 36%);
+}
+
+body.is-fighting .touch-button-guard {
+  background: linear-gradient(180deg, #1e2833, #0b1218) !important;
+}
+
+body.is-fighting .touch-button-bonus {
+  background: linear-gradient(180deg, #182838, #09131b) !important;
+}
+
+body.is-fighting #control-attack-top,
+body.is-fighting [data-touch-action="heavy"] {
+  background: linear-gradient(180deg, #a20f17, #610b10) !important;
+}
+
+body.is-fighting #control-attack-right,
+body.is-fighting [data-touch-action="high"] {
+  background: linear-gradient(180deg, #532277, #241237) !important;
+}
+
+body.is-fighting #control-attack-bottom,
+body.is-fighting [data-touch-action="low"] {
+  background: linear-gradient(180deg, #a66b16, #60370d) !important;
+}
+
+body.is-fighting #control-kick,
+body.is-fighting [data-touch-action="kick"] {
+  background: linear-gradient(180deg, #286e25, #123a15) !important;
+}
+
+@media (max-width: 860px) {
+  .menu-overlay {
+    min-height: auto;
+    padding: 0 !important;
+  }
+
+  .menu-tab {
+    min-height: 54px !important;
+    font-size: 0.82rem !important;
+    clip-path: none;
+  }
+
+  .menu-tab::before {
+    display: none;
+  }
+
+  .menu-form {
+    padding: 12px !important;
+  }
+}
+
+/* Final viewport polish for the arena-command layout. */
+body:not(.is-fighting) {
+  overflow: hidden !important;
+}
+
+body:not(.is-fighting) .shell {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+body:not(.is-fighting) #install-root,
+body:not(.is-fighting) .install-card {
+  display: none !important;
+}
+
+body:not(.is-fighting) .topbar {
+  flex: 0 0 auto !important;
+}
+
+body:not(.is-fighting) .menu-overlay,
+body:not(.is-fighting) .lobby-screen {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+body:not(.is-fighting) .menu-overlay {
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body:not(.is-fighting) .menu-header {
+  min-height: 56px !important;
+  padding: 10px 16px !important;
+}
+
+body:not(.is-fighting) .menu-header h2 {
+  font-size: clamp(1.35rem, 2.45vw, 2.2rem) !important;
+}
+
+body:not(.is-fighting) .menu-tabs {
+  min-height: 0 !important;
+  overflow: hidden auto !important;
+}
+
+body:not(.is-fighting) .menu-tab {
+  min-height: clamp(68px, 14dvh, 88px) !important;
+}
+
+body:not(.is-fighting) .menu-tab::before {
+  display: none !important;
+}
+
+body:not(.is-fighting) .menu-form {
+  min-height: 0 !important;
+  overflow: hidden auto !important;
+  padding: 14px 14px 0 0 !important;
+}
+
+body:not(.is-fighting) .menu-panel.is-active {
+  min-height: 0 !important;
+}
+
+body:not(.is-fighting) .menu-actions {
+  position: sticky !important;
+  z-index: 12 !important;
+  bottom: 0 !important;
+  margin-top: 14px !important;
+  padding: 10px 0 14px !important;
+  background: linear-gradient(180deg, rgb(3 8 14 / 0%), rgb(3 8 14 / 92%) 24%, rgb(3 8 14 / 98%)) !important;
+}
+
+body:not(.is-fighting) .menu-actions .primary-action {
+  min-width: min(420px, 100%) !important;
+}
+
+body.is-fighting .controls {
+  color: var(--ui-cream) !important;
+}

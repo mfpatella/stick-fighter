@@ -177,6 +177,10 @@ function paddedRuntimeFrame(
   };
 }
 
+function standardRuntimeFrame() {
+  return paddedRuntimeFrame(181, 181, 36, 27, 27);
+}
+
 function getSheetRowCount(row: SheetRow) {
   return "frames" in row ? row.frames.length : row.count;
 }
@@ -308,8 +312,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.eagleRuntimeActions,
     missingTextureKey: "character-eagle-missing",
     missingAsset: characterAssets.eagleMissing,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [40, 47] },
     run: { frames: [41, 42, 43, 47] },
     chomp: { frames: [43, 47] },
@@ -329,8 +332,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   lion: {
     textureKey: "character-lion-actions",
     asset: characterAssets.lionRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { start: 0, count: 8 },
     run: { start: 24, count: 6 },
     chomp: { start: 8, count: 6 },
@@ -350,8 +352,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   honeyBadger: {
     textureKey: "character-honey-badger-actions",
     asset: characterAssets.honeyBadgerRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { start: 0, count: 7 },
     run: { start: 0, count: 7 },
     clawSwipe: { start: 8, count: 6 },
@@ -371,8 +372,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   chefBoyardee: {
     textureKey: "character-chef-boyardee-actions",
     asset: characterAssets.chefBoyardeeRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { start: 0, count: 8 },
     high: { frames: [8, 9, 10, 11, 14, 15] },
     heavy: { frames: [16, 17, 18, 23] },
@@ -389,8 +389,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   marthaStewart: {
     textureKey: "character-martha-stewart-actions",
     asset: characterAssets.marthaStewartRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { start: 0, count: 8 },
     heavy: { frames: [8, 9, 10, 11, 12, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -407,8 +406,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   stephenHawking: {
     textureKey: "character-stephen-hawking-actions",
     asset: characterAssets.stephenHawkingRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { start: 0, count: 8 },
     run: { frames: [8, 10, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -426,8 +424,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   helenKeller: {
     textureKey: "character-helen-keller-actions",
     asset: characterAssets.helenKellerRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { start: 0, count: 8 },
     light: { frames: [8, 9, 10, 11, 12, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -444,8 +441,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   turtle: {
     textureKey: "character-turtle-actions",
     asset: characterAssets.turtleRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { start: 0, count: 8 },
     light: { frames: [8, 9, 10, 11, 14, 15] },
     heavy: { frames: [40, 41, 42, 47] },
@@ -463,7 +459,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   abrahamLincoln: {
     textureKey: "character-abraham-lincoln-actions",
     asset: characterAssets.abrahamLincolnRuntimeActions,
-    ...paddedRuntimeFrame(220, 280, 56, 20),
+    ...paddedRuntimeFrame(332, 300, 20, 20, 20),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 12, 13, 15] },
     heavy: { frames: [16, 17, 18, 21, 23] },
@@ -481,8 +477,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   koolAidMan: {
     textureKey: "character-kool-aid-man-actions",
     asset: characterAssets.koolAidManRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [1, 2, 3, 4, 5] },
     light: { frames: [7, 8, 9, 10, 11] },
     heavy: { frames: [25, 26, 27, 28, 29] },
@@ -499,8 +494,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   slimer: {
     textureKey: "character-slimer-actions",
     asset: characterAssets.slimerRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 3, 4, 5, 7] },
     run: { frames: [16, 17, 19, 20, 21, 23] },
     high: { frames: [8, 9, 10, 15] },
@@ -519,8 +513,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   stayPuft: {
     textureKey: "character-stay-puft-actions",
     asset: characterAssets.stayPuftRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 14, 15] },
     heavy: { frames: [40, 41, 42, 43, 44, 45, 46, 47] },
@@ -538,8 +531,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   dorothy: {
     textureKey: "character-dorothy-actions",
     asset: characterAssets.dorothyRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
     heavy: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
@@ -556,8 +548,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   sophia: {
     textureKey: "character-sophia-actions",
     asset: characterAssets.sophiaRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
     heavy: { frames: [24, 25, 26, 27, 28, 30, 31] },
@@ -574,8 +565,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   blanche: {
     textureKey: "character-blanche-actions",
     asset: characterAssets.blancheRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     light: { frames: [8, 9, 10, 11, 12, 13, 14, 15] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
@@ -592,15 +582,14 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
   rose: {
     textureKey: "character-rose-actions",
     asset: characterAssets.roseRuntimeActions,
-    frameWidth: 181,
-    frameHeight: 181,
+    ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
     high: { frames: [8, 9, 10, 11, 14, 15] },
     light: { frames: [16, 17, 18, 19, 22, 23] },
-    heavy: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    heavy: { frames: [32, 33, 34, 35, 36, 37, 38] },
     low: { frames: [24, 25, 26, 27, 30, 31] },
-    kick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
-    spinKick: { frames: [32, 33, 34, 35, 36, 37, 38, 39] },
+    kick: { frames: [32, 33, 34, 35, 36, 37, 38] },
+    spinKick: { frames: [32, 33, 34, 35, 36, 37, 38] },
     scale: 0.98,
     baseBodyScale: 0.98,
     originX: 0.5,
@@ -780,28 +769,43 @@ export class TrainingScene extends Phaser.Scene {
 
   preload() {
     Object.entries(backgroundAssets).forEach(([key, url]) => {
-      this.load.image(`kenney-bg-${key}`, url);
+      const textureKey = `kenney-bg-${key}`;
+      if (!this.textures.exists(textureKey)) {
+        this.load.image(textureKey, url);
+      }
     });
-    this.load.spritesheet("oga-spark", effectAssets.spark, { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet("oga-spark-alt", effectAssets.sparkAlt, { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet("oga-toon-explosion", effectAssets.toonExplosion, { frameWidth: 128, frameHeight: 128 });
+    if (!this.textures.exists("oga-spark")) {
+      this.load.spritesheet("oga-spark", effectAssets.spark, { frameWidth: 32, frameHeight: 32 });
+    }
+    if (!this.textures.exists("oga-spark-alt")) {
+      this.load.spritesheet("oga-spark-alt", effectAssets.sparkAlt, { frameWidth: 32, frameHeight: 32 });
+    }
+    if (!this.textures.exists("oga-toon-explosion")) {
+      this.load.spritesheet("oga-toon-explosion", effectAssets.toonExplosion, { frameWidth: 128, frameHeight: 128 });
+    }
     Object.values(characterSheetConfigs).forEach((config) => {
-      this.load.spritesheet(config.textureKey, config.asset, {
-        frameWidth: config.frameWidth,
-        frameHeight: config.frameHeight
-      });
-      if (config.missingTextureKey && config.missingAsset) {
-        this.load.spritesheet(config.missingTextureKey, config.missingAsset, {
-          frameWidth: config.missingFrameWidth ?? 181,
-          frameHeight: config.missingFrameHeight ?? 272
+      if (!this.textures.exists(config.textureKey)) {
+        this.load.spritesheet(config.textureKey, config.asset, {
+          frameWidth: config.frameWidth,
+          frameHeight: config.frameHeight
         });
+      }
+      if (config.missingTextureKey && config.missingAsset) {
+        if (!this.textures.exists(config.missingTextureKey)) {
+          this.load.spritesheet(config.missingTextureKey, config.missingAsset, {
+            frameWidth: config.missingFrameWidth ?? 181,
+            frameHeight: config.missingFrameHeight ?? 272
+          });
+        }
       }
     });
     Object.values(detachedPartSheetConfigs).forEach((config) => {
-      this.load.spritesheet(config.textureKey, config.asset, {
-        frameWidth: config.frameWidth,
-        frameHeight: config.frameHeight
-      });
+      if (!this.textures.exists(config.textureKey)) {
+        this.load.spritesheet(config.textureKey, config.asset, {
+          frameWidth: config.frameWidth,
+          frameHeight: config.frameHeight
+        });
+      }
     });
   }
 
@@ -1384,33 +1388,54 @@ export class TrainingScene extends Phaser.Scene {
 
   private createArena() {
     const palette = getLevelPalette(this.settings.level);
-    this.add.rectangle(480, 250, 960, 380, palette.sky);
-    this.add.image(480, 214, "kenney-bg-sky").setDisplaySize(960, 360).setAlpha(0.7);
-    this.add.rectangle(480, 321, 960, 182, palette.haze, 0.36);
-    this.add.circle(115, 150, 48, palette.sun, 0.85);
-    this.add.circle(128, 145, 68, 0xf0c76e, 0.12);
-    this.add.circle(128, 145, 95, 0xf0c76e, 0.07);
-    this.add.triangle(196, 185, 0, 0, 64, 190, -38, 190, 0xfff3bf, 0.08).setAngle(-18);
-    this.add.triangle(352, 176, 0, 0, 52, 210, -28, 210, 0xfff3bf, 0.055).setAngle(-8);
-    this.add.ellipse(270, 275, 420, 96, palette.hillA, 0.5);
-    this.add.ellipse(720, 278, 500, 112, palette.hillB, 0.46);
-    this.add.ellipse(135, 236, 220, 46, 0xdad6bb, 0.34);
-    this.add.ellipse(835, 232, 260, 54, 0xdad6bb, 0.28);
-    this.add.rectangle(480, 382, 900, 18, 0xc6aa79, 0.42);
-    this.add.rectangle(480, 406, 900, 5, 0x5e4d34, 0.5);
+    const arenaWidth = 1800;
+    const arenaCenterX = 480;
+    const trackWidth = 1700;
+    this.add.rectangle(arenaCenterX, 250, arenaWidth, 380, 0x17110d);
+    this.add.rectangle(arenaCenterX, 108, arenaWidth, 220, 0x07111a, 0.62);
+    this.add.image(arenaCenterX, 214, "kenney-bg-sky").setDisplaySize(arenaWidth, 360).setTint(0x6f4c2a).setAlpha(0.12);
+    this.add.rectangle(arenaCenterX, 321, arenaWidth, 182, 0x5b351d, 0.28);
+    this.add.circle(112, 150, 50, palette.sun, 0.34);
+    this.add.circle(126, 146, 74, 0xf0c76e, 0.08);
+    this.add.circle(126, 146, 106, 0xf0c76e, 0.035);
+    this.add.triangle(196, 185, 0, 0, 64, 190, -38, 190, 0xfff3bf, 0.04).setAngle(-18);
+    this.add.triangle(352, 176, 0, 0, 52, 210, -28, 210, 0xfff3bf, 0.03).setAngle(-8);
+    this.add.ellipse(270, 275, 420, 96, 0x6f5437, 0.36);
+    this.add.ellipse(720, 278, 500, 112, 0x4c4035, 0.42);
+    this.add.ellipse(135, 236, 220, 46, 0x8f7552, 0.18);
+    this.add.ellipse(835, 232, 260, 54, 0x7d6849, 0.16);
+    this.add.rectangle(arenaCenterX, 382, trackWidth, 18, 0xc89a51, 0.36);
+    this.add.rectangle(arenaCenterX, 406, trackWidth, 5, 0x2d2118, 0.68);
     this.createLevelScenery();
 
-    this.add.rectangle(480, 476, 960, 128, 0x7b8a6f);
-    this.add.rectangle(480, 452, 960, 8, 0x95a985, 0.55);
-    this.add.rectangle(480, groundY + 4, 960, 8, 0x202820);
-    this.add.rectangle(480, 430, 960, 24, 0xb28b5f);
-    this.add.rectangle(480, 423, 960, 2, palette.banner, 0.42);
+    this.add.rectangle(arenaCenterX, 354, arenaWidth, 162, 0x81572f, 0.82);
+    this.add.rectangle(arenaCenterX, 316, arenaWidth, 10, 0x2a1a12, 0.72);
+    this.add.rectangle(arenaCenterX, 392, arenaWidth, 12, 0x2a1a12, 0.68);
+    this.add.rectangle(arenaCenterX, 433, arenaWidth, 16, 0x18100d, 0.7);
+    for (let x = -310; x <= 1280; x += 118) {
+      this.add.rectangle(x, 367, 72, 116, 0x1b120e, 0.44);
+      this.add.ellipse(x, 321, 72, 56, 0x1b120e, 0.5);
+      this.add.rectangle(x, 386, 38, 74, 0x080706, 0.5);
+      this.add.rectangle(x - 45, 371, 10, 132, 0xb7894f, 0.28);
+      this.add.rectangle(x + 45, 371, 10, 132, 0xb7894f, 0.28);
+    }
+    this.add.rectangle(arenaCenterX, 336, arenaWidth, 4, 0xe2b05a, 0.32);
+    this.add.rectangle(arenaCenterX, 418, arenaWidth, 3, 0xe2b05a, 0.28);
+    this.add.rectangle(arenaCenterX, 352, 54, 122, 0x8f1d22, 0.58);
+    this.add.triangle(arenaCenterX, 427, -27, -14, 27, -14, 0, 22, 0x8f1d22, 0.58);
+    this.add.rectangle(arenaCenterX, 318, 6, 108, 0xe2b05a, 0.36);
+
+    this.add.rectangle(arenaCenterX, 476, arenaWidth, 128, 0x876139);
+    this.add.rectangle(arenaCenterX, 452, arenaWidth, 8, 0xb98748, 0.66);
+    this.add.rectangle(arenaCenterX, groundY + 4, arenaWidth, 8, 0x202820);
+    this.add.rectangle(arenaCenterX, 430, arenaWidth, 24, 0x7a5130);
+    this.add.rectangle(arenaCenterX, 423, arenaWidth, 2, palette.banner, 0.64);
     this.add.rectangle(205, groundY - 4, 86, 5, palette.banner, 0.78);
     this.add.rectangle(755, groundY - 4, 86, 5, palette.banner, 0.78);
-    this.add.rectangle(480, 220, 900, 4, 0xd5bea0, 0.8);
-    this.add.rectangle(480, 265, 900, 3, 0xd5bea0, 0.46);
-    this.add.rectangle(480, 398, 900, 2, 0xf4dfb7, 0.55);
-    this.add.rectangle(480, 536, 960, 16, 0x202820, 0.08);
+    this.add.rectangle(arenaCenterX, 220, trackWidth, 4, 0xd5bea0, 0.52);
+    this.add.rectangle(arenaCenterX, 265, trackWidth, 3, 0xd5bea0, 0.34);
+    this.add.rectangle(arenaCenterX, 398, trackWidth, 2, 0xf4dfb7, 0.38);
+    this.add.rectangle(arenaCenterX, 536, arenaWidth, 16, 0x120c09, 0.2);
   }
 
   private createLevelScenery() {
@@ -1476,45 +1501,55 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private createHud() {
+    this.add.rectangle(480, 58, 960, 116, 0x030812, 0.36);
+    this.add.rectangle(480, 112, 960, 2, 0xe2b05a, 0.22);
     this.add.text(24, 18, this.simulation.state.player.name, {
-      color: "#1f2428",
+      color: "#f8f2df",
       fontFamily: "Arial",
       fontSize: "18px",
-      fontStyle: "bold"
+      fontStyle: "bold",
+      stroke: "#030812",
+      strokeThickness: 4
     });
     this.add.text(818, 18, this.simulation.state.opponent.name, {
-      color: "#1f2428",
+      color: "#f8f2df",
       fontFamily: "Arial",
       fontSize: "18px",
-      fontStyle: "bold"
+      fontStyle: "bold",
+      stroke: "#030812",
+      strokeThickness: 4
     });
 
-    this.add.rectangle(144, 52, 240, 18, 0x202820);
-    this.add.rectangle(816, 52, 240, 18, 0x202820);
+    this.add.rectangle(144, 52, 244, 20, 0x030812, 0.92);
+    this.add.rectangle(816, 52, 244, 20, 0x030812, 0.92);
+    this.add.rectangle(144, 52, 240, 18, 0xd0a247, 0.24);
+    this.add.rectangle(816, 52, 240, 18, 0xd0a247, 0.24);
     this.playerHealth = this.add.rectangle(26, 52, 236, 14, 0x2f8f5b).setOrigin(0, 0.5);
-    this.opponentHealth = this.add.rectangle(934, 52, 236, 14, 0x8f2f3f).setOrigin(1, 0.5);
-    this.add.rectangle(144, 76, 180, 10, 0x202820);
-    this.add.rectangle(816, 76, 180, 10, 0x202820);
+    this.opponentHealth = this.add.rectangle(934, 52, 236, 14, 0x9d1725).setOrigin(1, 0.5);
+    this.add.rectangle(144, 76, 184, 12, 0x030812, 0.92);
+    this.add.rectangle(816, 76, 184, 12, 0x030812, 0.92);
     this.playerStamina = this.add.rectangle(56, 76, 176, 6, 0xc79d3b).setOrigin(0, 0.5);
     this.opponentStamina = this.add.rectangle(904, 76, 176, 6, 0xc79d3b).setOrigin(1, 0.5);
 
     this.timerText = this.add.text(480, 48, formatRoundTimer(getRemainingRoundTime(this.settings, 0)), {
       align: "center",
-      color: "#202820",
+      color: "#f0bf4d",
       fontFamily: "Arial",
       fontSize: "22px",
       fontStyle: "bold",
-      stroke: "#fff7df",
-      strokeThickness: 4
+      stroke: "#030812",
+      strokeThickness: 5
     });
     this.timerText.setOrigin(0.5);
 
     this.statusText = this.add.text(480, 94, getModeStatus(this.settings), {
       align: "center",
-      color: "#334039",
+      color: "#f8f2df",
       fontFamily: "Arial",
       fontSize: "15px",
       fontStyle: "bold",
+      stroke: "#030812",
+      strokeThickness: 3,
       wordWrap: {
         width: 720,
         useAdvancedWrap: true
@@ -1524,21 +1559,23 @@ export class TrainingScene extends Phaser.Scene {
 
     this.objectiveText = this.add.text(480, 120, formatObjective(this.objective), {
       align: "center",
-      color: "#5d4a16",
+      color: "#f0bf4d",
       fontFamily: "Arial",
       fontSize: "13px",
       fontStyle: "bold",
-      stroke: "#fff7df",
+      stroke: "#030812",
       strokeThickness: 3
     });
     this.objectiveText.setOrigin(0.5);
     this.objectiveText.setAlpha(this.objective.kind === "none" ? 0 : 0.92);
 
     this.perfText = this.add.text(24, 96, "", {
-      color: "#334039",
+      color: "#d6d0ba",
       fontFamily: "Arial",
       fontSize: "12px",
-      fontStyle: "bold"
+      fontStyle: "bold",
+      stroke: "#030812",
+      strokeThickness: 2
     });
     this.perfText.setAlpha(0.72);
     this.perfText.setVisible(this.settings.matchType === "testing" || this.settings.showHitboxes);
