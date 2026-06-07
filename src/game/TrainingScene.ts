@@ -160,6 +160,22 @@ type CharacterSheetConfig = {
   yOffset: number;
 };
 
+type SpriteContentBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+};
+
+type SpriteFrameAnchor = {
+  originX: number;
+  originY: number;
+};
+
 function paddedRuntimeFrame(
   contentFrameWidth: number,
   contentFrameHeight: number,
@@ -195,9 +211,103 @@ function getSheetRowFrame(row: SheetRow, frameIndex: number) {
   return "frames" in row ? row.frames[clampedIndex] : row.start + clampedIndex;
 }
 
+function getSheetRowFrames(row: SheetRow) {
+  return Array.from({ length: getSheetRowCount(row) }, (_, index) => getSheetRowFrame(row, index));
+}
+
 function getSheetRowCycleFrame(row: SheetRow, elapsedMs: number, speed: number) {
   const count = getSheetRowCount(row);
   return getSheetRowFrame(row, Math.floor(elapsedMs / speed) % Math.max(1, count));
+}
+
+function measureSpriteFrameBounds(
+  imageData: ImageData,
+  imageWidth: number,
+  frameWidth: number,
+  frameHeight: number,
+  frame: number,
+  columns: number
+): SpriteContentBounds | null {
+  const frameX = (frame % columns) * frameWidth;
+  const frameY = Math.floor(frame / columns) * frameHeight;
+  let minX = frameWidth;
+  let minY = frameHeight;
+  let maxX = -1;
+  let maxY = -1;
+  let alphaCount = 0;
+  const alphaThreshold = 32;
+
+  for (let y = 0; y < frameHeight; y += 1) {
+    for (let x = 0; x < frameWidth; x += 1) {
+      const alpha = imageData.data[((frameY + y) * imageWidth + frameX + x) * 4 + 3];
+      if (alpha <= alphaThreshold) {
+        continue;
+      }
+
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      alphaCount += 1;
+    }
+  }
+
+  if (alphaCount <= 0) {
+    return null;
+  }
+
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+  const lowerStartY = minY + height * 0.52;
+  let lowerMinX = frameWidth;
+  let lowerMaxX = -1;
+  let lowerAlphaCount = 0;
+
+  for (let y = Math.floor(lowerStartY); y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const alpha = imageData.data[((frameY + y) * imageWidth + frameX + x) * 4 + 3];
+      if (alpha <= alphaThreshold) {
+        continue;
+      }
+
+      lowerMinX = Math.min(lowerMinX, x);
+      lowerMaxX = Math.max(lowerMaxX, x);
+      lowerAlphaCount += 1;
+    }
+  }
+
+  const anchorX = lowerAlphaCount >= alphaCount * 0.08 ? (lowerMinX + lowerMaxX) / 2 : (minX + maxX) / 2;
+  const anchorY = maxY;
+
+  return { minX, minY, maxX, maxY, width, height, anchorX, anchorY };
+}
+
+function isFullBodySpriteFrame(bounds: SpriteContentBounds, config: CharacterSheetConfig) {
+  return bounds.width >= config.frameWidth * 0.16 && bounds.height >= config.frameHeight * 0.35;
+}
+
+function isUsableSpriteFrame(
+  bounds: SpriteContentBounds,
+  config: CharacterSheetConfig,
+  referenceWidth: number,
+  referenceHeight: number
+) {
+  const minWidth = Math.max(config.frameWidth * 0.16, referenceWidth * 0.45);
+  const minHeight = Math.max(config.frameHeight * 0.34, referenceHeight * 0.58);
+  const maxWidth = Math.max(referenceWidth * 2.35, config.frameWidth * 0.52);
+  const groundedEnough = bounds.anchorY >= config.frameHeight * 0.54;
+
+  return isFullBodySpriteFrame(bounds, config) && bounds.width >= minWidth && bounds.height >= minHeight && bounds.width <= maxWidth && groundedEnough;
+}
+
+function median(values: number[]) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
 type DetachedPartSheetConfig = {
@@ -442,14 +552,14 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     textureKey: "character-turtle-actions",
     asset: characterAssets.turtleRuntimeActions,
     ...standardRuntimeFrame(),
-    idle: { start: 0, count: 8 },
-    light: { frames: [8, 9, 10, 11, 14, 15] },
-    heavy: { frames: [40, 41, 42, 47] },
-    kick: { frames: [16, 17, 18, 19, 22, 23] },
-    low: { frames: [40, 41, 42, 47] },
-    spinKick: { frames: [32, 33, 34, 35, 36, 38, 39] },
-    high: { frames: [32, 33, 34, 35, 36, 38, 39] },
-    run: { frames: [24, 25, 26, 27, 28, 30, 31] },
+    idle: { frames: [0, 1, 2, 7] },
+    light: { frames: [8, 9, 10, 15] },
+    heavy: { frames: [40, 41, 42, 46, 47] },
+    kick: { frames: [16, 17, 18, 19, 23] },
+    low: { frames: [40, 41, 42, 46, 47] },
+    spinKick: { frames: [32, 33, 40, 41, 42, 47] },
+    high: { frames: [32, 33, 40, 41, 42, 47] },
+    run: { frames: [24, 25, 31] },
     scale: 1.06,
     baseBodyScale: 0.96,
     originX: 0.5,
@@ -478,13 +588,13 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     textureKey: "character-kool-aid-man-actions",
     asset: characterAssets.koolAidManRuntimeActions,
     ...standardRuntimeFrame(),
-    idle: { frames: [1, 2, 3, 4, 5] },
-    light: { frames: [7, 8, 9, 10, 11] },
-    heavy: { frames: [25, 26, 27, 28, 29] },
-    kick: { frames: [13, 14, 15, 16, 17] },
-    low: { frames: [13, 14, 15, 16, 17] },
-    high: { frames: [19, 20, 23] },
-    spinKick: { frames: [25, 26, 27, 28, 29] },
+    idle: { frames: [0, 1, 2, 7] },
+    light: { frames: [8, 9, 10, 15] },
+    heavy: { frames: [24, 25, 31, 32, 33] },
+    kick: { frames: [16, 17, 20, 22, 23] },
+    low: { frames: [16, 17, 20, 22, 23] },
+    high: { frames: [24, 25, 31, 32, 33] },
+    spinKick: { frames: [24, 25, 31, 32, 33] },
     scale: 1.02,
     baseBodyScale: 1.16,
     originX: 0.5,
@@ -514,14 +624,14 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     textureKey: "character-stay-puft-actions",
     asset: characterAssets.stayPuftRuntimeActions,
     ...standardRuntimeFrame(),
-    idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
-    light: { frames: [8, 9, 10, 11, 14, 15] },
-    heavy: { frames: [40, 41, 42, 43, 44, 45, 46, 47] },
-    high: { frames: [16, 17, 18, 19, 22, 23] },
-    low: { frames: [32, 33, 34, 35, 36, 37, 39] },
-    kick: { frames: [24, 25, 26, 27, 28, 29, 30, 31] },
-    spinKick: { frames: [40, 41, 42, 43, 44, 45, 46, 47] },
-    run: { frames: [40, 41, 42, 47] },
+    idle: { frames: [0] },
+    light: { frames: [9, 10] },
+    heavy: { frames: [40, 41, 42, 45, 46] },
+    high: { frames: [16, 17, 18] },
+    low: { frames: [32, 33, 36, 37, 38, 39] },
+    kick: { frames: [24, 25, 27, 28, 31] },
+    spinKick: { frames: [40, 41, 42, 45, 46] },
+    run: { frames: [40, 41, 42] },
     scale: 1.04,
     baseBodyScale: 1.34,
     originX: 0.5,
@@ -754,6 +864,9 @@ export class TrainingScene extends Phaser.Scene {
   private activePickup: LevelPickup | null = null;
   private characterSprites: Partial<Record<FighterSide, Phaser.GameObjects.Sprite>> = {};
   private detachedPartSprites = new Map<number, Phaser.GameObjects.Sprite>();
+  private spriteFrameAnchors = new Map<string, Map<number, SpriteFrameAnchor>>();
+  private spriteUsableFrames = new Map<string, Set<number>>();
+  private spriteFallbackFrames = new Map<string, number>();
 
   constructor() {
     super("training");
@@ -818,7 +931,7 @@ export class TrainingScene extends Phaser.Scene {
       playerFighter: this.settings.playerFighter,
       opponentFighter: this.settings.opponentFighter,
       noDeath: this.settings.matchType === "testing",
-      opponentControlled: this.settings.matchType === "online",
+      opponentControlled: Boolean(this.onlineBridge),
       partsEnabled: isPartsMode(this.settings),
       standardTiming: this.settings.mode === "standardFighter",
       roundTimeSeconds: this.settings.roundTimeSeconds,
@@ -861,6 +974,7 @@ export class TrainingScene extends Phaser.Scene {
     this.graphics = this.add.graphics();
     this.graphics.setDepth(10);
     this.createCharacterSprites();
+    this.prepareSpriteFrameAnchors();
     this.configureCameraForViewport();
     this.scale.on("resize", this.configureCameraForViewport, this);
     this.bindSceneLifecycle();
@@ -885,6 +999,119 @@ export class TrainingScene extends Phaser.Scene {
       .sprite(0, 0, characterSheetConfigs.david.textureKey, 0)
       .setDepth(9)
       .setVisible(false);
+  }
+
+  private prepareSpriteFrameAnchors() {
+    this.spriteFrameAnchors.clear();
+    this.spriteUsableFrames.clear();
+    this.spriteFallbackFrames.clear();
+
+    Object.values(characterSheetConfigs).forEach((config) => {
+      this.textures.get(config.textureKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
+      const anchors = this.createSpriteFrameAnchors(config);
+      if (anchors.size > 0) {
+        this.spriteFrameAnchors.set(config.textureKey, anchors);
+      }
+    });
+
+    Object.values(detachedPartSheetConfigs).forEach((config) => {
+      this.textures.get(config.textureKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    });
+  }
+
+  private createSpriteFrameAnchors(config: CharacterSheetConfig) {
+    const anchors = new Map<number, SpriteFrameAnchor>();
+    const source = this.textures.get(config.textureKey).getSourceImage() as CanvasImageSource & {
+      width?: number;
+      height?: number;
+      naturalWidth?: number;
+      naturalHeight?: number;
+    };
+    const sourceWidth = source.naturalWidth ?? source.width ?? 0;
+    const sourceHeight = source.naturalHeight ?? source.height ?? 0;
+    const columns = Math.floor(sourceWidth / config.frameWidth);
+    const rows = Math.floor(sourceHeight / config.frameHeight);
+
+    if (columns <= 0 || rows <= 0) {
+      return anchors;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = sourceWidth;
+    canvas.height = sourceHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) {
+      return anchors;
+    }
+
+    context.drawImage(source, 0, 0, sourceWidth, sourceHeight);
+
+    let imageData: ImageData;
+    try {
+      imageData = context.getImageData(0, 0, sourceWidth, sourceHeight);
+    } catch {
+      return anchors;
+    }
+
+    const frameCount = columns * rows;
+    const boundsByFrame = new Map<number, SpriteContentBounds>();
+    for (let frame = 0; frame < frameCount; frame += 1) {
+      const bounds = measureSpriteFrameBounds(imageData, sourceWidth, config.frameWidth, config.frameHeight, frame, columns);
+      if (bounds) {
+        boundsByFrame.set(frame, bounds);
+      }
+    }
+
+    const baseOrigin = getCharacterSheetOrigin(config);
+    const baseOriginX = baseOrigin.x * config.frameWidth;
+    const baseOriginY = baseOrigin.y * config.frameHeight;
+    const idleBounds = getSheetRowFrames(config.idle)
+      .map((frame) => boundsByFrame.get(frame))
+      .filter((bounds): bounds is SpriteContentBounds => bounds !== undefined && isFullBodySpriteFrame(bounds, config));
+    const referenceBounds =
+      idleBounds.length > 0
+        ? idleBounds
+        : Array.from(boundsByFrame.values()).filter((bounds) => isFullBodySpriteFrame(bounds, config));
+    const referenceBottomOffset = median(referenceBounds.map((bounds) => bounds.anchorY - baseOriginY)) ?? 0;
+    const referenceCenterOffset = median(referenceBounds.map((bounds) => bounds.anchorX - baseOriginX)) ?? 0;
+    const referenceWidth = median(referenceBounds.map((bounds) => bounds.width)) ?? config.frameWidth * 0.38;
+    const referenceHeight = median(referenceBounds.map((bounds) => bounds.height)) ?? config.frameHeight * 0.5;
+    const maxOriginXShift = 0.2;
+    const maxOriginYShift = 0.45;
+    const usableFrames = new Set<number>();
+
+    boundsByFrame.forEach((bounds, frame) => {
+      const usable = isUsableSpriteFrame(bounds, config, referenceWidth, referenceHeight);
+      if (usable) {
+        usableFrames.add(frame);
+      }
+
+      if (!usable) {
+        anchors.set(frame, { originX: baseOrigin.x, originY: baseOrigin.y });
+        return;
+      }
+
+      const originX = Phaser.Math.Clamp(
+        (bounds.anchorX - referenceCenterOffset) / config.frameWidth,
+        baseOrigin.x - maxOriginXShift,
+        baseOrigin.x + maxOriginXShift
+      );
+      const originY = Phaser.Math.Clamp(
+        (bounds.anchorY - referenceBottomOffset) / config.frameHeight,
+        baseOrigin.y - maxOriginYShift,
+        baseOrigin.y + maxOriginYShift
+      );
+
+      anchors.set(frame, { originX, originY });
+    });
+
+    if (usableFrames.size > 0) {
+      const fallbackFrame = getSheetRowFrames(config.idle).find((frame) => usableFrames.has(frame)) ?? Array.from(usableFrames)[0];
+      this.spriteUsableFrames.set(config.textureKey, usableFrames);
+      this.spriteFallbackFrames.set(config.textureKey, fallbackFrame);
+    }
+
+    return anchors;
   }
 
   update(_time: number, deltaMs: number) {
@@ -1583,6 +1810,15 @@ export class TrainingScene extends Phaser.Scene {
 
   private configureCameraForViewport() {
     const camera = this.cameras.main;
+    const viewport = window.visualViewport;
+    const viewportWidth = viewport?.width ?? window.innerWidth ?? 960;
+    const viewportHeight = viewport?.height ?? window.innerHeight ?? 540;
+    const viewportAspect = viewportHeight > 0 ? viewportWidth / viewportHeight : 16 / 9;
+    const nextScaleMode = viewportAspect < 1.02 ? Phaser.Scale.ENVELOP : Phaser.Scale.FIT;
+    if (this.scale.scaleMode !== nextScaleMode) {
+      this.scale.scaleMode = nextScaleMode;
+      this.scale.refresh();
+    }
     camera.setBounds(-420, -250, 1800, 1040);
     camera.setRoundPixels(false);
     this.updateCameraPresentation(0, true);
@@ -1619,8 +1855,8 @@ export class TrainingScene extends Phaser.Scene {
     const desiredWorldWidth = Phaser.Math.Clamp(fighterSpan + 210 * widestBody, 420, 860);
 
     if (viewportAspect < 1.02) {
-      const cssCropWorldWidth = viewportAspect * 540;
-      return Phaser.Math.Clamp(cssCropWorldWidth / desiredWorldWidth, 0.42, 0.78);
+      const cropTolerantWorldWidth = Phaser.Math.Clamp(fighterSpan + 145 * widestBody, 360, 560);
+      return Phaser.Math.Clamp(720 / cropTolerantWorldWidth, 1.24, 1.58);
     }
 
     if (viewportAspect < 1.45) {
@@ -3151,13 +3387,13 @@ export class TrainingScene extends Phaser.Scene {
       this.textures.exists(missingTextureKey);
     const textureKey = useMissingFrame ? missingTextureKey : config.textureKey;
     const frame = useMissingFrame ? missingFrame : this.getSheetSpriteFrame(fighter, config);
-    const spriteOrigin = useMissingFrame ? { x: config.originX, y: config.originY } : getCharacterSheetOrigin(config);
+    const spriteOrigin = useMissingFrame ? { originX: config.originX, originY: config.originY } : this.getSpriteFrameAnchor(config, frame);
 
     sprite
       .setVisible(true)
       .setTexture(textureKey)
       .setFrame(frame)
-      .setOrigin(spriteOrigin.x, spriteOrigin.y)
+      .setOrigin(spriteOrigin.originX, spriteOrigin.originY)
       .setPosition(Math.round(fighter.x), Math.round(fighter.y + config.yOffset))
       .setScale(spriteScale)
       .setFlipX(fighter.facing < 0)
@@ -3229,6 +3465,13 @@ export class TrainingScene extends Phaser.Scene {
     return true;
   }
 
+  private getSpriteFrameAnchor(config: CharacterSheetConfig, frame: number): SpriteFrameAnchor {
+    return this.spriteFrameAnchors.get(config.textureKey)?.get(frame) ?? {
+      originX: getCharacterSheetOrigin(config).x,
+      originY: getCharacterSheetOrigin(config).y
+    };
+  }
+
   private getSheetSpriteFrame(fighter: FighterSnapshot, config: CharacterSheetConfig) {
     if (fighter.state === "attack" && fighter.attackKind) {
       const spec = attackSpecs[fighter.attackKind];
@@ -3237,23 +3480,35 @@ export class TrainingScene extends Phaser.Scene {
       const row = getCharacterAttackRow(config, fighter.attackKind);
 
       if (row) {
-        return getSheetRowFrame(row, Math.floor(progress * getSheetRowCount(row)));
+        return this.getSafeSheetSpriteFrame(config, getSheetRowFrame(row, Math.floor(progress * getSheetRowCount(row))), row);
       }
 
-      return getSheetRowFrame(config.idle, 0);
+      return this.getSafeSheetSpriteFrame(config, getSheetRowFrame(config.idle, 0), config.idle);
     }
 
     if (fighter.state === "run" || fighter.state === "dash") {
-      return config.run
+      const row = config.run ?? config.idle;
+      const frame = config.run
         ? getSheetRowCycleFrame(config.run, this.time.now, fighter.state === "dash" ? 54 : 82)
         : getSheetRowCycleFrame(config.idle, this.time.now, 92);
+      return this.getSafeSheetSpriteFrame(config, frame, row);
     }
 
     if (fighter.state === "hit" || fighter.state === "blockstun") {
-      return getSheetRowFrame(config.idle, Math.floor(getSheetRowCount(config.idle) * 0.78));
+      return this.getSafeSheetSpriteFrame(config, getSheetRowFrame(config.idle, Math.floor(getSheetRowCount(config.idle) * 0.78)), config.idle);
     }
 
-    return getSheetRowCycleFrame(config.idle, this.time.now, 180);
+    return this.getSafeSheetSpriteFrame(config, getSheetRowCycleFrame(config.idle, this.time.now, 180), config.idle);
+  }
+
+  private getSafeSheetSpriteFrame(config: CharacterSheetConfig, frame: number, row?: SheetRow) {
+    const usableFrames = this.spriteUsableFrames.get(config.textureKey);
+    if (!usableFrames || usableFrames.size === 0 || usableFrames.has(frame)) {
+      return frame;
+    }
+
+    const rowFallback = row ? getSheetRowFrames(row).find((candidate) => usableFrames.has(candidate)) : undefined;
+    return rowFallback ?? this.spriteFallbackFrames.get(config.textureKey) ?? frame;
   }
 
   private drawAnimalUnderlay(

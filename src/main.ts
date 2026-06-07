@@ -357,6 +357,10 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
   await savePlayerProfile(createAvatar(settings));
 
   renderFightHeading(settings);
+  if (netplayStatus && settings.matchType === "online" && !onlineBridge) {
+    netplayStatus.hidden = false;
+    netplayStatus.textContent = "Local online bot test";
+  }
   showAppScreen("fight");
   game.scale.refresh();
   game.scene.stop("training");
@@ -609,9 +613,11 @@ async function startOnlineFightFromMatchStart(match: RealtimeMatchStart) {
 
   remoteInputFrames = new Map();
   dynamicInputDelayFrames = match.inputDelayFrames;
-  const bridge = createOnlineInputBridge(getLocalOnlineSide());
-  bridge.matchId = match.matchId;
-  bridge.opponentProfileId = getRemoteProfileId();
+  const bridge = currentLobbySource === "local" ? null : createOnlineInputBridge(getLocalOnlineSide());
+  if (bridge) {
+    bridge.matchId = match.matchId;
+    bridge.opponentProfileId = getRemoteProfileId();
+  }
   await startFight(match.settings, bridge);
 }
 
@@ -1155,8 +1161,8 @@ function renderLobbyActions() {
 
   if (readyLobbyButton) {
     const localParticipant = getLocalLobbyParticipant();
-    readyLobbyButton.disabled = !hasLobby || Boolean(activeMatchStartId);
-    readyLobbyButton.textContent = localParticipant?.ready === false ? "Ready" : "Not Ready";
+    readyLobbyButton.disabled = !hasLobby || isLocalFallback || Boolean(activeMatchStartId);
+    readyLobbyButton.textContent = isLocalFallback ? "Bot Ready" : localParticipant?.ready === false ? "Ready" : "Not Ready";
   }
 
   if (refreshLobbyButton) {
@@ -1174,7 +1180,7 @@ function renderLobbyActions() {
   if (activeMatchStartId) {
     startOnlineFightButton.textContent = "Starting...";
   } else if (isLocalFallback) {
-    startOnlineFightButton.textContent = "Start Local Netplay Test";
+    startOnlineFightButton.textContent = "Start Local Bot Test";
   } else if (!host) {
     startOnlineFightButton.textContent = "Waiting for Host";
   } else if (currentMatchmakingTicketId && !hasOnlineOpponent) {
