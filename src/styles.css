@@ -3755,3 +3755,331 @@ body:not(.is-fighting) .menu-actions .primary-action {
 body.is-fighting .controls {
   color: var(--ui-cream) !important;
 }
+
+@media (max-width: 860px) {
+  body:not(.is-fighting) .menu-overlay {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto minmax(0, 1fr) !important;
+    grid-template-areas:
+      "head"
+      "tabs"
+      "form" !important;
+    gap: 10px !important;
+    padding: 0 !important;
+  }
+
+  body:not(.is-fighting) .menu-header {
+    grid-area: head !important;
+    min-height: 50px !important;
+    padding: 10px 12px !important;
+  }
+
+  body:not(.is-fighting) .menu-tabs {
+    grid-area: tabs !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    overflow: visible !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgb(111 131 149 / 34%) !important;
+    padding: 0 10px 10px !important;
+  }
+
+  body:not(.is-fighting) .menu-tab {
+    justify-content: center !important;
+    min-width: 0 !important;
+    min-height: 52px !important;
+    padding: 8px 4px !important;
+    clip-path: none !important;
+    box-shadow: none !important;
+    font-size: clamp(0.78rem, 3.6vw, 1rem) !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
+
+  body:not(.is-fighting) .menu-tab::before {
+    display: none !important;
+  }
+
+  body:not(.is-fighting) .menu-form {
+    grid-area: form !important;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 10px 14px !important;
+  }
+
+  body:not(.is-fighting) .menu-panel.is-active {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  body:not(.is-fighting) .menu-panel.is-active > *,
+  body:not(.is-fighting) .profile-setup,
+  body:not(.is-fighting) .auth-panel,
+  body:not(.is-fighting) .fighter-icon-panel,
+  body:not(.is-fighting) .fighter-preview {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.is-fighting) .fighter-icon-grid {
+    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)) !important;
+  }
+
+  body:not(.is-fighting) .menu-actions {
+    position: static !important;
+    display: grid !important;
+    clear: both !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr) !important;
+    gap: 10px !important;
+    margin-top: 12px !important;
+    padding: 10px 0 0 !important;
+    background: none !important;
+  }
+
+  body:not(.is-fighting) .menu-actions .primary-action,
+  body:not(.is-fighting) .menu-actions .secondary-action {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  body:not(.is-fighting) .menu-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  body:not(.is-fighting) .menu-actions .primary-action,
+  body:not(.is-fighting) .menu-actions .secondary-action {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  body:not(.is-fighting) .shell {
+    gap: 0 !important;
+    width: min(100vw - 12px, 1120px) !important;
+    padding: 6px 0 !important;
+  }
+
+  body:not(.is-fighting) .topbar {
+    display: none !important;
+  }
+
+  body:not(.is-fighting) .menu-overlay {
+    height: calc(100dvh - 12px) !important;
+    gap: 6px !important;
+  }
+
+  body:not(.is-fighting) .menu-header {
+    min-height: 38px !important;
+    padding: 8px 10px 4px !important;
+  }
+
+  body:not(.is-fighting) .menu-header .eyebrow {
+    display: none !important;
+  }
+
+  body:not(.is-fighting) .menu-header h2 {
+    font-size: clamp(1rem, 4.4vh, 1.45rem) !important;
+    line-height: 1 !important;
+  }
+
+  body:not(.is-fighting) .menu-tabs {
+    gap: 5px !important;
+    padding: 0 10px 6px !important;
+  }
+
+  body:not(.is-fighting) .menu-tab {
+    min-height: 38px !important;
+    padding: 5px 4px !important;
+    font-size: clamp(0.78rem, 3.8vh, 0.96rem) !important;
+  }
+
+  body:not(.is-fighting) .menu-form {
+    padding: 0 10px 10px !important;
+  }
+
+  body:not(.is-fighting) .menu-panel.is-active {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body:not(.is-fighting) .menu-panel.is-active > label:not(.switch-row) {
+    grid-column: auto !important;
+  }
+
+  body:not(.is-fighting) .menu-panel.is-active > .switch-row {
+    grid-column: span 1 !important;
+  }
+
+  body:not(.is-fighting) .menu-panel.is-active > .fighter-icon-panel,
+  body:not(.is-fighting) .menu-panel.is-active > .fighter-preview,
+  body:not(.is-fighting) .menu-panel.is-active > .profile-setup,
+  body:not(.is-fighting) .menu-panel.is-active > .auth-panel,
+  body:not(.is-fighting) .menu-panel.is-active > .balance-telemetry,
+  body:not(.is-fighting) .menu-panel.is-active > .stats-summary,
+  body:not(.is-fighting) .menu-panel.is-active > .menu-note {
+    grid-column: 1 / -1 !important;
+  }
+
+  body:not(.is-fighting) .menu-panel label,
+  body:not(.is-fighting) .fighter-icon-panel,
+  body:not(.is-fighting) .fighter-preview-card {
+    padding: 8px 10px !important;
+  }
+
+  body:not(.is-fighting) .menu-panel label > span,
+  body:not(.is-fighting) .fighter-icon-heading strong {
+    font-size: 0.68rem !important;
+  }
+
+  body:not(.is-fighting) .menu-panel select,
+  body:not(.is-fighting) .menu-panel input[type="text"],
+  body:not(.is-fighting) .menu-panel input[type="email"],
+  body:not(.is-fighting) .menu-panel input[type="password"] {
+    min-height: 34px !important;
+  }
+
+  body:not(.is-fighting) .fighter-icon-grid button {
+    min-height: 58px !important;
+    padding: 32px 5px 5px !important;
+  }
+
+  body:not(.is-fighting) .menu-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.48fr) !important;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 820px) {
+  body.is-fighting #game {
+    inset: 0 0 auto 0 !important;
+    width: 100vw !important;
+    height: calc(100dvh - 176px) !important;
+    min-height: 0 !important;
+    background: #050b12 !important;
+  }
+
+  body.is-fighting #game canvas {
+    position: absolute !important;
+    top: 0 !important;
+    left: 50% !important;
+    width: auto !important;
+    min-width: 100vw !important;
+    height: 100% !important;
+    transform: translateX(-50%) !important;
+    object-fit: contain !important;
+  }
+}
+
+body [hidden],
+.shell [hidden],
+.app-screen[hidden] {
+  display: none !important;
+}
+
+body:not(.is-fighting) .lobby-screen:not([hidden]) {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  gap: clamp(8px, 1.6vw, 14px) !important;
+  overflow: hidden auto !important;
+  padding: clamp(10px, 2vw, 18px) !important;
+}
+
+body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)) !important;
+  align-content: start !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-card {
+  min-height: 0 !important;
+}
+
+body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-actions {
+  position: sticky !important;
+  z-index: 12 !important;
+  bottom: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 10px 0 max(2px, env(safe-area-inset-bottom)) !important;
+  background: linear-gradient(180deg, rgb(3 8 14 / 0%), rgb(3 8 14 / 92%) 24%, rgb(3 8 14 / 98%)) !important;
+}
+
+body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-actions button {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 48px !important;
+  padding-inline: 10px !important;
+  white-space: normal !important;
+}
+
+@media (max-width: 860px), (orientation: landscape) and (max-height: 560px) {
+  body:not(.is-fighting):has(#lobby-screen:not([hidden])) .shell {
+    gap: 0 !important;
+    padding: 6px 0 !important;
+  }
+
+  body:not(.is-fighting):has(#lobby-screen:not([hidden])) .topbar {
+    display: none !important;
+  }
+
+  body:not(.is-fighting):has(#lobby-screen:not([hidden])) .lobby-screen:not([hidden]) {
+    height: calc(100dvh - 12px) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  body:not(.is-fighting) .lobby-screen:not([hidden]) {
+    height: calc(100dvh - 12px) !important;
+    padding: 8px !important;
+  }
+
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-header {
+    min-height: 0 !important;
+    padding: 6px 8px !important;
+  }
+
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-card {
+    padding: 8px !important;
+  }
+
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-card strong {
+    font-size: clamp(1rem, 5vh, 1.45rem) !important;
+  }
+
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-card p {
+    margin-top: 6px !important;
+    font-size: 0.72rem !important;
+    line-height: 1.2 !important;
+  }
+
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    padding-top: 8px !important;
+  }
+
+  body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-actions button {
+    min-height: 40px !important;
+    font-size: 0.74rem !important;
+  }
+}

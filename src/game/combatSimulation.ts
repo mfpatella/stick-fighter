@@ -793,18 +793,23 @@ const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKi
 };
 
 const fighterHurtBoxTuning: Partial<Record<FighterKey, HurtBoxTuning>> = {
+  david: { width: 50, height: 124, headWidth: 54, headYOffset: -126, armWidth: 124, armYOffset: -92, legWidth: 108, legYOffset: -46, bodyWidth: 68, bodyHeight: 84, bodyYOffset: -92 },
   goliath: { width: 58, height: 132, headWidth: 62, armWidth: 136, legWidth: 118, bodyWidth: 78 },
   tRex: { width: 96, height: 118, yOffset: -4, headWidth: 78, headHeight: 48, headYOffset: -118, armWidth: 142, armHeight: 58, armYOffset: -86, legWidth: 136, legYOffset: -46, bodyWidth: 108, bodyHeight: 78, bodyYOffset: -86 },
   hippo: { width: 98, height: 112, yOffset: -2, headWidth: 82, headHeight: 50, headYOffset: -110, armWidth: 146, armHeight: 60, armYOffset: -82, legWidth: 138, legYOffset: -44, bodyWidth: 112, bodyHeight: 76, bodyYOffset: -80 },
   eagle: { width: 64, height: 112, yOffset: -8, headWidth: 58, headHeight: 48, headYOffset: -118, armWidth: 138, armHeight: 62, armYOffset: -86, legWidth: 102, legYOffset: -50, bodyWidth: 70, bodyHeight: 78, bodyYOffset: -86 },
   lion: { width: 86, height: 96, yOffset: -2, headWidth: 68, headHeight: 48, headYOffset: -102, armWidth: 126, armYOffset: -78, legWidth: 126, legYOffset: -44, bodyWidth: 94, bodyHeight: 70, bodyYOffset: -76 },
   honeyBadger: { width: 66, height: 82, yOffset: 0, headWidth: 52, headHeight: 42, headYOffset: -82, armWidth: 104, armHeight: 48, armYOffset: -64, legWidth: 100, legYOffset: -34, bodyWidth: 72, bodyHeight: 58, bodyYOffset: -62 },
+  chefBoyardee: { width: 62, height: 122, headWidth: 58, headYOffset: -120, armWidth: 132, armYOffset: -88, legWidth: 118, legYOffset: -46, bodyWidth: 78, bodyHeight: 82, bodyYOffset: -88 },
+  marthaStewart: { width: 52, height: 118, headWidth: 54, headYOffset: -120, armWidth: 126, armYOffset: -90, legWidth: 112, legYOffset: -46, bodyWidth: 68, bodyHeight: 82, bodyYOffset: -90 },
+  helenKeller: { width: 54, height: 120, headWidth: 54, headYOffset: -122, armWidth: 132, armYOffset: -90, legWidth: 114, legYOffset: -46, bodyWidth: 70, bodyHeight: 82, bodyYOffset: -90 },
   turtle: { width: 70, height: 96, yOffset: 0, headWidth: 54, headYOffset: -94, armWidth: 112, armYOffset: -72, legWidth: 116, legYOffset: -38, bodyWidth: 84, bodyHeight: 66, bodyYOffset: -70 },
   koolAidMan: { width: 76, height: 126, headWidth: 68, armWidth: 140, legWidth: 126, bodyWidth: 92 },
   slimer: { width: 74, height: 98, yOffset: -14, headWidth: 66, headHeight: 46, headYOffset: -96, armWidth: 130, armHeight: 52, armYOffset: -78, legWidth: 114, legYOffset: -42, bodyWidth: 86, bodyHeight: 68, bodyYOffset: -76 },
   stayPuft: { width: 92, height: 132, headWidth: 78, armWidth: 152, legWidth: 142, bodyWidth: 108 },
   abrahamLincoln: { width: 56, height: 132, headWidth: 58, armWidth: 132, legWidth: 116, bodyWidth: 72 },
   stephenHawking: { width: 70, height: 112, yOffset: 0, headWidth: 56, headYOffset: -108, armWidth: 126, armYOffset: -76, legWidth: 128, legYOffset: -44, bodyWidth: 82, bodyHeight: 74, bodyYOffset: -76 },
+  dorothy: { width: 52, height: 116, headWidth: 54, headYOffset: -118, armWidth: 124, armYOffset: -88, legWidth: 112, legYOffset: -46, bodyWidth: 68, bodyHeight: 80, bodyYOffset: -88 },
   sophia: { width: 48, height: 106, headWidth: 50, armWidth: 118, legWidth: 104, bodyWidth: 64 },
   blanche: { width: 52, height: 114, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 },
   rose: { width: 52, height: 112, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 }
