@@ -789,6 +789,14 @@ const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKi
     kick: { reach: 98, width: 108, height: 52, yOffset: -56 },
     low: { reach: 88, width: 104, height: 42, yOffset: -52 },
     spinKick: { reach: 102, width: 116, height: 58, yOffset: -70 }
+  },
+  guard: {
+    light: { reach: 44, width: 48, height: 36, yOffset: -70 },
+    heavy: { reach: 54, width: 58, height: 44, yOffset: -64 },
+    high: { reach: 50, width: 52, height: 38, yOffset: -108 },
+    kick: { reach: 54, width: 58, height: 40, yOffset: -56 },
+    low: { reach: 50, width: 60, height: 30, yOffset: -34 },
+    spinKick: { reach: 58, width: 66, height: 46, yOffset: -84 }
   }
 };
 
@@ -1255,9 +1263,11 @@ export class CombatSimulation {
           fighter.comboTimer = 0;
           fighter.lastComboAttack = null;
           if (fighter === this.state.opponent && !this.options.opponentControlled) {
+            const whiffCooldown =
+              spec.kind === "heavy" || spec.kind === "spinKick" || spec.kind === "chomp" ? 0.42 : 0.26;
             this.cpuAttackCooldown = Math.max(
               this.cpuAttackCooldown,
-              spec.kind === "heavy" || spec.kind === "spinKick" || spec.kind === "chomp" ? 0.42 : 0.26
+              fighter.key === "guard" ? Math.max(whiffCooldown, 0.82) : whiffCooldown
             );
           }
         }
@@ -1463,7 +1473,18 @@ export class CombatSimulation {
       defender.invulnerableTimer = Math.max(defender.invulnerableTimer, pressure.extraInvulnerable);
       this.hitStopTimer = spec.hitStop + combo.extraHitStop + (projectile.kind === "laser" ? frames(1) : 0);
       if (projectile.owner === "opponent" && !this.options.opponentControlled) {
-        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, combo.count >= 3 ? 0.32 : 0.18);
+        const projectileCooldown = combo.count >= 3 ? 0.32 : 0.18;
+        this.cpuAttackCooldown = Math.max(
+          this.cpuAttackCooldown,
+          attacker.key === "guard" ? Math.max(projectileCooldown, combo.count >= 2 ? 0.78 : 0.62) : projectileCooldown
+        );
+      }
+      if (defender.key === "guard" && defender === this.state.opponent && !this.options.opponentControlled) {
+        defender.queuedAttack = null;
+        defender.inputBufferTimer = 0;
+        defender.guardLockTimer = 0;
+        defender.stamina = Math.max(0, defender.stamina - (counterHit ? 10 : 6));
+        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, 0.68 + Math.min(0.24, combo.count * 0.08));
       }
     } else {
       resetReceivedHitPressure(defender);
@@ -1479,7 +1500,11 @@ export class CombatSimulation {
       }
       this.hitStopTimer = guardCrush ? frames(5) : perfectBlock ? frames(4) : frames(2);
       if (projectile.owner === "opponent" && !this.options.opponentControlled) {
-        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, perfectBlock ? 0.62 : guardCrush ? 0.18 : 0.36);
+        const projectileBlockCooldown = perfectBlock ? 0.62 : guardCrush ? 0.18 : 0.36;
+        this.cpuAttackCooldown = Math.max(
+          this.cpuAttackCooldown,
+          attacker.key === "guard" ? Math.max(projectileBlockCooldown, perfectBlock ? 0.92 : guardCrush ? 0.38 : 0.68) : projectileBlockCooldown
+        );
       }
     }
 
@@ -1578,7 +1603,7 @@ export class CombatSimulation {
     const opponent = this.getOpponentForFighter(fighter);
     const directionToOpponent = opponent.x >= fighter.x ? 1 : -1;
     const distance = Math.abs(opponent.x - fighter.x);
-    const reach = getTunedAttackBoxValue(fighter, kind, "reach") * fighter.stats.reachScale;
+    const reach = getEffectiveAttackReach(fighter, kind, getTunedAttackBoxValue(fighter, kind, "reach"));
     const canStepIn = fighter.y >= groundY && distance > 54 && distance < reach + 92;
 
     if (hasAnyHead(fighter)) {
@@ -1763,7 +1788,18 @@ export class CombatSimulation {
       defender.invulnerableTimer = Math.max(defender.invulnerableTimer, pressure.extraInvulnerable);
       this.hitStopTimer = spec.hitStop + combo.extraHitStop + (counterHit ? frames(1) : 0);
       if (attackerId === "opponent" && !this.options.opponentControlled) {
-        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, combo.count >= 3 ? 0.36 : 0.2);
+        const hitCooldown = combo.count >= 3 ? 0.36 : 0.2;
+        this.cpuAttackCooldown = Math.max(
+          this.cpuAttackCooldown,
+          attacker.key === "guard" ? Math.max(hitCooldown, combo.count >= 2 ? 0.84 : 0.68) : hitCooldown
+        );
+      }
+      if (defender.key === "guard" && defender === this.state.opponent && !this.options.opponentControlled) {
+        defender.queuedAttack = null;
+        defender.inputBufferTimer = 0;
+        defender.guardLockTimer = 0;
+        defender.stamina = Math.max(0, defender.stamina - (counterHit ? 12 : 7));
+        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, 0.72 + Math.min(0.28, combo.count * 0.08));
       }
     } else {
       resetReceivedHitPressure(defender);
@@ -1783,7 +1819,11 @@ export class CombatSimulation {
       }
       this.hitStopTimer = guardCrush ? frames(6) : perfectBlock ? frames(5) : frames(2);
       if (attackerId === "opponent" && !this.options.opponentControlled) {
-        this.cpuAttackCooldown = Math.max(this.cpuAttackCooldown, perfectBlock ? 0.78 : guardCrush ? 0.2 : 0.48);
+        const blockCooldown = perfectBlock ? 0.78 : guardCrush ? 0.2 : 0.48;
+        this.cpuAttackCooldown = Math.max(
+          this.cpuAttackCooldown,
+          attacker.key === "guard" ? Math.max(blockCooldown, perfectBlock ? 1.05 : guardCrush ? 0.42 : 0.74) : blockCooldown
+        );
       }
     }
 
@@ -2151,8 +2191,9 @@ export function getAttackBox(fighter: FighterSnapshot): Rect {
   const tunedWidth = tuning?.width ?? spec.width;
   const tunedHeight = tuning?.height ?? spec.height;
   const tunedYOffset = tuning?.yOffset ?? spec.yOffset;
-  const visualReach = tunedReach * fighter.stats.reachScale;
-  const width = tunedWidth * (fighter.stats.reachScale > 1 ? 1 + (fighter.stats.reachScale - 1) * 0.45 : 1);
+  const visualReach = getEffectiveAttackReach(fighter, kind, tunedReach);
+  const reachScale = fighter.stats.reachScale * getPlayableReachAssist(fighter, kind);
+  const width = tunedWidth * (reachScale > 1 ? 1 + (reachScale - 1) * 0.45 : 1);
   const height = tunedHeight * Math.min(1.16, fighter.stats.bodyScale);
   const left =
     fighter.facing === 1
@@ -2165,6 +2206,26 @@ export function getAttackBox(fighter: FighterSnapshot): Rect {
     width,
     height
   };
+}
+
+function getEffectiveAttackReach(fighter: FighterSnapshot, kind: AttackKind, tunedReach: number) {
+  return tunedReach * fighter.stats.reachScale * getPlayableReachAssist(fighter, kind);
+}
+
+function getPlayableReachAssist(fighter: FighterSnapshot, kind: AttackKind) {
+  if (fighter.key === "guard") {
+    return 1;
+  }
+
+  if (kind === "light" || kind === "clawSwipe") {
+    return 1.06;
+  }
+
+  if (kind === "chomp" || kind === "tailStrike") {
+    return 1.04;
+  }
+
+  return 1.1;
 }
 
 function getTunedAttackBoxValue(fighter: FighterSnapshot, kind: AttackKind, key: keyof AttackBoxTuning): number {

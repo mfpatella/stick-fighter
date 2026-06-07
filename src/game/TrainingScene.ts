@@ -153,6 +153,7 @@ type CharacterSheetConfig = {
   chomp?: SheetRow;
   tailStrike?: SheetRow;
   clawSwipe?: SheetRow;
+  blockedFrames?: number[];
   scale: number;
   baseBodyScale: number;
   originX: number;
@@ -554,12 +555,13 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 7] },
     light: { frames: [8, 9, 10, 15] },
-    heavy: { frames: [40, 41, 42, 46, 47] },
+    heavy: { frames: [40, 41, 47] },
     kick: { frames: [16, 17, 18, 19, 23] },
-    low: { frames: [40, 41, 42, 46, 47] },
-    spinKick: { frames: [32, 33, 40, 41, 42, 47] },
-    high: { frames: [32, 33, 40, 41, 42, 47] },
+    low: { frames: [40, 41, 47] },
+    spinKick: { frames: [32, 33, 40, 41, 47] },
+    high: { frames: [32, 33, 40, 41, 47] },
     run: { frames: [24, 25, 31] },
+    blockedFrames: [3, 4, 5, 6, 11, 12, 13, 14, 20, 21, 22, 26, 27, 28, 29, 30, 34, 35, 36, 37, 38, 39, 42, 43, 44, 45, 46],
     scale: 1.06,
     baseBodyScale: 0.96,
     originX: 0.5,
@@ -1079,9 +1081,10 @@ export class TrainingScene extends Phaser.Scene {
     const maxOriginXShift = 0.2;
     const maxOriginYShift = 0.45;
     const usableFrames = new Set<number>();
+    const blockedFrames = new Set(config.blockedFrames ?? []);
 
     boundsByFrame.forEach((bounds, frame) => {
-      const usable = isUsableSpriteFrame(bounds, config, referenceWidth, referenceHeight);
+      const usable = !blockedFrames.has(frame) && isUsableSpriteFrame(bounds, config, referenceWidth, referenceHeight);
       if (usable) {
         usableFrames.add(frame);
       }

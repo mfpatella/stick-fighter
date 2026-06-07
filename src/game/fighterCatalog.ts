@@ -521,18 +521,18 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     key: "guard",
     name: "Training Guard",
     role: "Balanced CPU",
-    description: "A simple sparring opponent for testing spacing and parts.",
+    description: "A short-reach sparring opponent for testing spacing, hit confirms, and parts.",
     stats: {
       maxHealth: 100,
-      moveSpeed: 1,
+      moveSpeed: 0.92,
       jumpPower: 1,
-      attackPower: 1,
-      staminaRegen: 1,
-      staminaCost: 1,
-      guardStrength: 1,
-      dodgeSpeed: 1,
+      attackPower: 0.88,
+      staminaRegen: 0.84,
+      staminaCost: 1.08,
+      guardStrength: 0.92,
+      dodgeSpeed: 0.9,
       bodyScale: 1,
-      reachScale: 1
+      reachScale: 0.72
     }
   }
 };
