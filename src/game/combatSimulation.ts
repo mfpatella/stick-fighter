@@ -96,6 +96,8 @@ export type FighterSnapshot = {
   dashCooldownTimer: number;
   invulnerableTimer: number;
   guardLockTimer: number;
+  parryCounterTimer: number;
+  parryVulnerableTimer: number;
   hitCooldown: number;
   stunTimer: number;
   comboCount: number;
@@ -247,6 +249,7 @@ export type CombatEvent =
       comboCount: number;
       comboStale: boolean;
       perfectBlock: boolean;
+      parryCounter: boolean;
       counterHit: boolean;
       guardCrush: boolean;
       projectileKind: ProjectileKind | null;
@@ -287,6 +290,9 @@ const inputFlags: Record<keyof PlayerInput, EncodedPlayerInput> = {
 };
 
 const frames = (count: number) => count / combatFps;
+const parryCounterWindow = frames(42);
+const parryVulnerableWindow = frames(34);
+const projectileParryVulnerableWindow = frames(24);
 const gravity = 2500;
 const moveSpeed = 270;
 const groundAcceleration = 3700;
@@ -1219,6 +1225,8 @@ export class CombatSimulation {
     fighter.dashTimer = Math.max(0, fighter.dashTimer - delta);
     fighter.invulnerableTimer = Math.max(0, fighter.invulnerableTimer - delta);
     fighter.guardLockTimer = Math.max(0, fighter.guardLockTimer - delta);
+    fighter.parryCounterTimer = Math.max(0, (fighter.parryCounterTimer ?? 0) - delta);
+    fighter.parryVulnerableTimer = Math.max(0, (fighter.parryVulnerableTimer ?? 0) - delta);
     fighter.hitCooldown = Math.max(0, fighter.hitCooldown - delta);
     fighter.stunTimer = Math.max(0, fighter.stunTimer - delta);
     fighter.comboTimer = Math.max(0, fighter.comboTimer - delta);
@@ -1259,6 +1267,9 @@ export class CombatSimulation {
         fighter.hasFiredProjectile = false;
         fighter.attackElapsed = 0;
         if (whiffed) {
+          fighter.stamina = Math.max(0, fighter.stamina - getWhiffStaminaPenalty(fighter, spec));
+          fighter.parryCounterTimer = 0;
+          fighter.parryVulnerableTimer = Math.max(fighter.parryVulnerableTimer, getWhiffVulnerableTime(spec));
           fighter.comboCount = 0;
           fighter.comboTimer = 0;
           fighter.lastComboAttack = null;
@@ -1312,7 +1323,8 @@ export class CombatSimulation {
 
   private startAttack(fighter: FighterSnapshot, kind: AttackKind) {
     const spec = attackSpecs[kind];
-    const staminaCost = spec.staminaCost * fighter.stats.staminaCost * getAttackCostMultiplier(fighter, kind);
+    const baseStaminaCost = spec.staminaCost * fighter.stats.staminaCost * getAttackCostMultiplier(fighter, kind);
+    const staminaCost = baseStaminaCost * (fighter.parryCounterTimer > 0 ? 0.55 : 1);
 
     if (
       fighter.state === "attack" ||
@@ -1436,7 +1448,8 @@ export class CombatSimulation {
 
     const blocked = isBlockingProjectile(defender, projectile);
     const perfectBlock = blocked && defender.guardLockTimer > frames(7) && defender.stamina > 20;
-    const counterHit = !blocked && isCounterHit(defender);
+    const parryCounter = !blocked && attacker.parryCounterTimer > 0 && defender.parryVulnerableTimer > 0;
+    const counterHit = !blocked && (isCounterHit(defender) || defender.parryVulnerableTimer > 0);
     const combo = blocked ? createBlockedComboResult(attacker) : advanceCombo(attacker, spec.kind);
     const detachedPart = blocked ? null : this.detachTargetPart(attacker, defender, spec.target, spec.kind, combo.count, combo.stale);
     const bonusStrikes = blocked ? 0 : getBonusStrikeCount(attacker, spec.kind);
@@ -1445,7 +1458,8 @@ export class CombatSimulation {
         attacker.stats.attackPower *
         getAttackDamageMultiplier(attacker, spec.kind) *
         combo.damageMultiplier *
-        (counterHit ? 1.1 : 1) +
+        (counterHit ? 1.1 : 1) *
+        (parryCounter ? 1.18 : 1) +
       bonusStrikes * getBonusStrikeDamage(spec.kind);
     const blockStaminaDamage = blocked ? Math.max(10, getBlockStaminaDamage(spec, perfectBlock) - 4) : 6;
     const chipDamage = blocked && !perfectBlock ? Math.min(getChipDamage(spec), Math.max(0, defender.health - 1)) : 0;
@@ -1459,19 +1473,25 @@ export class CombatSimulation {
     if (!blocked) {
       const pressure = advanceReceivedHitPressure(defender);
       defender.state = "hit";
-      defender.stunTimer = (projectile.hitStun + combo.extraHitStun + (counterHit ? frames(4) : 0)) * getHitStunTakenMultiplier(defender);
+      defender.stunTimer =
+        (projectile.hitStun + combo.extraHitStun + (counterHit ? frames(4) : 0) + (parryCounter ? frames(8) : 0)) *
+        getHitStunTakenMultiplier(defender);
       defender.vx =
         projectile.facing *
-        (projectile.knockback + getComboReactionPush(combo.count) + pressure.extraKnockback) *
+        (projectile.knockback + getComboReactionPush(combo.count) + pressure.extraKnockback + (parryCounter ? 72 : 0)) *
         combo.knockbackMultiplier *
         getKnockbackTakenMultiplier(defender);
       defender.vy =
         projectile.kind === "rocket" || projectile.kind === "stone" || combo.count >= 3 || pressure.breakaway
-          ? (-95 - combo.extraLaunch * 0.58 - pressure.extraLaunch) * getLaunchTakenMultiplier(defender)
+          ? (-95 - combo.extraLaunch * 0.58 - pressure.extraLaunch - (parryCounter ? 52 : 0)) * getLaunchTakenMultiplier(defender)
           : defender.vy;
       defender.hitCooldown = Math.max(defender.hitCooldown, pressure.extraHitCooldown);
       defender.invulnerableTimer = Math.max(defender.invulnerableTimer, pressure.extraInvulnerable);
-      this.hitStopTimer = spec.hitStop + combo.extraHitStop + (projectile.kind === "laser" ? frames(1) : 0);
+      this.hitStopTimer = spec.hitStop + combo.extraHitStop + (projectile.kind === "laser" ? frames(1) : 0) + (parryCounter ? frames(2) : 0);
+      if (parryCounter) {
+        attacker.parryCounterTimer = 0;
+        defender.parryVulnerableTimer = 0;
+      }
       if (projectile.owner === "opponent" && !this.options.opponentControlled) {
         const projectileCooldown = combo.count >= 3 ? 0.32 : 0.18;
         this.cpuAttackCooldown = Math.max(
@@ -1496,7 +1516,8 @@ export class CombatSimulation {
       defender.vx = projectile.facing * (guardCrush ? 76 : 44) * getKnockbackTakenMultiplier(defender);
       attacker.vx = -projectile.facing * (perfectBlock ? 128 : 22);
       if (perfectBlock) {
-        defender.stamina = Math.min(100, defender.stamina + 6);
+        this.openParryCounter(defender, attacker, projectileParryVulnerableWindow);
+        defender.stamina = Math.min(100, defender.stamina + 10);
       }
       this.hitStopTimer = guardCrush ? frames(5) : perfectBlock ? frames(4) : frames(2);
       if (projectile.owner === "opponent" && !this.options.opponentControlled) {
@@ -1520,6 +1541,7 @@ export class CombatSimulation {
       comboCount: combo.count,
       comboStale: combo.stale,
       perfectBlock,
+      parryCounter,
       counterHit,
       guardCrush,
       projectileKind: projectile.kind,
@@ -1622,7 +1644,12 @@ export class CombatSimulation {
           : kind === "spinKick" || kind === "tailStrike"
             ? 54
             : 42;
-    fighter.vx = approach(fighter.vx, directionToOpponent * stepIn * fighter.stats.moveSpeed, stepIn);
+    const parryStepBonus = fighter.parryCounterTimer > 0 ? 1.22 : 1;
+    fighter.vx = approach(
+      fighter.vx,
+      directionToOpponent * stepIn * parryStepBonus * fighter.stats.moveSpeed,
+      stepIn * parryStepBonus
+    );
   }
 
   private queueAttack(fighter: FighterSnapshot, kind: AttackKind) {
@@ -1744,7 +1771,8 @@ export class CombatSimulation {
 
     const blocked = isBlockingAttack(defender, attacker);
     const perfectBlock = blocked && defender.guardLockTimer > frames(7) && defender.stamina > 20;
-    const counterHit = !blocked && isCounterHit(defender);
+    const parryCounter = !blocked && attacker.parryCounterTimer > 0 && defender.parryVulnerableTimer > 0;
+    const counterHit = !blocked && (isCounterHit(defender) || defender.parryVulnerableTimer > 0);
     const combo = blocked ? createBlockedComboResult(attacker) : advanceCombo(attacker, spec.kind);
     const detachedPart = blocked ? null : this.detachTargetPart(attacker, defender, spec.target, spec.kind, combo.count, combo.stale);
     const bonusStrikes = blocked ? 0 : getBonusStrikeCount(attacker, spec.kind);
@@ -1754,7 +1782,8 @@ export class CombatSimulation {
         attacker.stats.attackPower *
         getAttackDamageMultiplier(attacker, spec.kind) *
         combo.damageMultiplier *
-        (counterHit ? 1.12 : 1) +
+        (counterHit ? 1.12 : 1) *
+        (parryCounter ? 1.2 : 1) +
       bonusStrikes * getBonusStrikeDamage(spec.kind);
     const blockStaminaDamage = blocked ? getBlockStaminaDamage(spec, perfectBlock) : 7;
     const chipDamage = blocked && !perfectBlock ? Math.min(getChipDamage(spec), Math.max(0, defender.health - 1)) : 0;
@@ -1768,10 +1797,12 @@ export class CombatSimulation {
     if (!blocked) {
       const pressure = advanceReceivedHitPressure(defender);
       defender.state = "hit";
-      defender.stunTimer = (spec.hitStun + combo.extraHitStun + (counterHit ? frames(5) : 0)) * getHitStunTakenMultiplier(defender);
+      defender.stunTimer =
+        (spec.hitStun + combo.extraHitStun + (counterHit ? frames(5) : 0) + (parryCounter ? frames(9) : 0)) *
+        getHitStunTakenMultiplier(defender);
       defender.vx =
         attacker.facing *
-        (spec.knockback + getComboReactionPush(combo.count) + pressure.extraKnockback) *
+        (spec.knockback + getComboReactionPush(combo.count) + pressure.extraKnockback + (parryCounter ? 84 : 0)) *
         combo.knockbackMultiplier *
         getKnockbackTakenMultiplier(defender);
       defender.vy =
@@ -1782,11 +1813,16 @@ export class CombatSimulation {
           combo.count >= 3 ||
           pressure.breakaway) &&
         defender.y >= groundY
-          ? (-135 - combo.extraLaunch - pressure.extraLaunch - (counterHit ? 26 : 0)) * getLaunchTakenMultiplier(defender)
+          ? (-135 - combo.extraLaunch - pressure.extraLaunch - (counterHit ? 26 : 0) - (parryCounter ? 48 : 0)) *
+            getLaunchTakenMultiplier(defender)
           : defender.vy;
       defender.hitCooldown = Math.max(defender.hitCooldown, pressure.extraHitCooldown);
       defender.invulnerableTimer = Math.max(defender.invulnerableTimer, pressure.extraInvulnerable);
-      this.hitStopTimer = spec.hitStop + combo.extraHitStop + (counterHit ? frames(1) : 0);
+      this.hitStopTimer = spec.hitStop + combo.extraHitStop + (counterHit ? frames(1) : 0) + (parryCounter ? frames(2) : 0);
+      if (parryCounter) {
+        attacker.parryCounterTimer = 0;
+        defender.parryVulnerableTimer = 0;
+      }
       if (attackerId === "opponent" && !this.options.opponentControlled) {
         const hitCooldown = combo.count >= 3 ? 0.36 : 0.2;
         this.cpuAttackCooldown = Math.max(
@@ -1811,11 +1847,14 @@ export class CombatSimulation {
       defender.vx = attacker.facing * (guardCrush ? 92 : 58) * getKnockbackTakenMultiplier(defender);
       attacker.vx = -attacker.facing * (perfectBlock ? 210 : guardCrush ? 18 : 70);
       if (perfectBlock) {
-        attacker.state = "hit";
-        attacker.stunTimer = frames(14);
+        this.openParryCounter(defender, attacker, parryVulnerableWindow);
+        attacker.state = "blockstun";
+        attacker.stunTimer = frames(24) * getHitStunTakenMultiplier(attacker);
         attacker.attackKind = null;
         attacker.attackElapsed = 0;
-        defender.stamina = Math.min(100, defender.stamina + 8);
+        attacker.hasHitDuringAttack = false;
+        attacker.hasFiredProjectile = false;
+        defender.stamina = Math.min(100, defender.stamina + 14);
       }
       this.hitStopTimer = guardCrush ? frames(6) : perfectBlock ? frames(5) : frames(2);
       if (attackerId === "opponent" && !this.options.opponentControlled) {
@@ -1839,10 +1878,20 @@ export class CombatSimulation {
       comboCount: combo.count,
       comboStale: combo.stale,
       perfectBlock,
+      parryCounter,
       counterHit,
       guardCrush,
       projectileKind: null
     };
+  }
+
+  private openParryCounter(defender: FighterSnapshot, attacker: FighterSnapshot, vulnerableWindow: number) {
+    defender.parryCounterTimer = Math.max(defender.parryCounterTimer, parryCounterWindow);
+    defender.parryVulnerableTimer = 0;
+    attacker.parryVulnerableTimer = Math.max(attacker.parryVulnerableTimer, vulnerableWindow);
+    attacker.queuedAttack = null;
+    attacker.inputBufferTimer = 0;
+    attacker.guardLockTimer = 0;
   }
 
   private detachTargetPart(
@@ -2287,6 +2336,8 @@ function createFighter(key: FighterSnapshot["key"], x: number): FighterSnapshot 
     dashCooldownTimer: 0,
     invulnerableTimer: 0,
     guardLockTimer: 0,
+    parryCounterTimer: 0,
+    parryVulnerableTimer: 0,
     hitCooldown: 0,
     stunTimer: 0,
     comboCount: 0,
@@ -2311,6 +2362,8 @@ function hashFighter(hash: number, fighter: FighterSnapshot) {
   hash = hashString(hash, fighter.state);
   hash = hashString(hash, fighter.attackKind ?? "none");
   hash = hashNumber(hash, Math.round(fighter.attackElapsed * combatFps));
+  hash = hashNumber(hash, Math.round((fighter.parryCounterTimer ?? 0) * combatFps));
+  hash = hashNumber(hash, Math.round((fighter.parryVulnerableTimer ?? 0) * combatFps));
   hash = hashNumber(hash, fighter.hasFiredProjectile ? 1 : 0);
   hash = hashNumber(hash, fighter.comboCount);
   hash = hashString(hash, fighter.lastComboAttack ?? "none");
@@ -2442,6 +2495,25 @@ function isBlockingProjectile(defender: FighterSnapshot, projectile: ProjectileS
 
 function isCounterHit(defender: FighterSnapshot) {
   return defender.state === "attack" && Boolean(defender.attackKind) && !isAttackActive(defender);
+}
+
+function getWhiffStaminaPenalty(fighter: FighterSnapshot, spec: AttackSpec) {
+  const baseCost = spec.staminaCost * fighter.stats.staminaCost;
+  const whiffScale = spec.kind === "light" || spec.kind === "clawSwipe" ? 0.16 : 0.23;
+  const guardScale = fighter.key === "guard" ? 1.35 : 1;
+  return baseCost * whiffScale * guardScale;
+}
+
+function getWhiffVulnerableTime(spec: AttackSpec) {
+  if (spec.kind === "heavy" || spec.kind === "spinKick" || spec.kind === "chomp") {
+    return frames(16);
+  }
+
+  if (spec.kind === "tailStrike" || spec.kind === "high") {
+    return frames(13);
+  }
+
+  return frames(10);
 }
 
 function getProjectileSpec(fighter: FighterSnapshot, kind: AttackKind) {

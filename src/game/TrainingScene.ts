@@ -449,8 +449,8 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     chomp: { start: 8, count: 6 },
     clawSwipe: { start: 16, count: 6 },
     kick: { start: 24, count: 6 },
-    spinKick: { start: 32, count: 6 },
-    low: { start: 32, count: 6 },
+    spinKick: { frames: [32, 33, 34, 35, 37] },
+    low: { frames: [32, 33, 34, 35, 37] },
     heavy: { start: 8, count: 6 },
     light: { start: 16, count: 6 },
     high: { start: 16, count: 6 },
@@ -519,12 +519,12 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.stephenHawkingRuntimeActions,
     ...standardRuntimeFrame(),
     idle: { start: 0, count: 8 },
-    run: { frames: [8, 10, 14, 15] },
+    run: { frames: [8, 10, 14] },
     high: { frames: [16, 17, 18, 19, 22, 23] },
     heavy: { frames: [24, 25, 26, 27, 30, 31] },
     low: { frames: [32, 33, 34, 35, 38, 39] },
-    light: { frames: [8, 10, 14, 15] },
-    kick: { frames: [8, 10, 14, 15] },
+    light: { frames: [8, 10, 14] },
+    kick: { frames: [8, 10, 14] },
     spinKick: { frames: [32, 33, 34, 35, 38, 39] },
     scale: 0.98,
     baseBodyScale: 1,
@@ -542,7 +542,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     heavy: { frames: [24, 25, 26, 27, 28, 30, 31] },
     low: { frames: [32, 33, 34, 35, 39] },
     kick: { frames: [24, 25, 26, 27, 28, 30, 31] },
-    spinKick: { frames: [32, 33, 34, 35, 38, 39] },
+    spinKick: { frames: [32, 33, 34, 35, 39] },
     scale: 0.98,
     baseBodyScale: 1,
     originX: 0.5,
@@ -696,7 +696,7 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     asset: characterAssets.roseRuntimeActions,
     ...standardRuntimeFrame(),
     idle: { frames: [0, 1, 2, 3, 4, 5, 6, 7] },
-    high: { frames: [8, 9, 10, 11, 14, 15] },
+    high: { frames: [8, 9, 10, 11, 15] },
     light: { frames: [16, 17, 18, 19, 22, 23] },
     heavy: { frames: [32, 33, 34, 35, 36, 37, 38] },
     low: { frames: [24, 25, 26, 27, 30, 31] },
@@ -1953,8 +1953,8 @@ export class TrainingScene extends Phaser.Scene {
         if (event.perfectBlock) {
           this.blockFlashTimer = 0.24;
           this.statusHoldTimer = 0.72;
-          this.statusText.setText("Perfect block! Counter window opened.");
-          this.spawnFloatingText("PERFECT", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#d8b45d");
+          this.statusText.setText("Parry! Counter window opened.");
+          this.spawnFloatingText("PARRY", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#d8b45d");
           this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 76 : this.simulation.state.player.y - 76, event.attacker === "player" ? -1 : 1, true);
           pulseHaptics([18, 18, 24]);
         } else if (event.guardCrush) {
@@ -1971,6 +1971,11 @@ export class TrainingScene extends Phaser.Scene {
           this.spawnFloatingText("BLOCK", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 92 : this.simulation.state.player.y - 92, "#f2d06b");
           this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 66 : this.simulation.state.player.y - 66, event.attacker === "player" ? -1 : 1, false);
           pulseHaptics(10);
+        } else if (event.parryCounter) {
+          this.statusHoldTimer = 0.86;
+          this.statusText.setText("Parry counter landed. Enemy is opened for follow-up pressure.");
+          this.spawnFloatingText("PARRY COUNTER", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#fff3bf");
+          pulseHaptics([16, 24, 20]);
         } else if (event.detachedPart) {
           this.statusHoldTimer = 1.25;
           this.statusText.setText(
@@ -2502,6 +2507,20 @@ export class TrainingScene extends Phaser.Scene {
         maxLife: 0.34,
         color: 0xd8b45d,
         size: 30
+      });
+    }
+
+    if (event.parryCounter) {
+      this.effects.push({
+        kind: "shockwave",
+        x: impactX,
+        y: impactY,
+        vx: 0,
+        vy: 0,
+        life: 0.32,
+        maxLife: 0.32,
+        color: 0xfff3bf,
+        size: 36
       });
     }
 
@@ -3406,6 +3425,10 @@ export class TrainingScene extends Phaser.Scene {
       sprite.setTint(0xffc9a7);
     } else if (fighter.state === "blockstun") {
       sprite.setTint(0xfff3bf);
+    } else if (fighter.parryCounterTimer > 0) {
+      sprite.setTint(0xfff3bf);
+    } else if (fighter.parryVulnerableTimer > 0) {
+      sprite.setTint(0xffc9a7);
     } else {
       sprite.clearTint();
     }
