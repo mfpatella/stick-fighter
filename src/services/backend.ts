@@ -11,6 +11,7 @@ import type { GameLaunchSettings } from "../game/gameSettings";
 import type { LevelKey } from "../game/levels";
 import type {
   GameLobby,
+  LobbyMember,
   MatchmakingMode,
   MatchmakingTicket,
   MatchResultKind,
@@ -356,7 +357,8 @@ export async function loadPlayerStats(): Promise<PlayerStats> {
 
 export async function fetchLobbyById(lobbyId: string): Promise<GameLobby | null> {
   if (!supabase) {
-    return readLocalJson<GameLobby | null>(localLobbyKey, null);
+    const lobby = readLocalJson<GameLobby | null>(localLobbyKey, null);
+    return lobby?.id === lobbyId ? lobby : null;
   }
 
   const { data: lobbyRow, error: lobbyError } = await supabase
@@ -602,7 +604,7 @@ export async function joinLobbyByRoomCode(input: {
   fighterKey: BaseFighterKey;
 }): Promise<GameLobby> {
   if (!supabase) {
-    throw new Error("Supabase is not configured.");
+    return joinLocalLobbyByRoomCode(input);
   }
 
   const {
@@ -701,6 +703,47 @@ export async function joinLobbyByRoomCode(input: {
     ],
     createdAt: lobbyRow.created_at
   };
+
+  window.localStorage.setItem(localLobbyKey, JSON.stringify(lobby));
+  return lobby;
+}
+
+function joinLocalLobbyByRoomCode(input: {
+  roomCode: string;
+  avatar: PlayerAvatar;
+  fighterKey: BaseFighterKey;
+}): GameLobby {
+  const normalizedRoomCode = input.roomCode.trim().toUpperCase();
+  const lobby = readLocalJson<GameLobby | null>(localLobbyKey, null);
+
+  if (!lobby || lobby.roomCode !== normalizedRoomCode || (lobby.status !== "open" && lobby.status !== "ready")) {
+    throw new Error(`Local lobby ${normalizedRoomCode} was not found.`);
+  }
+
+  const existingGuest = lobby.members.find(
+    (member) => member.profileId.startsWith("local-guest") && member.displayName === input.avatar.displayName
+  );
+  const usedSlots = new Set(lobby.members.map((member) => member.slot));
+  const slot = existingGuest?.slot ?? findOpenSlot(usedSlots, lobby.maxPlayers);
+
+  if (!slot) {
+    throw new Error(`Local lobby ${normalizedRoomCode} is full.`);
+  }
+
+  const guestMember: LobbyMember = {
+    profileId: existingGuest?.profileId ?? `local-guest-${slot}`,
+    displayName: input.avatar.displayName || `Local Guest ${slot}`,
+    fighterKey: input.fighterKey,
+    avatar: input.avatar,
+    ready: true,
+    slot
+  };
+
+  lobby.members = [
+    ...lobby.members.filter((member) => member.profileId !== guestMember.profileId),
+    guestMember
+  ].sort((left, right) => left.slot - right.slot);
+  lobby.status = lobby.members.length >= 2 && lobby.members.every((member) => member.ready) ? "ready" : "open";
 
   window.localStorage.setItem(localLobbyKey, JSON.stringify(lobby));
   return lobby;
@@ -865,17 +908,15 @@ export async function joinRealtimeRoom(input: {
   if (!supabase) {
     input.onState({
       lobbyId: input.lobby.id,
-      onlineCount: 1,
+      onlineCount: Math.max(1, input.lobby.members.length),
       status: "closed",
-      participants: [
-        {
-          profileId: "local-player",
-          displayName: input.avatar.displayName,
-          fighterKey: input.fighterKey,
-          ready: true,
-          slot: 1
-        }
-      ]
+      participants: input.lobby.members.map((member) => ({
+        profileId: member.profileId,
+        displayName: member.displayName,
+        fighterKey: member.fighterKey,
+        ready: member.ready,
+        slot: member.slot
+      }))
     });
     return () => undefined;
   }
@@ -1160,10 +1201,10 @@ function createRoomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-function findOpenSlot(usedSlots: Set<number>, maxPlayers: 2 | 4) {
+function findOpenSlot(usedSlots: Set<number>, maxPlayers: 2 | 4): LobbyMember["slot"] | null {
   for (let slot = 1; slot <= maxPlayers; slot += 1) {
     if (!usedSlots.has(slot)) {
-      return slot;
+      return slot as LobbyMember["slot"];
     }
   }
 

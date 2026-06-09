@@ -707,11 +707,15 @@ async function handleJoinLobby() {
       fighterKey: settings.playerFighter
     });
 
-    await enterLobby(lobby, settings, avatar, "supabase");
+    const source = lobby.hostId === "local-player" ? "local" : "supabase";
+    await enterLobby(lobby, settings, avatar, source);
     stopMatchmakingSearch(true);
 
     if (onlineStatus) {
-      onlineStatus.textContent = `Joined lobby ${lobby.roomCode}. Start the online fight from the lobby.`;
+      onlineStatus.textContent =
+        source === "local"
+          ? `Joined local lobby ${lobby.roomCode}. Start the local online simulation from the lobby.`
+          : `Joined lobby ${lobby.roomCode}. Start the online fight from the lobby.`;
     }
   } catch (error) {
     if (onlineStatus) {
@@ -1152,7 +1156,10 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
     if (!currentLobby) {
       lobbyStatus.textContent = "Create or join a room to fight another player online.";
     } else if (currentLobbySource === "local") {
-      lobbyStatus.textContent = "Local lobby fallback is ready. Sign in to Supabase for remote players.";
+      lobbyStatus.textContent =
+        currentLobby.members.length >= 2
+          ? `Local online simulation ${currentLobby.roomCode} is ready with ${currentLobby.members.length} players.`
+          : "Local lobby fallback is ready. Sign in to Supabase for remote players.";
     } else if (currentMatchmakingTicketId && status === "searching") {
       lobbyStatus.textContent = `Searching ${formatMatchmakingElapsed()} for a ${currentLobbySettings?.matchmakingMode ?? "casual"} opponent. Share ${currentLobby.roomCode} or keep matchmaking open.`;
     } else {
@@ -1195,7 +1202,8 @@ function renderLobbyActions() {
   if (activeMatchStartId) {
     startOnlineFightButton.textContent = "Starting...";
   } else if (isLocalFallback) {
-    startOnlineFightButton.textContent = "Start Local Bot Test";
+    startOnlineFightButton.textContent =
+      currentLobby?.members.length && currentLobby.members.length >= 2 ? "Start Local Online Sim" : "Start Local Bot Test";
   } else if (!host) {
     startOnlineFightButton.textContent = "Waiting for Host";
   } else if (currentMatchmakingTicketId && !hasOnlineOpponent) {
