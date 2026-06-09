@@ -55,6 +55,7 @@ const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   sophia: { color: 0x7c6b5b, accent: 0x8b5b2e },
   blanche: { color: 0x9b3e72, accent: 0xf2a9d6 },
   rose: { color: 0xe9b5a6, accent: 0xf2d06b },
+  moranatee: { color: 0x465d64, accent: 0x63c8f2 },
   guard: { color: 0x2a2926, accent: 0x8b2635 },
   neutral: { color: 0x5d4a16, accent: 0xd8b45d }
 };
@@ -120,6 +121,7 @@ type SheetFighterKey = Extract<
   | "sophia"
   | "blanche"
   | "rose"
+  | "moranatee"
 >;
 type SheetRow =
   | {
@@ -706,6 +708,24 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     baseBodyScale: 0.98,
     originX: 0.5,
     originY: 0.94,
+    yOffset: 1
+  },
+  moranatee: {
+    textureKey: "character-moranatee-actions",
+    asset: characterAssets.moranateeRuntimeActions,
+    ...standardRuntimeFrame(),
+    idle: { start: 0, count: 7 },
+    run: { start: 0, count: 7 },
+    light: { frames: [7, 8, 9, 12, 13] },
+    kick: { frames: [7, 10, 11, 12, 13] },
+    high: { frames: [14, 15, 16, 17, 18, 19, 20] },
+    heavy: { frames: [21, 22, 23, 24, 25, 26, 27] },
+    low: { frames: [28, 29, 30, 31, 32, 33, 34] },
+    spinKick: { frames: [35, 36, 37, 38, 39, 40, 41] },
+    scale: 1,
+    baseBodyScale: 1.12,
+    originX: 0.5,
+    originY: 0.92,
     yOffset: 1
   }
 };
@@ -4493,6 +4513,10 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
 
   if (fighter.key === "rose") {
     return controls(["Cheesecake", "high"], ["Fish Toss", "light"], ["Hug Rush", "heavy"], ["Story Gust", "low"]);
+  }
+
+  if (fighter.key === "moranatee") {
+    return controls(["Water Roar", "high"], ["Flipper Jab", "light"], ["Splash Slam", "heavy"], ["Slide Rush", "low"]);
   }
 
   return controls(["High", "high"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);

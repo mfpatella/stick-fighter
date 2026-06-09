@@ -654,6 +654,9 @@ const projectileSpecs: Partial<Record<FighterKey, Partial<Record<AttackKind, Pro
     high: { kind: "cake", spawn: frames(10), speed: 500, yOffset: -72, width: 46, height: 30, damageScale: 0.78, knockbackScale: 0.86, life: 0.72, gravity: 120 },
     light: { kind: "fish", spawn: frames(10), speed: 580, yOffset: -68, width: 52, height: 28, damageScale: 0.78, knockbackScale: 0.82, life: 0.7, gravity: 60 },
     low: { kind: "paper", spawn: frames(12), speed: 480, yOffset: -58, width: 76, height: 34, damageScale: 0.72, knockbackScale: 0.68, life: 0.68 }
+  },
+  moranatee: {
+    high: { kind: "water", spawn: frames(11), speed: 520, yOffset: -70, width: 86, height: 30, damageScale: 0.78, knockbackScale: 0.76, life: 0.64, gravity: 20 }
   }
 };
 
@@ -796,6 +799,14 @@ const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKi
     low: { reach: 88, width: 104, height: 42, yOffset: -52 },
     spinKick: { reach: 102, width: 116, height: 58, yOffset: -70 }
   },
+  moranatee: {
+    light: { reach: 82, width: 98, height: 50, yOffset: -72 },
+    high: { reach: 88, width: 108, height: 48, yOffset: -86 },
+    kick: { reach: 92, width: 108, height: 52, yOffset: -54 },
+    heavy: { reach: 104, width: 124, height: 60, yOffset: -58 },
+    low: { reach: 112, width: 136, height: 42, yOffset: -36 },
+    spinKick: { reach: 116, width: 138, height: 64, yOffset: -66 }
+  },
   guard: {
     light: { reach: 44, width: 48, height: 36, yOffset: -70 },
     heavy: { reach: 54, width: 58, height: 44, yOffset: -64 },
@@ -826,7 +837,8 @@ const fighterHurtBoxTuning: Partial<Record<FighterKey, HurtBoxTuning>> = {
   dorothy: { width: 52, height: 116, headWidth: 54, headYOffset: -118, armWidth: 124, armYOffset: -88, legWidth: 112, legYOffset: -46, bodyWidth: 68, bodyHeight: 80, bodyYOffset: -88 },
   sophia: { width: 48, height: 106, headWidth: 50, armWidth: 118, legWidth: 104, bodyWidth: 64 },
   blanche: { width: 52, height: 114, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 },
-  rose: { width: 52, height: 112, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 }
+  rose: { width: 52, height: 112, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 },
+  moranatee: { width: 84, height: 116, yOffset: -1, headWidth: 60, headHeight: 48, headYOffset: -112, armWidth: 132, armHeight: 54, armYOffset: -82, legWidth: 128, legYOffset: -42, bodyWidth: 96, bodyHeight: 78, bodyYOffset: -82 }
 };
 
 export class CombatSimulation {
@@ -3176,7 +3188,7 @@ function hasNaturalClaws(fighter: FighterSnapshot) {
 }
 
 function isNaturalGuarder(fighter: FighterSnapshot) {
-  return fighter.key === "hippo" || fighter.key === "tRex" || fighter.key === "turtle" || fighter.key === "koolAidMan" || fighter.key === "stayPuft";
+  return fighter.key === "hippo" || fighter.key === "tRex" || fighter.key === "turtle" || fighter.key === "koolAidMan" || fighter.key === "stayPuft" || fighter.key === "moranatee";
 }
 
 function getNaturalChompBonus(fighter: FighterSnapshot) {

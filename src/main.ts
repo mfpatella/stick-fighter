@@ -63,6 +63,7 @@ const fighterPortraitAssets: Partial<Record<BaseFighterKey, string>> = {
   sophia: characterAssets.sophiaIcon,
   blanche: characterAssets.blancheIcon,
   rose: characterAssets.roseIcon,
+  moranatee: characterAssets.moranateeIcon,
   tRex: characterAssets.trexIcon
 };
 
@@ -1552,7 +1553,8 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     fighterKey === "dorothy" ||
     fighterKey === "sophia" ||
     fighterKey === "blanche" ||
-    fighterKey === "rose"
+    fighterKey === "rose" ||
+    fighterKey === "moranatee"
   ) {
     tags.push("Sheet moves");
   }
@@ -1579,6 +1581,10 @@ function getFighterTags(fighterKey: BaseFighterKey) {
 
   if (fighterKey === "dorothy" || fighterKey === "sophia" || fighterKey === "blanche" || fighterKey === "rose") {
     tags.push("Golden Girl");
+  }
+
+  if (fighterKey === "moranatee") {
+    tags.push("Splash", "Guard body");
   }
 
   return tags.length > 0 ? tags : ["Balanced"];
@@ -1655,6 +1661,9 @@ function getFighterMoveList(fighterKey: BaseFighterKey) {
   }
   if (fighterKey === "rose") {
     moves.push("Cheesecake toss", "Fish throw", "Story gust", "Hug rush");
+  }
+  if (fighterKey === "moranatee") {
+    moves.push("Flipper jab", "Water roar", "Slide rush", "Splash slam");
   }
 
   return moves.slice(0, 9);

@@ -25,6 +25,7 @@ export type BaseFighterKey =
   | "sophia"
   | "blanche"
   | "rose"
+  | "moranatee"
   | "guard";
 
 export type FighterStats = {
@@ -517,6 +518,24 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       reachScale: 1.02
     }
   },
+  moranatee: {
+    key: "moranatee",
+    name: "Moranatee",
+    role: "Splash bruiser",
+    description: "A heavy river brawler with grounded pressure, splash control, and steady guard timing.",
+    stats: {
+      maxHealth: 126,
+      moveSpeed: 0.92,
+      jumpPower: 0.9,
+      attackPower: 1.08,
+      staminaRegen: 1,
+      staminaCost: 0.98,
+      guardStrength: 1.12,
+      dodgeSpeed: 0.9,
+      bodyScale: 1.12,
+      reachScale: 1.04
+    }
+  },
   guard: {
     key: "guard",
     name: "Training Guard",
@@ -563,6 +582,7 @@ export const playerFighterKeys: BaseFighterKey[] = [
   "dorothy",
   "sophia",
   "blanche",
-  "rose"
+  "rose",
+  "moranatee"
 ];
 export const opponentFighterKeys: BaseFighterKey[] = ["guard", ...playerFighterKeys];

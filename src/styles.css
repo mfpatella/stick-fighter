@@ -1242,6 +1242,7 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="sophia"]::before,
 .fighter-icon-grid button[data-fighter-key="blanche"]::before,
 .fighter-icon-grid button[data-fighter-key="rose"]::before,
+.fighter-icon-grid button[data-fighter-key="moranatee"]::before,
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   content: "";
   width: 39px;
@@ -1329,6 +1330,10 @@ h2 {
   background-image: url("/assets/characters/rose/rose-icon.png");
 }
 
+.fighter-icon-grid button[data-fighter-key="moranatee"]::before {
+  background-image: url("/assets/characters/moranatee/moranatee-icon.png");
+}
+
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   background-image: url("/assets/characters/trex/trex-icon.png");
 }
@@ -1363,6 +1368,7 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="sophia"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="blanche"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="rose"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="moranatee"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
   border-color: var(--accent);
   background-color: #fff7df;
@@ -1445,6 +1451,10 @@ h2 {
 
 .fighter-icon-grid button[data-fighter-key="rose"].is-selected::before {
   background-image: url("/assets/characters/rose/rose-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="moranatee"].is-selected::before {
+  background-image: url("/assets/characters/moranatee/moranatee-icon.png");
 }
 
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
@@ -3223,7 +3233,7 @@ body.is-fighting #game canvas {
   display: block !important;
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover !important;
+  object-fit: contain !important;
 }
 
 body.is-fighting .fight-header {
