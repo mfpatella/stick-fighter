@@ -253,6 +253,7 @@ export type CombatEvent =
       counterHit: boolean;
       guardCrush: boolean;
       projectileKind: ProjectileKind | null;
+      projectileReflected?: boolean;
       impactX?: number;
       impactY?: number;
     }
@@ -765,11 +766,11 @@ const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKi
     spinKick: { reach: 90, width: 108, height: 64, yOffset: -76 }
   },
   stayPuft: {
-    light: { reach: 88, width: 112, height: 62, yOffset: -82 },
-    heavy: { reach: 112, width: 132, height: 72, yOffset: -82 },
-    kick: { reach: 98, width: 118, height: 60, yOffset: -58 },
-    low: { reach: 106, width: 138, height: 48, yOffset: -36 },
-    spinKick: { reach: 124, width: 144, height: 74, yOffset: -76 }
+    light: { reach: 84, width: 106, height: 62, yOffset: -82 },
+    heavy: { reach: 106, width: 126, height: 72, yOffset: -82 },
+    kick: { reach: 94, width: 112, height: 60, yOffset: -58 },
+    low: { reach: 100, width: 130, height: 48, yOffset: -36 },
+    spinKick: { reach: 114, width: 134, height: 74, yOffset: -76 }
   },
   dorothy: {
     light: { reach: 86, width: 98, height: 50, yOffset: -76 },
@@ -1272,7 +1273,7 @@ export class CombatSimulation {
       const spec = attackSpecs[fighter.attackKind];
       fighter.attackElapsed += delta;
       this.trySpawnProjectile(fighter, fighter.attackKind);
-      if (fighter.attackElapsed >= attackTotalDuration(spec, this.options.standardTiming)) {
+      if (fighter.attackElapsed >= attackTotalDuration(fighter, spec, this.options.standardTiming)) {
         const whiffed = !fighter.hasHitDuringAttack;
         fighter.attackKind = null;
         fighter.hasHitDuringAttack = false;
@@ -1437,6 +1438,9 @@ export class CombatSimulation {
       const hit = this.resolveProjectileHit(projectile, defender);
       if (hit) {
         events.push(hit);
+        if (hit.type === "hit" && hit.blocked && hit.perfectBlock && hit.projectileReflected) {
+          continue;
+        }
         this.state.projectiles.splice(index, 1);
       }
     }
@@ -1453,8 +1457,11 @@ export class CombatSimulation {
       return null;
     }
 
-    const attacker = projectile.owner === "player" ? this.state.player : this.state.opponent;
-    if (projectile.owner === "player") {
+    const originalOwner = projectile.owner;
+    const impactX = projectile.x;
+    const impactY = projectile.y;
+    const attacker = originalOwner === "player" ? this.state.player : this.state.opponent;
+    if (originalOwner === "player") {
       this.playerAttackMemory[spec.kind] = (this.playerAttackMemory[spec.kind] ?? 0) + 1;
     }
 
@@ -1504,7 +1511,7 @@ export class CombatSimulation {
         attacker.parryCounterTimer = 0;
         defender.parryVulnerableTimer = 0;
       }
-      if (projectile.owner === "opponent" && !this.options.opponentControlled) {
+      if (originalOwner === "opponent" && !this.options.opponentControlled) {
         const projectileCooldown = combo.count >= 3 ? 0.32 : 0.18;
         this.cpuAttackCooldown = Math.max(
           this.cpuAttackCooldown,
@@ -1530,9 +1537,10 @@ export class CombatSimulation {
       if (perfectBlock) {
         this.openParryCounter(defender, attacker, projectileParryVulnerableWindow);
         defender.stamina = Math.min(100, defender.stamina + 10);
+        this.reflectProjectile(projectile, defender);
       }
       this.hitStopTimer = guardCrush ? frames(5) : perfectBlock ? frames(4) : frames(2);
-      if (projectile.owner === "opponent" && !this.options.opponentControlled) {
+      if (originalOwner === "opponent" && !this.options.opponentControlled) {
         const projectileBlockCooldown = perfectBlock ? 0.62 : guardCrush ? 0.18 : 0.36;
         this.cpuAttackCooldown = Math.max(
           this.cpuAttackCooldown,
@@ -1543,7 +1551,7 @@ export class CombatSimulation {
 
     return {
       type: "hit",
-      attacker: projectile.owner,
+      attacker: originalOwner,
       blocked,
       attackKind: spec.kind,
       target: spec.target,
@@ -1557,9 +1565,27 @@ export class CombatSimulation {
       counterHit,
       guardCrush,
       projectileKind: projectile.kind,
-      impactX: projectile.x,
-      impactY: projectile.y
+      projectileReflected: perfectBlock,
+      impactX,
+      impactY
     };
+  }
+
+  private reflectProjectile(projectile: ProjectileSnapshot, defender: FighterSnapshot) {
+    const reflectedOwner = defender === this.state.player ? "player" : "opponent";
+    const spec = getProjectileSpecByKind(projectile.kind);
+    const speed = Math.max(Math.abs(projectile.vx) * 1.08, (spec?.speed ?? 520) * 0.95);
+
+    projectile.owner = reflectedOwner;
+    projectile.source = defender.key;
+    projectile.facing = defender.facing;
+    projectile.x = defender.x + defender.facing * (42 + projectile.width * 0.42);
+    projectile.y = defender.y + (spec?.yOffset ?? -72) * defender.stats.bodyScale;
+    projectile.vx = defender.facing * speed;
+    projectile.vy = Math.min(0, projectile.vy) * 0.28;
+    projectile.damage *= 0.82;
+    projectile.knockback *= 0.9;
+    projectile.life = Math.max(projectile.life, Math.min(spec?.life ?? 0.64, 0.72));
   }
 
   private updateNeutralDrops(delta: number): CombatEvent | null {
@@ -1701,7 +1727,8 @@ export class CombatSimulation {
     }
 
     const spec = attackSpecs[fighter.attackKind];
-    const postActive = fighter.attackElapsed >= spec.startup + spec.active + frames(this.options.standardTiming ? 0 : 1);
+    const timing = getAttackTiming(fighter, spec, this.options.standardTiming);
+    const postActive = fighter.attackElapsed >= timing.startup + timing.active + frames(this.options.standardTiming ? 0 : 1);
     if (!postActive) {
       return false;
     }
@@ -2035,7 +2062,8 @@ export class CombatSimulation {
 
     const distance = Math.abs(attacker.x - defender.x);
     const inFront = defender.facing === 1 ? attacker.x > defender.x : attacker.x < defender.x;
-    return inFront && distance < attackSpecs[attacker.attackKind].reach + 56 ? frames(12) : 0;
+    const reach = getEffectiveAttackReach(attacker, attacker.attackKind, getTunedAttackBoxValue(attacker, attacker.attackKind, "reach"));
+    return inFront && distance < reach + 56 ? frames(12) : 0;
   }
 
   private getOpponentForFighter(fighter: FighterSnapshot) {
@@ -2253,7 +2281,7 @@ export function getAttackBox(fighter: FighterSnapshot): Rect {
   const tunedHeight = tuning?.height ?? spec.height;
   const tunedYOffset = tuning?.yOffset ?? spec.yOffset;
   const visualReach = getEffectiveAttackReach(fighter, kind, tunedReach);
-  const reachScale = fighter.stats.reachScale * getPlayableReachAssist(fighter, kind);
+  const reachScale = getEffectiveAttackReachScale(fighter, kind);
   const width = tunedWidth * (reachScale > 1 ? 1 + (reachScale - 1) * 0.45 : 1);
   const height = tunedHeight * Math.min(1.16, fighter.stats.bodyScale);
   const left =
@@ -2270,7 +2298,57 @@ export function getAttackBox(fighter: FighterSnapshot): Rect {
 }
 
 function getEffectiveAttackReach(fighter: FighterSnapshot, kind: AttackKind, tunedReach: number) {
-  return tunedReach * fighter.stats.reachScale * getPlayableReachAssist(fighter, kind);
+  const scaledReach = tunedReach * getEffectiveAttackReachScale(fighter, kind);
+  return Math.max(scaledReach, getMinimumPlayableReach(fighter, kind));
+}
+
+function getEffectiveAttackReachScale(fighter: FighterSnapshot, kind: AttackKind) {
+  return fighter.stats.reachScale * getPlayableReachAssist(fighter, kind) * getPhysiqueReachAssist(fighter, kind);
+}
+
+function getPhysiqueReachAssist(fighter: FighterSnapshot, kind: AttackKind) {
+  if (fighter.key === "guard") {
+    return 1;
+  }
+
+  const bodyAssist = clamp(1 + (fighter.stats.bodyScale - 1) * 0.18, 0.96, 1.08);
+  const speedAssist =
+    kind === "light" || kind === "clawSwipe" || kind === "kick" || kind === "low"
+      ? clamp(1 + (fighter.stats.moveSpeed - 1) * 0.12, 0.96, 1.06)
+      : clamp(1 + (fighter.stats.moveSpeed - 1) * 0.05, 0.98, 1.03);
+  const smallFighterFloor =
+    fighter.stats.bodyScale < 0.96 && (kind === "light" || kind === "clawSwipe" || kind === "kick" || kind === "low")
+      ? 1.04
+      : 1;
+
+  return bodyAssist * speedAssist * smallFighterFloor;
+}
+
+function getMinimumPlayableReach(fighter: FighterSnapshot, kind: AttackKind) {
+  if (fighter.key === "guard") {
+    return 0;
+  }
+
+  const fastBonus = fighter.stats.moveSpeed >= 1.1 ? 1.04 : 1;
+  const tallBonus = fighter.stats.bodyScale >= 1.12 ? 1.03 : 1;
+  const floor =
+    kind === "light" || kind === "clawSwipe"
+      ? 64
+      : kind === "low" || kind === "kick"
+        ? 72
+        : kind === "high"
+          ? 74
+          : kind === "heavy"
+            ? 82
+            : kind === "spinKick"
+              ? 92
+              : kind === "tailStrike"
+                ? 90
+                : kind === "chomp"
+                  ? 62
+                  : 0;
+
+  return floor * fastBonus * tallBonus;
 }
 
 function getPlayableReachAssist(fighter: FighterSnapshot, kind: AttackKind) {
@@ -2318,7 +2396,8 @@ export function isAttackActive(fighter: FighterSnapshot): boolean {
   }
 
   const spec = attackSpecs[fighter.attackKind];
-  return fighter.attackElapsed >= spec.startup && fighter.attackElapsed <= spec.startup + spec.active;
+  const timing = getAttackTiming(fighter, spec);
+  return fighter.attackElapsed >= timing.startup && fighter.attackElapsed <= timing.startup + timing.active;
 }
 
 function createFighter(key: FighterSnapshot["key"], x: number): FighterSnapshot {
@@ -2415,8 +2494,38 @@ function hashString(hash: number, value: string) {
   return hash >>> 0;
 }
 
-function attackTotalDuration(spec: AttackSpec, standardTiming = false) {
-  return spec.startup + spec.active + spec.recovery * (standardTiming ? 0.82 : 1);
+type AttackTiming = {
+  startup: number;
+  active: number;
+  recovery: number;
+  total: number;
+};
+
+function getAttackTiming(fighter: FighterSnapshot, spec: AttackSpec, standardTiming = false): AttackTiming {
+  const speedQuickness = clamp(1 - (fighter.stats.moveSpeed - 1) * 0.13, 0.88, 1.12);
+  const staminaQuickness = clamp(1 - (fighter.stats.staminaRegen - 1) * 0.05, 0.96, 1.04);
+  const bodyDrag = clamp(1 + (fighter.stats.bodyScale - 1) * 0.08, 0.97, 1.04);
+  const powerDrag = clamp(1 + Math.max(0, fighter.stats.attackPower - 1) * 0.04, 1, 1.03);
+  const quickStrikeBonus =
+    spec.kind === "light" || spec.kind === "clawSwipe" || spec.kind === "kick" || spec.kind === "low" ? 0.96 : 1;
+  const heavyStrikeDrag = spec.kind === "heavy" || spec.kind === "spinKick" || spec.kind === "chomp" ? 1.04 : 1;
+  const startupScale = clamp(speedQuickness * staminaQuickness * bodyDrag * quickStrikeBonus, 0.84, 1.14);
+  const recoveryScale = clamp(speedQuickness * bodyDrag * powerDrag * heavyStrikeDrag, 0.84, 1.18);
+  const activeScale = clamp(1 + (fighter.stats.reachScale - 1) * 0.08 + (fighter.stats.bodyScale - 1) * 0.04, 0.96, 1.08);
+  const startup = spec.startup * startupScale;
+  const active = spec.active * activeScale;
+  const recovery = spec.recovery * (standardTiming ? 0.82 : 1) * recoveryScale;
+
+  return {
+    startup,
+    active,
+    recovery,
+    total: startup + active + recovery
+  };
+}
+
+function attackTotalDuration(fighter: FighterSnapshot, spec: AttackSpec, standardTiming = false) {
+  return getAttackTiming(fighter, spec, standardTiming).total;
 }
 
 function createBlockedComboResult(attacker: FighterSnapshot) {

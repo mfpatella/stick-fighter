@@ -1971,10 +1971,11 @@ export class TrainingScene extends Phaser.Scene {
           this.advanceObjective("block");
         }
         if (event.perfectBlock) {
+          const reflectedProjectile = Boolean(event.projectileKind && event.projectileReflected);
           this.blockFlashTimer = 0.24;
           this.statusHoldTimer = 0.72;
-          this.statusText.setText("Parry! Counter window opened.");
-          this.spawnFloatingText("PARRY", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#d8b45d");
+          this.statusText.setText(reflectedProjectile ? "Parry! Projectile returned." : "Parry! Counter window opened.");
+          this.spawnFloatingText(reflectedProjectile ? "RETURN" : "PARRY", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#d8b45d");
           this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 76 : this.simulation.state.player.y - 76, event.attacker === "player" ? -1 : 1, true);
           pulseHaptics([18, 18, 24]);
         } else if (event.guardCrush) {

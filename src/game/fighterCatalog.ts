@@ -83,7 +83,7 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       guardStrength: 1.22,
       dodgeSpeed: 0.98,
       bodyScale: 1.02,
-      reachScale: 0.98
+      reachScale: 1
     }
   },
   benaiah: {
@@ -119,7 +119,7 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       guardStrength: 0.92,
       dodgeSpeed: 1.2,
       bodyScale: 0.94,
-      reachScale: 0.96
+      reachScale: 0.98
     }
   },
   goliath: {
@@ -263,7 +263,7 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       guardStrength: 0.82,
       dodgeSpeed: 1.28,
       bodyScale: 0.82,
-      reachScale: 0.86
+      reachScale: 0.9
     }
   },
   eagle: {
@@ -281,7 +281,7 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       guardStrength: 0.78,
       dodgeSpeed: 1.22,
       bodyScale: 0.9,
-      reachScale: 0.94
+      reachScale: 0.96
     }
   },
   chefBoyardee: {
@@ -434,16 +434,16 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "Marshmallow colossus",
     description: "Massive health, huge body checks, and slow armored pressure with weak mobility.",
     stats: {
-      maxHealth: 146,
+      maxHealth: 142,
       moveSpeed: 0.7,
       jumpPower: 0.7,
-      attackPower: 1.18,
+      attackPower: 1.14,
       staminaRegen: 0.9,
       staminaCost: 1.14,
       guardStrength: 1.2,
       dodgeSpeed: 0.64,
       bodyScale: 1.34,
-      reachScale: 1.14
+      reachScale: 1.1
     }
   },
   dorothy: {
