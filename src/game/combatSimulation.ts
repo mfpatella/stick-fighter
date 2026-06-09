@@ -1490,6 +1490,9 @@ export class CombatSimulation {
     attacker.hasHitDuringAttack = true;
 
     if (!blocked) {
+      if (combo.stale) {
+        applyStaleAttackPenalty(attacker, spec);
+      }
       const pressure = advanceReceivedHitPressure(defender);
       defender.state = "hit";
       defender.stunTimer =
@@ -1834,6 +1837,9 @@ export class CombatSimulation {
     attacker.hasHitDuringAttack = true;
 
     if (!blocked) {
+      if (combo.stale) {
+        applyStaleAttackPenalty(attacker, spec);
+      }
       const pressure = advanceReceivedHitPressure(defender);
       defender.state = "hit";
       defender.stunTimer =
@@ -2494,14 +2500,14 @@ function hashString(hash: number, value: string) {
   return hash >>> 0;
 }
 
-type AttackTiming = {
+export type AttackTiming = {
   startup: number;
   active: number;
   recovery: number;
   total: number;
 };
 
-function getAttackTiming(fighter: FighterSnapshot, spec: AttackSpec, standardTiming = false): AttackTiming {
+export function getAttackTiming(fighter: FighterSnapshot, spec: AttackSpec, standardTiming = false): AttackTiming {
   const speedQuickness = clamp(1 - (fighter.stats.moveSpeed - 1) * 0.13, 0.88, 1.12);
   const staminaQuickness = clamp(1 - (fighter.stats.staminaRegen - 1) * 0.05, 0.96, 1.04);
   const bodyDrag = clamp(1 + (fighter.stats.bodyScale - 1) * 0.08, 0.97, 1.04);
@@ -2541,6 +2547,12 @@ function createBlockedComboResult(attacker: FighterSnapshot) {
     extraLaunch: 0,
     extraHitStop: 0
   };
+}
+
+function applyStaleAttackPenalty(attacker: FighterSnapshot, spec: AttackSpec) {
+  const staminaPenalty = Math.max(3, spec.staminaCost * attacker.stats.staminaCost * 0.22);
+  attacker.stamina = Math.max(0, attacker.stamina - staminaPenalty);
+  attacker.parryVulnerableTimer = Math.max(attacker.parryVulnerableTimer, frames(6));
 }
 
 function getComboReactionPush(comboCount: number) {

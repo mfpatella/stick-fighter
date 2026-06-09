@@ -5,7 +5,8 @@ export type LevelKey =
   | "mightyArena"
   | "valleyOfElah"
   | "wildernessCave"
-  | "cedarRidge";
+  | "cedarRidge"
+  | "provingGround";
 
 export type LevelDefinition = {
   key: LevelKey;
@@ -64,6 +65,13 @@ export const levels: Record<LevelKey, LevelDefinition> = {
     setting: "A high-ridge animal-parts arena with strong movement lanes.",
     maxPlayers: 4,
     recommendedMode: "partsBuilder"
+  },
+  provingGround: {
+    key: "provingGround",
+    name: "Proving Ground",
+    setting: "Clean spacing lanes for neutral, parry, projectile, and reach testing.",
+    maxPlayers: 2,
+    recommendedMode: "training"
   }
 };
 
@@ -74,5 +82,6 @@ export const levelKeys: LevelKey[] = [
   "mightyArena",
   "valleyOfElah",
   "wildernessCave",
-  "cedarRidge"
+  "cedarRidge",
+  "provingGround"
 ];

@@ -29,6 +29,21 @@ export type MatchResult = {
   mode?: MatchmakingMode | "training";
   durationSeconds: number;
   recordedAt?: string;
+  telemetry?: MatchTelemetry;
+};
+
+export type MatchTelemetry = {
+  playerHits: number;
+  opponentHits: number;
+  blocks: number;
+  parries: number;
+  parryCounters: number;
+  counterHits: number;
+  guardCrushes: number;
+  projectileReturns: number;
+  staleHits: number;
+  maxCombo: number;
+  longestHitDistance: number;
 };
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;

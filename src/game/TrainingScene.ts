@@ -12,6 +12,7 @@ import {
   type FighterSnapshot,
   fixedStep,
   getAttackBox,
+  getAttackTiming,
   getHurtBox,
   getProjectileBox,
   getSimulationChecksum,
@@ -24,7 +25,7 @@ import {
   type SimulationSnapshot,
   type TrainingDropKind
 } from "./combatSimulation";
-import { recordMatch } from "../services/backend";
+import { recordMatch, type MatchTelemetry } from "../services/backend";
 import { defaultGameSettings, startingLoadouts, type GameLaunchSettings } from "./gameSettings";
 import { backgroundAssets, characterAssets, effectAssets } from "./artAssets";
 
@@ -73,13 +74,16 @@ type VisualEffect = {
   angle?: number;
 };
 
-type ObjectiveKind = "none" | "training" | "parts" | "story";
+type ObjectiveKind = "none" | "training" | "parts" | "story" | "lab";
 
 type ObjectiveState = {
   kind: ObjectiveKind;
   label: string;
   hits: number;
   blocks: number;
+  parries: number;
+  counters: number;
+  returns: number;
   attaches: number;
   wins: number;
   complete: boolean;
@@ -92,6 +96,22 @@ type LevelPickup = {
   life: number;
   pulse: number;
 };
+
+function createEmptyMatchTelemetry(): MatchTelemetry {
+  return {
+    playerHits: 0,
+    opponentHits: 0,
+    blocks: 0,
+    parries: 0,
+    parryCounters: 0,
+    counterHits: 0,
+    guardCrushes: 0,
+    projectileReturns: 0,
+    staleHits: 0,
+    maxCombo: 0,
+    longestHitDistance: 0
+  };
+}
 
 type RenderState = {
   player: FighterSnapshot;
@@ -877,10 +897,12 @@ export class TrainingScene extends Phaser.Scene {
   private cameraFocusY = 270;
   private cameraZoom = 1;
   private perfText!: Phaser.GameObjects.Text;
+  private labText!: Phaser.GameObjects.Text;
   private objectiveText!: Phaser.GameObjects.Text;
   private perfSampleTimer = 0;
   private slowFrameCount = 0;
   private objective: ObjectiveState = createObjective("none");
+  private matchTelemetry: MatchTelemetry = createEmptyMatchTelemetry();
   private levelEventTimer = 0;
   private pickupTimer = 0;
   private activePickup: LevelPickup | null = null;
@@ -987,6 +1009,7 @@ export class TrainingScene extends Phaser.Scene {
     this.netplayPredictedFrames = 0;
     this.netplayRollbackCount = 0;
     this.objective = createObjective(getObjectiveKind(this.settings));
+    this.matchTelemetry = createEmptyMatchTelemetry();
     this.levelEventTimer = 4.5;
     this.pickupTimer = 3.2;
     this.activePickup = null;
@@ -1686,6 +1709,7 @@ export class TrainingScene extends Phaser.Scene {
     this.add.rectangle(arenaCenterX, 265, trackWidth, 3, 0xd5bea0, 0.34);
     this.add.rectangle(arenaCenterX, 398, trackWidth, 2, 0xf4dfb7, 0.38);
     this.add.rectangle(arenaCenterX, 536, arenaWidth, 16, 0x120c09, 0.2);
+    this.createLevelForegroundScenery(palette);
   }
 
   private createLevelScenery() {
@@ -1727,6 +1751,21 @@ export class TrainingScene extends Phaser.Scene {
       return;
     }
 
+    if (this.settings.level === "provingGround") {
+      this.clouds.forEach((cloud) => cloud.setAlpha(0.22));
+      this.add.image(250, 302, "kenney-bg-hills1").setScale(0.72).setAlpha(0.22);
+      this.add.image(710, 304, "kenney-bg-hills2").setScale(0.74).setAlpha(0.2);
+      this.add.rectangle(480, 276, 820, 72, 0x243a3c, 0.28);
+      this.add.rectangle(480, 308, 760, 4, 0xd5bea0, 0.22);
+      this.add.rectangle(480, 340, 760, 5, 0x223238, 0.28);
+      for (let x = 160; x <= 800; x += 80) {
+        this.add.rectangle(x, 284, 2, 52, 0xf4dfb7, 0.14);
+      }
+      this.add.image(145, 348, "kenney-bg-tree04").setScale(0.36).setAlpha(0.34);
+      this.add.image(820, 348, "kenney-bg-tree08").setScale(0.38).setAlpha(0.32);
+      return;
+    }
+
     if (this.settings.level === "covenantHall") {
       this.add.image(705, 338, "kenney-bg-temple").setScale(0.48).setAlpha(0.82);
       this.add.image(210, 340, "kenney-bg-houseFront").setScale(0.44).setAlpha(0.52);
@@ -1748,6 +1787,28 @@ export class TrainingScene extends Phaser.Scene {
     this.add.image(830, 384, "kenney-bg-fence").setScale(0.66).setAlpha(0.45);
     this.add.image(120, 376, "kenney-bg-grass1").setScale(0.5).setAlpha(0.65);
     this.add.image(875, 376, "kenney-bg-grass2").setScale(0.5).setAlpha(0.62);
+  }
+
+  private createLevelForegroundScenery(palette: ReturnType<typeof getLevelPalette>) {
+    if (this.settings.level !== "provingGround") {
+      return;
+    }
+
+    this.add.rectangle(480, groundY - 38, 620, 2, 0xf4dfb7, 0.28);
+    this.add.rectangle(480, groundY - 14, 620, 3, 0x223238, 0.36);
+    this.add.rectangle(480, groundY - 2, 3, 34, palette.banner, 0.82);
+    this.add.rectangle(360, groundY - 5, 112, 5, 0x4e9a86, 0.72);
+    this.add.rectangle(600, groundY - 5, 112, 5, 0xf2d06b, 0.68);
+
+    for (const offset of [-280, -200, -120, -40, 40, 120, 200, 280]) {
+      const tickX = 480 + offset;
+      const major = Math.abs(offset) === 120 || Math.abs(offset) === 280;
+      this.add.rectangle(tickX, groundY - 7, major ? 4 : 2, major ? 22 : 16, 0xf4dfb7, major ? 0.5 : 0.34);
+    }
+
+    this.add.circle(360, groundY - 18, 8, 0x4e9a86, 0.42);
+    this.add.circle(600, groundY - 18, 8, 0xf2d06b, 0.38);
+    this.add.rectangle(480, groundY - 72, 168, 3, palette.banner, 0.24);
   }
 
   private createHud() {
@@ -1829,6 +1890,21 @@ export class TrainingScene extends Phaser.Scene {
     });
     this.perfText.setAlpha(0.72);
     this.perfText.setVisible(this.settings.matchType === "testing" || this.settings.showHitboxes);
+
+    this.labText = this.add.text(24, 132, "", {
+      color: "#fff3bf",
+      fontFamily: "Arial",
+      fontSize: "11px",
+      fontStyle: "bold",
+      stroke: "#030812",
+      strokeThickness: 2,
+      wordWrap: {
+        width: 420,
+        useAdvancedWrap: true
+      }
+    });
+    this.labText.setAlpha(0.82);
+    this.labText.setVisible(this.shouldShowLabOverlay());
   }
 
   private configureCameraForViewport() {
@@ -1914,6 +1990,29 @@ export class TrainingScene extends Phaser.Scene {
     this.slowFrameCount = 0;
   }
 
+  private shouldShowLabOverlay() {
+    return this.settings.matchType === "testing" || this.settings.showHitboxes || this.settings.level === "provingGround";
+  }
+
+  private updateLabText(player: FighterSnapshot, opponent: FighterSnapshot) {
+    if (!this.labText) {
+      return;
+    }
+
+    const visible = this.shouldShowLabOverlay();
+    this.labText.setVisible(visible);
+    if (!visible) {
+      return;
+    }
+
+    const gap = Math.round(Math.abs(player.x - opponent.x));
+    const telemetry = this.matchTelemetry;
+    this.labText.setText(
+      `Gap ${gap}px | ${formatLabFighter(player, this.settings.mode === "standardFighter")} | ${formatLabFighter(opponent, this.settings.mode === "standardFighter")}\n` +
+        `Hits ${telemetry.playerHits}-${telemetry.opponentHits} | B ${telemetry.blocks} | P ${telemetry.parries} | C ${telemetry.parryCounters}/${telemetry.counterHits} | R ${telemetry.projectileReturns} | stale ${telemetry.staleHits} | max ${telemetry.maxCombo} | far ${Math.round(telemetry.longestHitDistance)}px`
+    );
+  }
+
   private bindTrainingTools() {
     const buttons = document.querySelectorAll<HTMLButtonElement>("[data-training-drop]");
     this.releaseTrainingTools();
@@ -1963,6 +2062,7 @@ export class TrainingScene extends Phaser.Scene {
   private handleCombatEvents(events: CombatEvent[]) {
     for (const event of events) {
       if (event.type === "hit") {
+        this.trackCombatTelemetry(event);
         this.spawnImpactEffects(event);
         if (event.attacker === "player" && !event.blocked) {
           this.advanceObjective("hit");
@@ -1972,6 +2072,12 @@ export class TrainingScene extends Phaser.Scene {
         }
         if (event.perfectBlock) {
           const reflectedProjectile = Boolean(event.projectileKind && event.projectileReflected);
+          if (event.attacker === "opponent") {
+            this.advanceObjective("parry");
+            if (reflectedProjectile) {
+              this.advanceObjective("return");
+            }
+          }
           this.blockFlashTimer = 0.24;
           this.statusHoldTimer = 0.72;
           this.statusText.setText(reflectedProjectile ? "Parry! Projectile returned." : "Parry! Counter window opened.");
@@ -1993,6 +2099,9 @@ export class TrainingScene extends Phaser.Scene {
           this.spawnGuardShards(event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 66 : this.simulation.state.player.y - 66, event.attacker === "player" ? -1 : 1, false);
           pulseHaptics(10);
         } else if (event.parryCounter) {
+          if (event.attacker === "player") {
+            this.advanceObjective("counter");
+          }
           this.statusHoldTimer = 0.86;
           this.statusText.setText("Parry counter landed. Enemy is opened for follow-up pressure.");
           this.spawnFloatingText("PARRY COUNTER", event.attacker === "player" ? this.simulation.state.opponent.x : this.simulation.state.player.x, event.attacker === "player" ? this.simulation.state.opponent.y - 118 : this.simulation.state.player.y - 118, "#fff3bf");
@@ -2134,6 +2243,10 @@ export class TrainingScene extends Phaser.Scene {
         if (localPlayerWon) {
           this.advanceObjective("win");
         }
+        const telemetry = {
+          ...this.matchTelemetry,
+          longestHitDistance: Math.round(this.matchTelemetry.longestHitDistance)
+        };
         this.statusText.setText(
           event.draw
             ? "Round complete: draw by even health"
@@ -2151,7 +2264,8 @@ export class TrainingScene extends Phaser.Scene {
               matchType: this.settings.matchType,
               playerName: this.simulation.state.player.name,
               opponentName: this.simulation.state.opponent.name,
-              durationSeconds: event.durationSeconds
+              durationSeconds: event.durationSeconds,
+              telemetry
             }
           })
         );
@@ -2173,13 +2287,54 @@ export class TrainingScene extends Phaser.Scene {
               : this.simulation.state.opponent.key,
           levelKey: this.settings.level,
           mode: this.settings.matchmakingMode,
-          durationSeconds: event.durationSeconds
+          durationSeconds: event.durationSeconds,
+          telemetry
         });
       }
     }
   }
 
-  private advanceObjective(action: "hit" | "block" | "attach" | "win") {
+  private trackCombatTelemetry(event: Extract<CombatEvent, { type: "hit" }>) {
+    if (!event.blocked) {
+      if (event.attacker === "player") {
+        this.matchTelemetry.playerHits += 1;
+      } else {
+        this.matchTelemetry.opponentHits += 1;
+      }
+    } else {
+      this.matchTelemetry.blocks += 1;
+    }
+
+    if (event.perfectBlock) {
+      this.matchTelemetry.parries += 1;
+    }
+    if (event.parryCounter) {
+      this.matchTelemetry.parryCounters += 1;
+    }
+    if (event.counterHit) {
+      this.matchTelemetry.counterHits += 1;
+    }
+    if (event.guardCrush) {
+      this.matchTelemetry.guardCrushes += 1;
+    }
+    if (event.projectileReflected) {
+      this.matchTelemetry.projectileReturns += 1;
+    }
+    if (event.comboStale) {
+      this.matchTelemetry.staleHits += 1;
+    }
+
+    this.matchTelemetry.maxCombo = Math.max(this.matchTelemetry.maxCombo, event.comboCount);
+    if (event.impactX !== undefined) {
+      const attacker = event.attacker === "player" ? this.simulation.state.player : this.simulation.state.opponent;
+      this.matchTelemetry.longestHitDistance = Math.max(
+        this.matchTelemetry.longestHitDistance,
+        Math.abs(event.impactX - attacker.x)
+      );
+    }
+  }
+
+  private advanceObjective(action: "hit" | "block" | "parry" | "counter" | "return" | "attach" | "win") {
     if (this.objective.kind === "none" || this.objective.complete) {
       return;
     }
@@ -2188,6 +2343,12 @@ export class TrainingScene extends Phaser.Scene {
       this.objective.hits += 1;
     } else if (action === "block") {
       this.objective.blocks += 1;
+    } else if (action === "parry") {
+      this.objective.parries += 1;
+    } else if (action === "counter") {
+      this.objective.counters += 1;
+    } else if (action === "return") {
+      this.objective.returns += 1;
     } else if (action === "attach") {
       this.objective.attaches += 1;
     } else {
@@ -2752,6 +2913,7 @@ export class TrainingScene extends Phaser.Scene {
     this.opponentHealth.width = 236 * (opponent.health / opponent.stats.maxHealth);
     this.playerStamina.width = 176 * (player.stamina / 100);
     this.opponentStamina.width = 176 * (opponent.stamina / 100);
+    this.updateLabText(player, opponent);
     if (this.timerText) {
       this.timerText.setText(formatRoundTimer(getRemainingRoundTime(this.settings, this.simulation.state.elapsedSeconds)));
       this.timerText.setColor(
@@ -4317,11 +4479,48 @@ function getAnimalAbilitySummary(fighter: FighterSnapshot) {
   return abilities.join(", ");
 }
 
+function formatLabFighter(fighter: FighterSnapshot, standardTiming: boolean) {
+  if (!fighter.attackKind || fighter.state !== "attack") {
+    return `${fighter.name}: ${fighter.state}`;
+  }
+
+  const spec = attackSpecs[fighter.attackKind];
+  const timing = getAttackTiming(fighter, spec, standardTiming);
+  const elapsed = fighter.attackElapsed;
+  const phase =
+    elapsed < timing.startup
+      ? "startup"
+      : elapsed <= timing.startup + timing.active
+        ? "active"
+        : "recovery";
+  const reach = getAttackReachDisplay(fighter);
+
+  return `${fighter.name}: ${fighter.attackKind} ${phase} ${toFrames(elapsed)}/${toFrames(timing.total)}f s/a/r ${toFrames(timing.startup)}/${toFrames(timing.active)}/${toFrames(timing.recovery)}${reach ? ` reach ${reach}` : ""}`;
+}
+
+function getAttackReachDisplay(fighter: FighterSnapshot) {
+  if (!fighter.attackKind || fighter.state !== "attack") {
+    return "";
+  }
+
+  const box = getAttackBox(fighter);
+  const reach = fighter.facing === 1 ? box.x + box.width - fighter.x : fighter.x - box.x;
+  return `${Math.max(0, Math.round(reach))}px`;
+}
+
+function toFrames(seconds: number) {
+  return Math.max(0, Math.round(seconds * 60));
+}
+
 function hasNaturalChomp(fighter: FighterSnapshot) {
   return fighter.key === "tRex" || fighter.key === "lion" || fighter.key === "hippo" || fighter.key === "honeyBadger" || fighter.key === "slimer";
 }
 
 function getObjectiveKind(settings: GameLaunchSettings): ObjectiveKind {
+  if (settings.matchType !== "online" && settings.level === "provingGround") {
+    return "lab";
+  }
+
   if (settings.matchType === "testing" || settings.matchType === "online" || settings.mode === "standardFighter") {
     return "none";
   }
@@ -4342,7 +4541,8 @@ function createObjective(kind: ObjectiveKind): ObjectiveState {
     none: "",
     training: "Training Trial",
     parts: "Builder Trial",
-    story: "Story Challenge"
+    story: "Story Challenge",
+    lab: "Proving Drill"
   };
 
   return {
@@ -4350,6 +4550,9 @@ function createObjective(kind: ObjectiveKind): ObjectiveState {
     label: labels[kind],
     hits: 0,
     blocks: 0,
+    parries: 0,
+    counters: 0,
+    returns: 0,
     attaches: 0,
     wins: 0,
     complete: kind === "none"
@@ -4369,6 +4572,10 @@ function formatObjective(objective: ObjectiveState) {
     return `${objective.label}: block ${Math.min(objective.blocks, 2)}/2 and land ${Math.min(objective.hits, 3)}/3 hits`;
   }
 
+  if (objective.kind === "lab") {
+    return `${objective.label}: parry ${Math.min(objective.parries, 1)}/1, counter or return ${Math.min(objective.counters + objective.returns, 1)}/1, land ${Math.min(objective.hits, 2)}/2 hits`;
+  }
+
   if (objective.kind === "story") {
     return `${objective.label}: block ${Math.min(objective.blocks, 1)}/1, land ${Math.min(objective.hits, 2)}/2, win ${Math.min(objective.wins, 1)}/1`;
   }
@@ -4379,6 +4586,10 @@ function formatObjective(objective: ObjectiveState) {
 function isObjectiveComplete(objective: ObjectiveState) {
   if (objective.kind === "training") {
     return objective.blocks >= 2 && objective.hits >= 3;
+  }
+
+  if (objective.kind === "lab") {
+    return objective.parries >= 1 && objective.counters + objective.returns >= 1 && objective.hits >= 2;
   }
 
   if (objective.kind === "story") {
@@ -4630,6 +4841,17 @@ function getLevelPalette(level: GameLaunchSettings["level"]) {
       hillA: 0x6f8a5a,
       hillB: 0x4f765b,
       banner: 0x4e9a86
+    };
+  }
+
+  if (level === "provingGround") {
+    return {
+      sky: 0xe7ece7,
+      haze: 0x9fb2aa,
+      sun: 0xf2d06b,
+      hillA: 0x6f8a5a,
+      hillB: 0x54666a,
+      banner: 0xd8b45d
     };
   }
 

@@ -34,6 +34,7 @@ import {
   signUpWithEmail,
   tryMatchmaking,
   type AuthSnapshot,
+  type MatchTelemetry,
   type MatchResult,
   type RealtimeInputFrame,
   type RealtimeMatchStart,
@@ -145,6 +146,7 @@ type RoundOverDetail = {
   playerName: string;
   opponentName: string;
   durationSeconds: number;
+  telemetry?: MatchTelemetry;
 };
 
 if (modeElement) {
@@ -1009,12 +1011,13 @@ function showRoundOverlay(detail: RoundOverDetail) {
   }
 
   if (roundDetail) {
+    const telemetrySummary = detail.telemetry ? ` ${formatTelemetrySummary(detail.telemetry)}` : "";
     roundDetail.textContent =
       detail.draw
-        ? `Even round after ${detail.durationSeconds}s. Draw saved to stats.`
+        ? `Even round after ${detail.durationSeconds}s. Draw saved to stats.${telemetrySummary}`
         : detail.matchType === "online"
-        ? `${winnerName} won in ${detail.durationSeconds}s. ${localName}'s result was saved.`
-        : `${winnerName} won in ${detail.durationSeconds}s. Stats saved locally and online if signed in.`;
+        ? `${winnerName} won in ${detail.durationSeconds}s. ${localName}'s result was saved.${telemetrySummary}`
+        : `${winnerName} won in ${detail.durationSeconds}s. Stats saved locally and online if signed in.${telemetrySummary}`;
   }
 
   if (roundRematchButton) {
@@ -1026,6 +1029,17 @@ function showRoundOverlay(detail: RoundOverDetail) {
   }
 
   roundOverlay.hidden = false;
+}
+
+function formatTelemetrySummary(telemetry: MatchTelemetry) {
+  const chunks = [
+    `${telemetry.parries} ${telemetry.parries === 1 ? "parry" : "parries"}`,
+    `${telemetry.projectileReturns} return${telemetry.projectileReturns === 1 ? "" : "s"}`,
+    `max combo ${telemetry.maxCombo}`,
+    `far hit ${Math.round(telemetry.longestHitDistance)}px`
+  ];
+
+  return chunks.join(" | ");
 }
 
 function hideRoundOverlay() {
@@ -1727,6 +1741,7 @@ function updateBalanceTelemetry() {
               <span>${baseFighters[row.fighterKey].name}</span>
               <strong>${Math.round(row.winRate * 100)}%</strong>
               <small>${row.wins}-${row.losses}-${row.draws} over ${row.played}</small>
+              <small>P ${row.averageParries.toFixed(1)} | R ${row.averageReturns.toFixed(1)} | stale ${row.averageStaleHits.toFixed(1)} | far ${Math.round(row.longestHitDistance)}px</small>
             </article>
           `
         )
@@ -1736,7 +1751,21 @@ function updateBalanceTelemetry() {
 }
 
 function collectBalanceRows(results: MatchResult[]) {
-  const byFighter = new Map<BaseFighterKey, { fighterKey: BaseFighterKey; wins: number; losses: number; draws: number; played: number; lastIndex: number }>();
+  const byFighter = new Map<
+    BaseFighterKey,
+    {
+      fighterKey: BaseFighterKey;
+      wins: number;
+      losses: number;
+      draws: number;
+      played: number;
+      lastIndex: number;
+      parries: number;
+      returns: number;
+      staleHits: number;
+      longestHitDistance: number;
+    }
+  >();
 
   results.forEach((result, index) => {
     const row =
@@ -1747,10 +1776,18 @@ function collectBalanceRows(results: MatchResult[]) {
         losses: 0,
         draws: 0,
         played: 0,
-        lastIndex: index
+        lastIndex: index,
+        parries: 0,
+        returns: 0,
+        staleHits: 0,
+        longestHitDistance: 0
       };
     row.played += 1;
     row.lastIndex = index;
+    row.parries += result.telemetry?.parries ?? 0;
+    row.returns += result.telemetry?.projectileReturns ?? 0;
+    row.staleHits += result.telemetry?.staleHits ?? 0;
+    row.longestHitDistance = Math.max(row.longestHitDistance, result.telemetry?.longestHitDistance ?? 0);
     if (result.result === "win") {
       row.wins += 1;
     } else if (result.result === "loss") {
@@ -1764,7 +1801,10 @@ function collectBalanceRows(results: MatchResult[]) {
   return [...byFighter.values()]
     .map((row) => ({
       ...row,
-      winRate: row.played > 0 ? row.wins / row.played : 0
+      winRate: row.played > 0 ? row.wins / row.played : 0,
+      averageParries: row.played > 0 ? row.parries / row.played : 0,
+      averageReturns: row.played > 0 ? row.returns / row.played : 0,
+      averageStaleHits: row.played > 0 ? row.staleHits / row.played : 0
     }))
     .sort((a, b) => b.played - a.played || b.lastIndex - a.lastIndex);
 }
