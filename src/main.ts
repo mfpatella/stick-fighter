@@ -4,7 +4,13 @@ import {
   decodePlayerInput,
   encodePlayerInput
 } from "./game/combatSimulation";
-import { baseFighters, playerFighterKeys, opponentFighterKeys, type BaseFighterKey } from "./game/fighterCatalog";
+import {
+  baseFighters,
+  playerFighterKeys,
+  opponentFighterKeys,
+  type BaseFighterKey,
+  type FighterStats
+} from "./game/fighterCatalog";
 import { defaultGameSettings, type GameLaunchSettings } from "./game/gameSettings";
 import { levelKeys, type LevelKey } from "./game/levels";
 import { characterAssets } from "./game/artAssets";
@@ -1036,14 +1042,75 @@ function showRoundOverlay(detail: RoundOverDetail) {
 }
 
 function formatTelemetrySummary(telemetry: MatchTelemetry) {
+  const grade = gradeRoundTelemetry(telemetry);
+  const advice = getTelemetryAdvice(telemetry);
   const chunks = [
+    `grade ${grade}`,
+    `hits ${telemetry.playerHits}-${telemetry.opponentHits}`,
     `${telemetry.parries} ${telemetry.parries === 1 ? "parry" : "parries"}`,
     `${telemetry.projectileReturns} return${telemetry.projectileReturns === 1 ? "" : "s"}`,
     `max combo ${telemetry.maxCombo}`,
     `far hit ${Math.round(telemetry.longestHitDistance)}px`
   ];
 
-  return chunks.join(" | ");
+  return `${chunks.join(" | ")}. ${advice}`;
+}
+
+function gradeRoundTelemetry(telemetry: MatchTelemetry) {
+  const hitDelta = telemetry.playerHits - telemetry.opponentHits;
+  const counterplay =
+    telemetry.parries * 2 +
+    telemetry.parryCounters * 4 +
+    telemetry.counterHits * 2 +
+    telemetry.guardCrushes * 2 +
+    telemetry.projectileReturns * 3;
+  const pressure = Math.min(10, telemetry.maxCombo * 2 + Math.max(0, hitDelta));
+  const spacing = telemetry.longestHitDistance >= 130 ? 3 : telemetry.longestHitDistance >= 96 ? 2 : 0;
+  const penalties = telemetry.staleHits * 2 + Math.max(0, -hitDelta);
+  const score = counterplay + pressure + spacing - penalties;
+
+  if (score >= 22) {
+    return "S";
+  }
+  if (score >= 16) {
+    return "A";
+  }
+  if (score >= 10) {
+    return "B";
+  }
+  if (score >= 5) {
+    return "C";
+  }
+  return "D";
+}
+
+function getTelemetryAdvice(telemetry: MatchTelemetry) {
+  const totalHits = telemetry.playerHits + telemetry.opponentHits;
+  const staleLimit = Math.max(2, Math.ceil(totalHits * 0.18));
+
+  if (telemetry.staleHits >= staleLimit) {
+    return "Repeated attacks went stale; rotate starters after a hit.";
+  }
+  if (telemetry.parries > 0 && telemetry.parryCounters === 0) {
+    return "Parries opened windows; answer faster with light or kick.";
+  }
+  if (telemetry.parries === 0 && telemetry.blocks >= 2) {
+    return "Blocks worked; later timing can turn them into parries.";
+  }
+  if (telemetry.maxCombo < 2 && telemetry.playerHits >= 4) {
+    return "Single hits connected; chain different attacks for payoff.";
+  }
+  if (telemetry.counterHits === 0 && telemetry.opponentHits > telemetry.playerHits) {
+    return "Look for startup and recovery instead of trading.";
+  }
+  if (telemetry.projectileReturns === 0 && telemetry.longestHitDistance >= 120) {
+    return "Long range showed up; timed blocks can return projectiles.";
+  }
+  if (telemetry.parryCounters + telemetry.counterHits + telemetry.guardCrushes >= 4) {
+    return "Strong counterplay: pressure came from timing, not spam.";
+  }
+
+  return "Balanced round: spacing, pressure, and defense all mattered.";
 }
 
 function hideRoundOverlay() {
@@ -1448,8 +1515,8 @@ function updateAvatarPreview() {
 
 function updateFighterPreview() {
   const settings = readSettings();
-  renderFighterCard(playerFighterCard, "Your Fighter", settings.playerFighter);
-  renderFighterCard(opponentFighterCard, "Opponent", settings.opponentFighter);
+  renderFighterCard(playerFighterCard, "Your Fighter", settings.playerFighter, settings.opponentFighter);
+  renderFighterCard(opponentFighterCard, "Opponent", settings.opponentFighter, settings.playerFighter);
 }
 
 function updateFighterIconSelection() {
@@ -1465,7 +1532,12 @@ function updateFighterIconSelection() {
   });
 }
 
-function renderFighterCard(card: HTMLElement | null, title: string, fighterKey: BaseFighterKey) {
+function renderFighterCard(
+  card: HTMLElement | null,
+  title: string,
+  fighterKey: BaseFighterKey,
+  matchupKey: BaseFighterKey
+) {
   if (!card) {
     return;
   }
@@ -1489,6 +1561,7 @@ function renderFighterCard(card: HTMLElement | null, title: string, fighterKey: 
     <div class="fighter-tags">${getFighterTags(fighterKey)
       .map((tag) => `<span>${tag}</span>`)
       .join("")}</div>
+    ${getMatchupReadMarkup(fighterKey, matchupKey)}
     <div class="fighter-stat-grid">
       ${statRows
         .map(
@@ -1509,6 +1582,109 @@ function renderFighterCard(card: HTMLElement | null, title: string, fighterKey: 
       </ul>
     </div>
   `;
+}
+
+function getMatchupReadMarkup(fighterKey: BaseFighterKey, opponentKey: BaseFighterKey) {
+  const fighter = baseFighters[fighterKey];
+  const opponent = baseFighters[opponentKey];
+  const report = getMatchupReport(fighter.stats, opponent.stats);
+
+  return `
+    <div class="matchup-read">
+      <strong>Matchup Read</strong>
+      <span>${report.plan}</span>
+      <div class="matchup-tags">
+        ${report.tags.map((tag) => `<span>${tag}</span>`).join("")}
+      </div>
+      <small>${report.risk}</small>
+    </div>
+  `;
+}
+
+function getMatchupReport(stats: FighterStats, opponentStats: FighterStats) {
+  const reachGap = stats.reachScale - opponentStats.reachScale;
+  const speedGap = stats.moveSpeed - opponentStats.moveSpeed;
+  const guardGap = stats.guardStrength - opponentStats.guardStrength;
+  const powerGap = stats.attackPower - opponentStats.attackPower;
+  const healthGap = (stats.maxHealth - opponentStats.maxHealth) / 100;
+  const tags = getMatchupTags({ reachGap, speedGap, guardGap, powerGap, healthGap });
+  const strongestGap = getStrongestGap({ reachGap, speedGap, guardGap, powerGap, healthGap });
+
+  let plan = "Balanced neutral: test with light or kick, then rotate into heavy or low once guard moves.";
+  if (strongestGap === "reach") {
+    plan = reachGap > 0 ? "Play outside their hands and punish whiffs before stepping in." : "Use speed, dash, and block timing to get inside long attacks.";
+  } else if (strongestGap === "speed") {
+    plan = speedGap > 0 ? "Take short confirms, reset spacing, and make slower attacks miss." : "Hold center, block early pressure, then answer during recovery.";
+  } else if (strongestGap === "guard") {
+    plan = guardGap > 0 ? "Absorb the first strike, then parry or counter before they reset." : "Avoid shield trading; use lows and movement to open guard.";
+  } else if (strongestGap === "power") {
+    plan = powerGap > 0 ? "Win with fewer, cleaner hits and avoid stale repeats." : "Do not trade heavy hits; build combos from safer starters.";
+  } else if (strongestGap === "health") {
+    plan = healthGap > 0 ? "You can take a trade, but pressure still has to vary." : "Protect health with blocks and counter windows before committing.";
+  }
+
+  return {
+    plan,
+    risk: getMatchupRisk({ reachGap, speedGap, guardGap, powerGap, healthGap }),
+    tags
+  };
+}
+
+function getMatchupTags(gaps: Record<"reachGap" | "speedGap" | "guardGap" | "powerGap" | "healthGap", number>) {
+  const tags: string[] = [];
+  if (Math.abs(gaps.reachGap) >= 0.06) {
+    tags.push(`${gaps.reachGap > 0 ? "+" : ""}${formatGap(gaps.reachGap)} reach`);
+  }
+  if (Math.abs(gaps.speedGap) >= 0.06) {
+    tags.push(`${gaps.speedGap > 0 ? "+" : ""}${formatGap(gaps.speedGap)} speed`);
+  }
+  if (Math.abs(gaps.guardGap) >= 0.08) {
+    tags.push(`${gaps.guardGap > 0 ? "+" : ""}${formatGap(gaps.guardGap)} guard`);
+  }
+  if (Math.abs(gaps.powerGap) >= 0.08) {
+    tags.push(`${gaps.powerGap > 0 ? "+" : ""}${formatGap(gaps.powerGap)} power`);
+  }
+  if (Math.abs(gaps.healthGap) >= 0.12) {
+    tags.push(`${gaps.healthGap > 0 ? "+" : ""}${Math.round(gaps.healthGap * 100)} health`);
+  }
+
+  return tags.length > 0 ? tags.slice(0, 4) : ["Even tools"];
+}
+
+function getStrongestGap(gaps: Record<"reachGap" | "speedGap" | "guardGap" | "powerGap" | "healthGap", number>) {
+  const weighted = [
+    ["reach", gaps.reachGap / 0.08],
+    ["speed", gaps.speedGap / 0.08],
+    ["guard", gaps.guardGap / 0.1],
+    ["power", gaps.powerGap / 0.09],
+    ["health", gaps.healthGap / 0.18]
+  ] as const;
+  const strongest = weighted.reduce((best, current) => (Math.abs(current[1]) > Math.abs(best[1]) ? current : best));
+  return Math.abs(strongest[1]) >= 0.7 ? strongest[0] : "balanced";
+}
+
+function getMatchupRisk(gaps: Record<"reachGap" | "speedGap" | "guardGap" | "powerGap" | "healthGap", number>) {
+  if (gaps.reachGap < -0.08 && gaps.speedGap <= 0.02) {
+    return "Spacing risk: long attacks can check straight approaches.";
+  }
+  if (gaps.speedGap < -0.08 && gaps.guardGap < 0) {
+    return "Tempo risk: fast pressure can beat late blocks.";
+  }
+  if (gaps.powerGap < -0.1 && gaps.healthGap < 0) {
+    return "Trade risk: avoid heavy-for-heavy exchanges.";
+  }
+  if (gaps.guardGap < -0.12) {
+    return "Guard risk: blocks need cleaner timing to avoid crush.";
+  }
+  if (gaps.reachGap > 0.08 && gaps.speedGap < -0.06) {
+    return "Whiff risk: reach wins only if attacks are placed early.";
+  }
+
+  return "No major mismatch; decisions should matter more than stats.";
+}
+
+function formatGap(value: number) {
+  return `${Math.round(value * 100)}%`;
 }
 
 function getFighterPortraitMarkup(fighterKey: BaseFighterKey) {
@@ -1739,7 +1915,7 @@ function updateBalanceTelemetry() {
   balanceTelemetry.innerHTML = `
     <div>
       <strong>Balance Snapshot</strong>
-      <span>${results.length} recent local match${results.length === 1 ? "" : "es"} tracked for tuning.</span>
+      <span>${getBalanceInsight(rows, results.length)}</span>
     </div>
     <div class="balance-grid">
       ${rows
@@ -1749,6 +1925,7 @@ function updateBalanceTelemetry() {
               <span>${baseFighters[row.fighterKey].name}</span>
               <strong>${Math.round(row.winRate * 100)}%</strong>
               <small>${row.wins}-${row.losses}-${row.draws} over ${row.played}</small>
+              <small>score ${row.averageCombatScore.toFixed(1)} | max ${row.bestCombo} | counter ${row.averageCounterplay.toFixed(1)}</small>
               <small>P ${row.averageParries.toFixed(1)} | R ${row.averageReturns.toFixed(1)} | stale ${row.averageStaleHits.toFixed(1)} | far ${Math.round(row.longestHitDistance)}px</small>
             </article>
           `
@@ -1770,8 +1947,14 @@ function collectBalanceRows(results: MatchResult[]) {
       lastIndex: number;
       parries: number;
       returns: number;
+      counterHits: number;
+      guardCrushes: number;
       staleHits: number;
       longestHitDistance: number;
+      maxComboTotal: number;
+      bestCombo: number;
+      playerHits: number;
+      opponentHits: number;
     }
   >();
 
@@ -1787,15 +1970,27 @@ function collectBalanceRows(results: MatchResult[]) {
         lastIndex: index,
         parries: 0,
         returns: 0,
+        counterHits: 0,
+        guardCrushes: 0,
         staleHits: 0,
-        longestHitDistance: 0
+        longestHitDistance: 0,
+        maxComboTotal: 0,
+        bestCombo: 0,
+        playerHits: 0,
+        opponentHits: 0
       };
     row.played += 1;
     row.lastIndex = index;
     row.parries += result.telemetry?.parries ?? 0;
     row.returns += result.telemetry?.projectileReturns ?? 0;
+    row.counterHits += result.telemetry?.counterHits ?? 0;
+    row.guardCrushes += result.telemetry?.guardCrushes ?? 0;
     row.staleHits += result.telemetry?.staleHits ?? 0;
     row.longestHitDistance = Math.max(row.longestHitDistance, result.telemetry?.longestHitDistance ?? 0);
+    row.maxComboTotal += result.telemetry?.maxCombo ?? 0;
+    row.bestCombo = Math.max(row.bestCombo, result.telemetry?.maxCombo ?? 0);
+    row.playerHits += result.telemetry?.playerHits ?? 0;
+    row.opponentHits += result.telemetry?.opponentHits ?? 0;
     if (result.result === "win") {
       row.wins += 1;
     } else if (result.result === "loss") {
@@ -1812,9 +2007,45 @@ function collectBalanceRows(results: MatchResult[]) {
       winRate: row.played > 0 ? row.wins / row.played : 0,
       averageParries: row.played > 0 ? row.parries / row.played : 0,
       averageReturns: row.played > 0 ? row.returns / row.played : 0,
-      averageStaleHits: row.played > 0 ? row.staleHits / row.played : 0
+      averageStaleHits: row.played > 0 ? row.staleHits / row.played : 0,
+      averageCounterplay:
+        row.played > 0 ? (row.parries + row.returns + row.counterHits + row.guardCrushes) / row.played : 0,
+      averageMaxCombo: row.played > 0 ? row.maxComboTotal / row.played : 0,
+      averageHitDelta: row.played > 0 ? (row.playerHits - row.opponentHits) / row.played : 0,
+      averageCombatScore:
+        row.played > 0
+          ? (row.playerHits - row.opponentHits) / row.played +
+            ((row.parries + row.returns + row.counterHits + row.guardCrushes) / row.played) * 1.6 +
+            (row.maxComboTotal / row.played) * 0.8 -
+            (row.staleHits / row.played) * 1.2
+          : 0
     }))
     .sort((a, b) => b.played - a.played || b.lastIndex - a.lastIndex);
+}
+
+function getBalanceInsight(rows: ReturnType<typeof collectBalanceRows>, totalMatches: number) {
+  const matchLabel = `${totalMatches} recent local match${totalMatches === 1 ? "" : "es"}`;
+  const staleRow = rows.find((row) => row.averageStaleHits >= 2);
+  if (staleRow) {
+    return `${matchLabel}: ${baseFighters[staleRow.fighterKey].name} is showing high stale-hit pressure. Mixups need attention.`;
+  }
+
+  const matureRows = rows.filter((row) => row.played >= 3);
+  const overperformer = matureRows.find((row) => row.winRate >= 0.75 && row.averageCombatScore >= 4);
+  if (overperformer) {
+    return `${matchLabel}: ${baseFighters[overperformer.fighterKey].name} may be overperforming locally. Watch reach and counter payoff.`;
+  }
+
+  const underperformer = matureRows.find((row) => row.winRate <= 0.25 && row.averageCombatScore <= 0);
+  if (underperformer) {
+    return `${matchLabel}: ${baseFighters[underperformer.fighterKey].name} may need safer confirms or matchup tuning.`;
+  }
+
+  if (rows.length > 0 && rows.every((row) => row.averageCounterplay < 0.8)) {
+    return `${matchLabel}: counterplay is low. More parries, returns, and punish windows should decide rounds.`;
+  }
+
+  return `${matchLabel}: win rate, combo, counterplay, stale hits, and reach are being tracked for tuning.`;
 }
 
 function formatError(error: unknown) {
