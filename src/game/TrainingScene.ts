@@ -143,6 +143,22 @@ type SheetFighterKey = Extract<
   | "rose"
   | "moranatee"
 >;
+
+const outlineSheetBackplateColors: Partial<Record<SheetFighterKey, number>> = {
+  david: 0x4da3ff,
+  goliath: 0xffad42
+};
+
+const proceduralOutlineBackplateColors: Partial<Record<PartOwner, number>> = {
+  jonathan: 0x5dc6ff,
+  benaiah: 0xff9a52,
+  asahel: 0x63d9a5,
+  ishbiBenob: 0xd1a05a,
+  saph: 0x9f8df2,
+  lahmi: 0xf28a70,
+  guard: 0x8fd3ff
+};
+
 type SheetRow =
   | {
       start: number;
@@ -918,6 +934,7 @@ export class TrainingScene extends Phaser.Scene {
   private pickupTimer = 0;
   private activePickup: LevelPickup | null = null;
   private characterSprites: Partial<Record<FighterSide, Phaser.GameObjects.Sprite>> = {};
+  private characterBackplates: Partial<Record<FighterSide, Phaser.GameObjects.Graphics>> = {};
   private detachedPartSprites = new Map<number, Phaser.GameObjects.Sprite>();
   private spriteFrameAnchors = new Map<string, Map<number, SpriteFrameAnchor>>();
   private spriteUsableFrames = new Map<string, Set<number>>();
@@ -1050,6 +1067,8 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private createCharacterSprites() {
+    this.characterBackplates.player = this.add.graphics().setDepth(8).setVisible(false);
+    this.characterBackplates.opponent = this.add.graphics().setDepth(8).setVisible(false);
     this.characterSprites.player = this.add.sprite(0, 0, characterSheetConfigs.david.textureKey, 0).setDepth(9).setVisible(false);
     this.characterSprites.opponent = this.add
       .sprite(0, 0, characterSheetConfigs.david.textureKey, 0)
@@ -3330,6 +3349,8 @@ export class TrainingScene extends Phaser.Scene {
       return;
     }
 
+    this.clearSheetBackplate(side);
+    this.drawProceduralOutlineBackplate(fighter, torsoX, shoulderY, hipY, headY);
     this.drawAnimalUnderlay(fighter, torsoX, shoulderY, hipY, attackEase);
 
     if (fighter.state === "attack" && fighter.attackKind === "heavy") {
@@ -3567,6 +3588,79 @@ export class TrainingScene extends Phaser.Scene {
     }
   }
 
+  private clearSheetBackplate(side: FighterSide) {
+    const backplate = this.characterBackplates[side];
+    if (!backplate) {
+      return;
+    }
+
+    backplate.clear();
+    backplate.setVisible(false);
+  }
+
+  private drawSheetOutlineBackplate(
+    fighter: FighterSnapshot,
+    side: FighterSide,
+    torsoX: number,
+    headY: number,
+    useMissingFrame: boolean
+  ) {
+    const color = outlineSheetBackplateColors[fighter.key as SheetFighterKey];
+    const backplate = this.characterBackplates[side];
+    if (!backplate || color === undefined || useMissingFrame) {
+      this.clearSheetBackplate(side);
+      return;
+    }
+
+    const scale = fighter.stats.bodyScale;
+    const height = Phaser.Math.Clamp(fighter.y - headY + 54 * scale, 132, 230);
+    const width = Phaser.Math.Clamp(80 * scale + (fighter.key === "goliath" ? 44 : 26), 96, 176);
+    const centerY = (fighter.y + headY) * 0.5 + 15 * scale;
+    const alpha = fighter.state === "blockstun" || fighter.parryCounterTimer > 0 ? 0.42 : 0.32;
+    const edgeAlpha = fighter.state === "hit" ? 0.72 : 0.5;
+
+    backplate.clear();
+    backplate.setVisible(true);
+    backplate.fillStyle(color, alpha);
+    backplate.fillRoundedRect(torsoX - width / 2, centerY - height / 2, width, height, Math.min(28, width * 0.28));
+    backplate.lineStyle(2, color, edgeAlpha);
+    backplate.strokeRoundedRect(torsoX - width / 2, centerY - height / 2, width, height, Math.min(28, width * 0.28));
+    backplate.fillStyle(0xffffff, 0.1);
+    backplate.fillRoundedRect(torsoX - width * 0.34, centerY - height * 0.44, width * 0.22, height * 0.82, Math.min(14, width * 0.12));
+    backplate.fillStyle(color, 0.18);
+    backplate.fillEllipse(torsoX, fighter.y + 3, width * 0.9, 18 * scale);
+  }
+
+  private drawProceduralOutlineBackplate(
+    fighter: FighterSnapshot,
+    torsoX: number,
+    shoulderY: number,
+    hipY: number,
+    headY: number
+  ) {
+    const color = proceduralOutlineBackplateColors[fighter.key];
+    if (color === undefined) {
+      return;
+    }
+
+    const scale = fighter.stats.bodyScale;
+    const height = Phaser.Math.Clamp(fighter.y - headY + 50 * scale, 126, 218);
+    const width = Phaser.Math.Clamp(74 * scale + 30, 90, 160);
+    const centerY = (headY + fighter.y) * 0.5 + 14 * scale;
+    const activeAlpha = fighter.state === "blockstun" || fighter.parryCounterTimer > 0 ? 0.34 : 0.24;
+    const radius = Math.min(26, width * 0.28);
+    const g = this.graphics;
+
+    g.fillStyle(color, activeAlpha);
+    g.fillRoundedRect(torsoX - width / 2, centerY - height / 2, width, height, radius);
+    g.lineStyle(2, color, 0.38);
+    g.strokeRoundedRect(torsoX - width / 2, centerY - height / 2, width, height, radius);
+    g.fillStyle(0xffffff, 0.08);
+    g.fillEllipse(torsoX - fighter.facing * width * 0.16, shoulderY + (hipY - shoulderY) * 0.22, width * 0.28, height * 0.22);
+    g.fillStyle(color, 0.14);
+    g.fillEllipse(torsoX, fighter.y + 3, width * 0.82, 15 * scale);
+  }
+
   private drawSheetSpriteFighter(
     fighter: FighterSnapshot,
     side: FighterSide,
@@ -3578,16 +3672,19 @@ export class TrainingScene extends Phaser.Scene {
   ) {
     const sprite = this.characterSprites[side];
     if (!sprite) {
+      this.clearSheetBackplate(side);
       return false;
     }
 
     const config = getCharacterSheetConfig(fighter.key);
     if (!config || !this.textures.exists(config.textureKey)) {
       sprite.setVisible(false);
+      this.clearSheetBackplate(side);
       return false;
     }
     if (!fighter.parts.head) {
       sprite.setVisible(false);
+      this.clearSheetBackplate(side);
       return false;
     }
 
@@ -3604,6 +3701,7 @@ export class TrainingScene extends Phaser.Scene {
     const textureKey = useMissingFrame ? missingTextureKey : config.textureKey;
     const frame = useMissingFrame ? missingFrame : this.getSheetSpriteFrame(fighter, config);
     const spriteOrigin = useMissingFrame ? { originX: config.originX, originY: config.originY } : this.getSpriteFrameAnchor(config, frame);
+    this.drawSheetOutlineBackplate(fighter, side, torsoX, headY, useMissingFrame);
 
     sprite
       .setVisible(true)
