@@ -143,6 +143,7 @@ let matchmakingPulseTimer: number | null = null;
 let dynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
 let lastNetplayStats: OnlineNetplayStats | null = null;
 const remotePacketAges: number[] = [];
+const supportedOnlineMaxPlayers = 2;
 
 type RoundOverDetail = {
   playerWon: boolean;
@@ -531,6 +532,14 @@ async function handleStartOnlineFight() {
       ...readSettings(),
       matchType: "online"
     });
+    return;
+  }
+
+  if (currentLobby && currentLobby.maxPlayers !== supportedOnlineMaxPlayers) {
+    if (lobbyStatus) {
+      lobbyStatus.textContent = "This build supports 1v1 online fights only. Create a 1v1 lobby to start synced combat.";
+    }
+    renderLobbyActions();
     return;
   }
 
@@ -1247,6 +1256,7 @@ function renderLobbyActions() {
   const hasOnlineOpponent = currentLobbyOnlineCount >= 2;
   const allReady = areLobbyPlayersReady();
   const host = isLobbyHost();
+  const supportedLobby = !currentLobby || currentLobby.maxPlayers === supportedOnlineMaxPlayers;
 
   if (readyLobbyButton) {
     const localParticipant = getLocalLobbyParticipant();
@@ -1264,10 +1274,12 @@ function renderLobbyActions() {
   }
 
   startOnlineFightButton.disabled =
-    !hasLobby || (!isLocalFallback && (!hasOnlineOpponent || !allReady || !host)) || Boolean(activeMatchStartId);
+    !hasLobby || !supportedLobby || (!isLocalFallback && (!hasOnlineOpponent || !allReady || !host)) || Boolean(activeMatchStartId);
 
   if (activeMatchStartId) {
     startOnlineFightButton.textContent = "Starting...";
+  } else if (!supportedLobby) {
+    startOnlineFightButton.textContent = "1v1 Only";
   } else if (isLocalFallback) {
     startOnlineFightButton.textContent =
       currentLobby?.members.length && currentLobby.members.length >= 2 ? "Start Local Online Sim" : "Start Local Bot Test";
@@ -2093,7 +2105,7 @@ function readSettings(): GameLaunchSettings {
     avatarFrame: readAvatarFrame(data.get("avatarFrame")),
     avatarColor: readAvatarColor(data.get("avatarColor")),
     matchmakingMode: readMatchmakingMode(data.get("matchmakingMode")),
-    maxPlayers: data.get("maxPlayers") === "4" ? 4 : 2
+    maxPlayers: supportedOnlineMaxPlayers
   };
 }
 

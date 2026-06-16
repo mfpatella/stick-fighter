@@ -3713,22 +3713,18 @@ body.is-fighting .touch-button-bonus {
   background: linear-gradient(180deg, #182838, #09131b) !important;
 }
 
-body.is-fighting #control-attack-top,
 body.is-fighting [data-touch-action="heavy"] {
   background: linear-gradient(180deg, #a20f17, #610b10) !important;
 }
 
-body.is-fighting #control-attack-right,
 body.is-fighting [data-touch-action="high"] {
   background: linear-gradient(180deg, #532277, #241237) !important;
 }
 
-body.is-fighting #control-attack-bottom,
 body.is-fighting [data-touch-action="low"] {
   background: linear-gradient(180deg, #a66b16, #60370d) !important;
 }
 
-body.is-fighting #control-kick,
 body.is-fighting [data-touch-action="kick"] {
   background: linear-gradient(180deg, #286e25, #123a15) !important;
 }
@@ -3814,7 +3810,10 @@ body:not(.is-fighting) .menu-tab::before {
 body:not(.is-fighting) .menu-form {
   min-height: 0 !important;
   overflow: hidden auto !important;
+  overscroll-behavior: contain !important;
   padding: 14px 14px 0 0 !important;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 body:not(.is-fighting) .menu-panel.is-active {
