@@ -956,6 +956,10 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   preload() {
+    const activeCharacterConfigs = this.getActiveCharacterSheetConfigs();
+    const activeDetachedPartConfigs = this.getActiveDetachedPartSheetConfigs();
+    this.releaseInactiveCharacterTextures(activeCharacterConfigs, activeDetachedPartConfigs);
+
     Object.entries(backgroundAssets).forEach(([key, url]) => {
       const textureKey = `kenney-bg-${key}`;
       if (!this.textures.exists(textureKey)) {
@@ -971,14 +975,14 @@ export class TrainingScene extends Phaser.Scene {
     if (!this.textures.exists("oga-toon-explosion")) {
       this.load.spritesheet("oga-toon-explosion", effectAssets.toonExplosion, { frameWidth: 128, frameHeight: 128 });
     }
-    Object.values(characterSheetConfigs).forEach((config) => {
+    activeCharacterConfigs.forEach((config) => {
       if (!this.textures.exists(config.textureKey)) {
         this.load.spritesheet(config.textureKey, config.asset, {
           frameWidth: config.frameWidth,
           frameHeight: config.frameHeight
         });
       }
-      if (config.missingTextureKey && config.missingAsset) {
+      if (isPartsMode(this.settings) && config.missingTextureKey && config.missingAsset) {
         if (!this.textures.exists(config.missingTextureKey)) {
           this.load.spritesheet(config.missingTextureKey, config.missingAsset, {
             frameWidth: config.missingFrameWidth ?? 181,
@@ -987,7 +991,7 @@ export class TrainingScene extends Phaser.Scene {
         }
       }
     });
-    Object.values(detachedPartSheetConfigs).forEach((config) => {
+    activeDetachedPartConfigs.forEach((config) => {
       if (!this.textures.exists(config.textureKey)) {
         this.load.spritesheet(config.textureKey, config.asset, {
           frameWidth: config.frameWidth,
@@ -1072,11 +1076,9 @@ export class TrainingScene extends Phaser.Scene {
   private createCharacterSprites() {
     this.characterBackplates.player = this.add.graphics().setDepth(8).setVisible(false);
     this.characterBackplates.opponent = this.add.graphics().setDepth(8).setVisible(false);
-    this.characterSprites.player = this.add.sprite(0, 0, characterSheetConfigs.david.textureKey, 0).setDepth(9).setVisible(false);
-    this.characterSprites.opponent = this.add
-      .sprite(0, 0, characterSheetConfigs.david.textureKey, 0)
-      .setDepth(9)
-      .setVisible(false);
+    const bootstrapTextureKey = this.getBootstrapCharacterTextureKey();
+    this.characterSprites.player = this.add.sprite(0, 0, bootstrapTextureKey, 0).setDepth(9).setVisible(false);
+    this.characterSprites.opponent = this.add.sprite(0, 0, bootstrapTextureKey, 0).setDepth(9).setVisible(false);
   }
 
   private prepareSpriteFrameAnchors() {
@@ -1084,7 +1086,11 @@ export class TrainingScene extends Phaser.Scene {
     this.spriteUsableFrames.clear();
     this.spriteFallbackFrames.clear();
 
-    Object.values(characterSheetConfigs).forEach((config) => {
+    this.getActiveCharacterSheetConfigs().forEach((config) => {
+      if (!this.textures.exists(config.textureKey)) {
+        return;
+      }
+
       this.textures.get(config.textureKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
       const anchors = this.createSpriteFrameAnchors(config);
       if (anchors.size > 0) {
@@ -1092,9 +1098,74 @@ export class TrainingScene extends Phaser.Scene {
       }
     });
 
-    Object.values(detachedPartSheetConfigs).forEach((config) => {
+    this.getActiveDetachedPartSheetConfigs().forEach((config) => {
+      if (!this.textures.exists(config.textureKey)) {
+        return;
+      }
+
       this.textures.get(config.textureKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
     });
+  }
+
+  private getActiveCharacterSheetConfigs() {
+    const configs = new Map<string, CharacterSheetConfig>();
+    [this.settings.playerFighter, this.settings.opponentFighter].forEach((key) => {
+      const config = getCharacterSheetConfig(key);
+      if (config) {
+        configs.set(config.textureKey, config);
+      }
+    });
+
+    return [...configs.values()];
+  }
+
+  private getActiveDetachedPartSheetConfigs() {
+    if (!isPartsMode(this.settings)) {
+      return [];
+    }
+
+    const configs = new Map<string, DetachedPartSheetConfig>();
+    [this.settings.playerFighter, this.settings.opponentFighter].forEach((key) => {
+      const config = getDetachedPartSheetConfigForOwner(key);
+      if (config) {
+        configs.set(config.textureKey, config);
+      }
+    });
+
+    return [...configs.values()];
+  }
+
+  private getBootstrapCharacterTextureKey() {
+    return this.getActiveCharacterSheetConfigs().find((config) => this.textures.exists(config.textureKey))?.textureKey ?? "__DEFAULT";
+  }
+
+  private releaseInactiveCharacterTextures(activeCharacterConfigs: CharacterSheetConfig[], activeDetachedPartConfigs: DetachedPartSheetConfig[]) {
+    const activeTextureKeys = new Set<string>();
+    const partsMode = isPartsMode(this.settings);
+
+    activeCharacterConfigs.forEach((config) => {
+      activeTextureKeys.add(config.textureKey);
+      if (partsMode && config.missingTextureKey) {
+        activeTextureKeys.add(config.missingTextureKey);
+      }
+    });
+    activeDetachedPartConfigs.forEach((config) => activeTextureKeys.add(config.textureKey));
+
+    Object.values(characterSheetConfigs).forEach((config) => {
+      this.removeCharacterTextureIfInactive(config.textureKey, activeTextureKeys);
+      if (config.missingTextureKey) {
+        this.removeCharacterTextureIfInactive(config.missingTextureKey, activeTextureKeys);
+      }
+    });
+    Object.values(detachedPartSheetConfigs).forEach((config) => {
+      this.removeCharacterTextureIfInactive(config.textureKey, activeTextureKeys);
+    });
+  }
+
+  private removeCharacterTextureIfInactive(textureKey: string, activeTextureKeys: Set<string>) {
+    if (!activeTextureKeys.has(textureKey) && this.textures.exists(textureKey)) {
+      this.textures.remove(textureKey);
+    }
   }
 
   private createSpriteFrameAnchors(config: CharacterSheetConfig) {
@@ -4464,7 +4535,11 @@ function getCharacterSheetOrigin(config: CharacterSheetConfig) {
 }
 
 function getDetachedPartSheetConfig(part: DetachedPart) {
-  return part.owner in detachedPartSheetConfigs ? (detachedPartSheetConfigs[part.owner as SheetFighterKey] ?? null) : null;
+  return getDetachedPartSheetConfigForOwner(part.owner);
+}
+
+function getDetachedPartSheetConfigForOwner(owner: PartOwner) {
+  return owner in detachedPartSheetConfigs ? (detachedPartSheetConfigs[owner as SheetFighterKey] ?? null) : null;
 }
 
 function getDetachedPartFrame(part: DetachedPart, config: DetachedPartSheetConfig) {
