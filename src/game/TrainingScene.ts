@@ -212,6 +212,22 @@ type SpriteFrameAnchor = {
   originY: number;
 };
 
+function safelySetPointerCapture(element: HTMLElement, pointerId: number) {
+  try {
+    element.setPointerCapture?.(pointerId);
+  } catch {
+    // Some browsers reject stale or synthetic pointer ids after touch cancellation.
+  }
+}
+
+function safelyReleasePointerCapture(element: HTMLElement, pointerId: number) {
+  try {
+    element.releasePointerCapture?.(pointerId);
+  } catch {
+    // Matching the set guard keeps mobile input resilient during interrupted touches.
+  }
+}
+
 function paddedRuntimeFrame(
   contentFrameWidth: number,
   contentFrameHeight: number,
@@ -1544,7 +1560,7 @@ export class TrainingScene extends Phaser.Scene {
         }
 
         event.preventDefault();
-        button.setPointerCapture?.(event.pointerId);
+        safelySetPointerCapture(button, event.pointerId);
         if (heldTouchActions.has(action)) {
           this.touchHeld.add(action);
         } else {
@@ -1557,7 +1573,7 @@ export class TrainingScene extends Phaser.Scene {
       const release = (event: PointerEvent) => {
         const action = button.dataset.touchAction as TouchAction | undefined;
         event.preventDefault();
-        button.releasePointerCapture?.(event.pointerId);
+        safelyReleasePointerCapture(button, event.pointerId);
         if (action && heldTouchActions.has(action)) {
           this.touchHeld.delete(action);
         }
@@ -1594,7 +1610,7 @@ export class TrainingScene extends Phaser.Scene {
         joystick.classList.remove("is-active");
         joystick.style.setProperty("--stick-x", "0px");
         joystick.style.setProperty("--stick-y", "0px");
-        joystick.releasePointerCapture?.(event.pointerId);
+        safelyReleasePointerCapture(joystick, event.pointerId);
       };
 
       joystick.addEventListener(
@@ -1605,7 +1621,7 @@ export class TrainingScene extends Phaser.Scene {
           this.joystickJumpReady = true;
           this.joystickDashReady = true;
           joystick.classList.add("is-active");
-          joystick.setPointerCapture?.(event.pointerId);
+          safelySetPointerCapture(joystick, event.pointerId);
           this.updateJoystickInput(joystick, event);
         },
         { signal }
