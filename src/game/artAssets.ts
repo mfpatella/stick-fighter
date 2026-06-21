@@ -33,7 +33,7 @@ export const effectAssets = {
 
 export type EffectAssetKey = keyof typeof effectAssets;
 
-const characterSpriteVersion = "20260606-standardized-cells";
+const characterSpriteVersion = "20260621-color-restored";
 const characterAsset = (path: string) => `${path}?v=${characterSpriteVersion}`;
 
 export const characterAssets = {

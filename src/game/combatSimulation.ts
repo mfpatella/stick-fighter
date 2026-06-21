@@ -739,8 +739,8 @@ const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKi
     low: { reach: 96, width: 120, height: 34, yOffset: -48 }
   },
   turtle: {
-    light: { reach: 74, width: 86, height: 46, yOffset: -68 },
-    kick: { reach: 82, width: 92, height: 48, yOffset: -54 },
+    light: { reach: 88, width: 100, height: 48, yOffset: -68 },
+    kick: { reach: 94, width: 108, height: 52, yOffset: -54 },
     low: { reach: 96, width: 118, height: 44, yOffset: -38 },
     heavy: { reach: 112, width: 126, height: 54, yOffset: -54 },
     spinKick: { reach: 114, width: 128, height: 58, yOffset: -58 }

@@ -144,10 +144,7 @@ type SheetFighterKey = Extract<
   | "moranatee"
 >;
 
-const outlineSheetBackplateColors: Partial<Record<SheetFighterKey, number>> = {
-  david: 0x4da3ff,
-  goliath: 0xffad42
-};
+const outlineSheetBackplateColors: Partial<Record<SheetFighterKey, number>> = {};
 
 const proceduralOutlineBackplateColors: Partial<Record<PartOwner, number>> = {
   jonathan: 0x5dc6ff,
