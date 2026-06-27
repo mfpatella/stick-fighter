@@ -212,19 +212,9 @@ type SpriteFrameAnchor = {
   originY: number;
 };
 
-function safelySetPointerCapture(element: HTMLElement, pointerId: number) {
-  try {
-    element.setPointerCapture?.(pointerId);
-  } catch {
-    // Some browsers reject stale or synthetic pointer ids after touch cancellation.
-  }
-}
-
-function safelyReleasePointerCapture(element: HTMLElement, pointerId: number) {
-  try {
-    element.releasePointerCapture?.(pointerId);
-  } catch {
-    // Matching the set guard keeps mobile input resilient during interrupted touches.
+function preventDefaultIfCancelable(event: Event) {
+  if (event.cancelable) {
+    event.preventDefault();
   }
 }
 
@@ -939,6 +929,7 @@ export class TrainingScene extends Phaser.Scene {
   private cameraFocusX = 480;
   private cameraFocusY = 270;
   private cameraZoom = 1;
+  private viewportRefreshFrame: number | null = null;
   private perfText!: Phaser.GameObjects.Text;
   private labText!: Phaser.GameObjects.Text;
   private objectiveText!: Phaser.GameObjects.Text;
@@ -1551,16 +1542,44 @@ export class TrainingScene extends Phaser.Scene {
     const { signal } = this.touchControlsAbort;
     const buttons = document.querySelectorAll<HTMLButtonElement>("[data-touch-action]");
     const joystick = document.querySelector<HTMLElement>("[data-joystick]");
+    const touchSurface = document.querySelector<HTMLElement>(".controls");
+    const touchOptions: AddEventListenerOptions = { signal, passive: false };
+    const capturedTouchOptions: AddEventListenerOptions = { signal, capture: true, passive: false };
+    const activeButtons = new Map<number, HTMLButtonElement>();
+
+    const releaseButton = (button: HTMLButtonElement) => {
+      const action = button.dataset.touchAction as TouchAction | undefined;
+      if (action && heldTouchActions.has(action)) {
+        this.touchHeld.delete(action);
+      }
+      button.classList.remove("is-pressed");
+    };
+
+    const releaseActiveButton = (event: PointerEvent) => {
+      const button = activeButtons.get(event.pointerId);
+      if (!button) {
+        return;
+      }
+
+      preventDefaultIfCancelable(event);
+      activeButtons.delete(event.pointerId);
+      releaseButton(button);
+    };
+
+    const releaseAllActiveButtons = () => {
+      activeButtons.forEach((button) => releaseButton(button));
+      activeButtons.clear();
+    };
 
     buttons.forEach((button) => {
       const press = (event: PointerEvent) => {
         const action = button.dataset.touchAction as TouchAction | undefined;
-        if (!action) {
+        if (!action || (event.pointerType === "mouse" && event.button !== 0)) {
           return;
         }
 
-        event.preventDefault();
-        safelySetPointerCapture(button, event.pointerId);
+        preventDefaultIfCancelable(event);
+        activeButtons.set(event.pointerId, button);
         if (heldTouchActions.has(action)) {
           this.touchHeld.add(action);
         } else {
@@ -1570,22 +1589,22 @@ export class TrainingScene extends Phaser.Scene {
         pulseHaptics(action === "block" ? 10 : 6);
       };
 
-      const release = (event: PointerEvent) => {
-        const action = button.dataset.touchAction as TouchAction | undefined;
-        event.preventDefault();
-        safelyReleasePointerCapture(button, event.pointerId);
-        if (action && heldTouchActions.has(action)) {
-          this.touchHeld.delete(action);
+      const releaseOnMouseLeave = (event: PointerEvent) => {
+        if (event.pointerType === "mouse") {
+          releaseActiveButton(event);
         }
-        button.classList.remove("is-pressed");
       };
 
-      button.addEventListener("pointerdown", press, { signal });
-      button.addEventListener("pointerup", release, { signal });
-      button.addEventListener("pointercancel", release, { signal });
-      button.addEventListener("pointerleave", release, { signal });
-      button.addEventListener("contextmenu", (event) => event.preventDefault(), { signal });
+      button.addEventListener("pointerdown", press, touchOptions);
+      button.addEventListener("pointerleave", releaseOnMouseLeave, touchOptions);
+      button.addEventListener("contextmenu", (event) => preventDefaultIfCancelable(event), touchOptions);
     });
+
+    document.addEventListener("pointerup", releaseActiveButton, capturedTouchOptions);
+    document.addEventListener("pointercancel", releaseActiveButton, capturedTouchOptions);
+    window.addEventListener("blur", releaseAllActiveButtons, { signal });
+    touchSurface?.addEventListener("touchstart", (event) => preventDefaultIfCancelable(event), touchOptions);
+    touchSurface?.addEventListener("touchmove", (event) => preventDefaultIfCancelable(event), touchOptions);
 
     if (joystick) {
       const moveJoystick = (event: PointerEvent) => {
@@ -1601,7 +1620,7 @@ export class TrainingScene extends Phaser.Scene {
           return;
         }
 
-        event.preventDefault();
+        preventDefaultIfCancelable(event);
         this.joystickPointerId = null;
         this.joystickJumpReady = true;
         this.joystickDashReady = true;
@@ -1610,26 +1629,28 @@ export class TrainingScene extends Phaser.Scene {
         joystick.classList.remove("is-active");
         joystick.style.setProperty("--stick-x", "0px");
         joystick.style.setProperty("--stick-y", "0px");
-        safelyReleasePointerCapture(joystick, event.pointerId);
       };
 
       joystick.addEventListener(
         "pointerdown",
         (event) => {
-          event.preventDefault();
+          if (event.pointerType === "mouse" && event.button !== 0) {
+            return;
+          }
+
+          preventDefaultIfCancelable(event);
           this.joystickPointerId = event.pointerId;
           this.joystickJumpReady = true;
           this.joystickDashReady = true;
           joystick.classList.add("is-active");
-          safelySetPointerCapture(joystick, event.pointerId);
           this.updateJoystickInput(joystick, event);
         },
-        { signal }
+        touchOptions
       );
-      joystick.addEventListener("pointermove", moveJoystick, { signal });
-      joystick.addEventListener("pointerup", releaseJoystick, { signal });
-      joystick.addEventListener("pointercancel", releaseJoystick, { signal });
-      joystick.addEventListener("contextmenu", (event) => event.preventDefault(), { signal });
+      document.addEventListener("pointermove", moveJoystick, capturedTouchOptions);
+      document.addEventListener("pointerup", releaseJoystick, capturedTouchOptions);
+      document.addEventListener("pointercancel", releaseJoystick, capturedTouchOptions);
+      joystick.addEventListener("contextmenu", (event) => preventDefaultIfCancelable(event), touchOptions);
     }
   }
 
@@ -1666,13 +1687,17 @@ export class TrainingScene extends Phaser.Scene {
       { signal }
     );
 
-    window.visualViewport?.addEventListener("resize", () => this.configureCameraForViewport(), { signal });
-    window.addEventListener("orientationchange", () => this.configureCameraForViewport(), { signal });
+    window.visualViewport?.addEventListener("resize", () => this.scheduleCameraViewportRefresh(), { signal });
+    window.addEventListener("orientationchange", () => this.scheduleCameraViewportRefresh(), { signal });
   }
 
   private releaseSceneLifecycle() {
     this.sceneLifecycleAbort?.abort();
     this.sceneLifecycleAbort = null;
+    if (this.viewportRefreshFrame !== null) {
+      window.cancelAnimationFrame(this.viewportRefreshFrame);
+      this.viewportRefreshFrame = null;
+    }
   }
 
   private clearTransientInput() {
@@ -1693,7 +1718,7 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private updateJoystickInput(joystick: HTMLElement, event: PointerEvent) {
-    event.preventDefault();
+    preventDefaultIfCancelable(event);
     const rect = joystick.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -2038,6 +2063,17 @@ export class TrainingScene extends Phaser.Scene {
     camera.setBounds(-420, -250, 1800, 1040);
     camera.setRoundPixels(false);
     this.updateCameraPresentation(0, true);
+  }
+
+  private scheduleCameraViewportRefresh() {
+    if (this.viewportRefreshFrame !== null) {
+      return;
+    }
+
+    this.viewportRefreshFrame = window.requestAnimationFrame(() => {
+      this.viewportRefreshFrame = null;
+      this.configureCameraForViewport();
+    });
   }
 
   private updateCameraPresentation(delta: number, immediate = false) {
