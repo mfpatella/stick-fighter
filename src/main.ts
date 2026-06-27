@@ -794,13 +794,16 @@ async function handleToggleLobbyReady() {
 
 function renderAuthState() {
   const email = authSnapshot.user?.email;
+  const hasOnlineSession = Boolean(authSnapshot.user);
   if (authStatus) {
-    authStatus.textContent = email ? `Signed in as ${email}` : "Playing as local guest";
+    authStatus.textContent = email ? `Signed in as ${email}` : hasOnlineSession ? "Playing online as guest" : "Playing as local guest";
   }
   if (authDetail) {
     authDetail.textContent = email
       ? "Profiles, lobbies, and stats will sync through Supabase."
-      : "Create an account to keep wins, losses, avatar choices, and lobby access synced online.";
+      : hasOnlineSession
+        ? "A temporary guest session is ready for online lobbies and synced fights."
+        : "Online lobbies create a temporary guest session automatically.";
   }
   if (signInButton) {
     signInButton.hidden = Boolean(email);
@@ -809,7 +812,7 @@ function renderAuthState() {
     signUpButton.hidden = Boolean(email);
   }
   if (signOutButton) {
-    signOutButton.hidden = !email;
+    signOutButton.hidden = !hasOnlineSession;
   }
 }
 

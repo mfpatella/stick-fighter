@@ -201,15 +201,15 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     description: "Massive bite, tail reach, and heavy health with slow but still playable turning and stamina recovery.",
     stats: {
       maxHealth: 138,
-      moveSpeed: 0.76,
-      jumpPower: 0.54,
+      moveSpeed: 0.8,
+      jumpPower: 0.58,
       attackPower: 1.28,
-      staminaRegen: 0.84,
-      staminaCost: 1.18,
-      guardStrength: 0.86,
-      dodgeSpeed: 0.64,
+      staminaRegen: 0.88,
+      staminaCost: 1.14,
+      guardStrength: 0.9,
+      dodgeSpeed: 0.68,
       bodyScale: 1.36,
-      reachScale: 1.2
+      reachScale: 1.24
     }
   },
   lion: {
@@ -254,16 +254,16 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     role: "Relentless scrapper",
     description: "Tiny, quick, hard to pin down, and stamina-rich with lighter individual hits.",
     stats: {
-      maxHealth: 90,
-      moveSpeed: 1.24,
+      maxHealth: 88,
+      moveSpeed: 1.18,
       jumpPower: 1.08,
-      attackPower: 0.94,
+      attackPower: 0.92,
       staminaRegen: 1.24,
       staminaCost: 0.84,
-      guardStrength: 0.82,
-      dodgeSpeed: 1.28,
-      bodyScale: 0.82,
-      reachScale: 0.9
+      guardStrength: 0.78,
+      dodgeSpeed: 1.18,
+      bodyScale: 0.88,
+      reachScale: 0.94
     }
   },
   eagle: {
@@ -327,15 +327,15 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
     description: "Slower movement balanced by excellent ranged pressure and heavy tech attacks.",
     stats: {
       maxHealth: 96,
-      moveSpeed: 0.86,
-      jumpPower: 0.56,
+      moveSpeed: 0.9,
+      jumpPower: 0.6,
       attackPower: 1.12,
       staminaRegen: 1.08,
-      staminaCost: 1.05,
+      staminaCost: 1,
       guardStrength: 1,
-      dodgeSpeed: 0.82,
+      dodgeSpeed: 0.86,
       bodyScale: 1,
-      reachScale: 1.14
+      reachScale: 1.17
     }
   },
   helenKeller: {

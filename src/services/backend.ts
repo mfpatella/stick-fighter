@@ -278,25 +278,42 @@ export async function signOutOnline() {
   }
 }
 
-export async function savePlayerProfile(avatar: PlayerAvatar) {
-  saveLocalProfile(avatar);
-
+async function getCurrentSupabaseUser(): Promise<User | null> {
   if (!supabase) {
-    return {
-      source: "local" as const,
-      avatar
-    };
+    return null;
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.warn("Supabase user lookup skipped", error);
+    return null;
+  }
 
-  if (!user) {
-    return {
-      source: "local" as const,
-      avatar
-    };
+  return data.user ?? null;
+}
+
+async function ensureSupabaseOnlineUser(): Promise<User | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const existingUser = await getCurrentSupabaseUser();
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) {
+    console.warn("Supabase anonymous sign-in skipped", error);
+    return null;
+  }
+
+  return data.user ?? data.session?.user ?? null;
+}
+
+async function upsertSupabaseProfile(user: User, avatar: PlayerAvatar) {
+  if (!supabase) {
+    return;
   }
 
   const { error } = await supabase.from("profiles").upsert({
@@ -311,6 +328,37 @@ export async function savePlayerProfile(avatar: PlayerAvatar) {
   if (error) {
     throw error;
   }
+}
+
+async function ensureSupabaseProfile(avatar: PlayerAvatar): Promise<User | null> {
+  const user = await ensureSupabaseOnlineUser();
+  if (!user) {
+    return null;
+  }
+
+  await upsertSupabaseProfile(user, avatar);
+  return user;
+}
+
+export async function savePlayerProfile(avatar: PlayerAvatar) {
+  saveLocalProfile(avatar);
+
+  if (!supabase) {
+    return {
+      source: "local" as const,
+      avatar
+    };
+  }
+
+  const user = await getCurrentSupabaseUser();
+  if (!user) {
+    return {
+      source: "local" as const,
+      avatar
+    };
+  }
+
+  await upsertSupabaseProfile(user, avatar);
 
   return {
     source: "supabase" as const,
@@ -446,18 +494,13 @@ export async function createGameLobby(input: {
     };
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
+  const user = await ensureSupabaseProfile(input.avatar);
   if (!user) {
     return {
       lobby: createLocalLobby(input),
       source: "local"
     };
   }
-
-  await savePlayerProfile(input.avatar);
 
   const { data: lobbyRow, error: lobbyError } = await supabase
     .from("lobbies")
@@ -607,15 +650,10 @@ export async function joinLobbyByRoomCode(input: {
     return joinLocalLobbyByRoomCode(input);
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
+  const user = await ensureSupabaseProfile(input.avatar);
   if (!user) {
-    throw new Error("Sign in before joining an online lobby.");
+    return joinLocalLobbyByRoomCode(input);
   }
-
-  await savePlayerProfile(input.avatar);
 
   const normalizedRoomCode = input.roomCode.trim().toUpperCase();
   const { data: lobbyRow, error: lobbyError } = await supabase
@@ -777,13 +815,20 @@ export async function createMatchmakingTicket(input: {
     return createLocalMatchmakingTicket(input);
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
+  const user = await ensureSupabaseOnlineUser();
   if (!user) {
     return createLocalMatchmakingTicket(input);
   }
+
+  await upsertSupabaseProfile(
+    user,
+    loadLocalProfile() ?? {
+      displayName: "Guest Player",
+      frame: "shepherd",
+      color: "olive",
+      favoriteFighter: input.fighterKey
+    }
+  );
 
   const { data, error } = await supabase
     .from("matchmaking_tickets")
@@ -867,9 +912,7 @@ export async function tryMatchmaking(ticketId: string, avatar: PlayerAvatar): Pr
     return null;
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const user = await getCurrentSupabaseUser();
 
   if (user && !lobby.members.some((member) => member.profileId === user.id)) {
     const usedSlots = new Set(lobby.members.map((member) => member.slot));
@@ -922,9 +965,7 @@ export async function joinRealtimeRoom(input: {
   }
 
   leaveRealtimeRoom();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const user = await ensureSupabaseProfile(input.avatar);
 
   if (!user) {
     input.onState({
