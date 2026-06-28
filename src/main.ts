@@ -140,7 +140,9 @@ let currentMatchmakingTicketId: string | null = null;
 let matchmakingStartedAt = 0;
 let matchmakingPollTimer: number | null = null;
 let matchmakingPulseTimer: number | null = null;
-let dynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
+const minDynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
+const maxDynamicInputDelayFrames = 16;
+let dynamicInputDelayFrames = minDynamicInputDelayFrames;
 let lastNetplayStats: OnlineNetplayStats | null = null;
 const remotePacketAges: number[] = [];
 const supportedOnlineMaxPlayers = 2;
@@ -474,7 +476,7 @@ async function enterLobby(
   }));
   remoteInputFrames = new Map();
   remotePacketAges.length = 0;
-  dynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
+  dynamicInputDelayFrames = minDynamicInputDelayFrames;
   lastNetplayStats = null;
   activeMatchStartId = null;
   showAppScreen("lobby");
@@ -1454,12 +1456,12 @@ function adaptInputDelay(stats: OnlineNetplayStats) {
   const highPacketAge = medianAge !== null && medianAge > 120;
   const stablePacketAge = medianAge !== null && medianAge < 65;
 
-  if ((newPredictions > 8 || newRollbacks > 0 || highPacketAge) && dynamicInputDelayFrames < 8) {
+  if ((newPredictions > 8 || newRollbacks > 0 || highPacketAge) && dynamicInputDelayFrames < maxDynamicInputDelayFrames) {
     dynamicInputDelayFrames += 1;
     return;
   }
 
-  if (newPredictions === 0 && newRollbacks === 0 && stablePacketAge && dynamicInputDelayFrames > 3) {
+  if (newPredictions === 0 && newRollbacks === 0 && stablePacketAge && dynamicInputDelayFrames > minDynamicInputDelayFrames) {
     dynamicInputDelayFrames -= 1;
   }
 }

@@ -37,10 +37,10 @@ export type NetplayTuning = {
 
 export const defaultNetplayTuning: NetplayTuning = {
   tickRate: 60,
-  inputDelayFrames: 2,
-  jitterBufferFrames: 2,
-  maxRollbackFrames: 10,
-  snapshotHistoryFrames: 90
+  inputDelayFrames: 3,
+  jitterBufferFrames: 3,
+  maxRollbackFrames: 36,
+  snapshotHistoryFrames: 180
 };
 
 export type LobbyMember = {

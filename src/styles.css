@@ -3729,6 +3729,43 @@ body.is-fighting [data-touch-action="kick"] {
   background: linear-gradient(180deg, #286e25, #123a15) !important;
 }
 
+body.is-fighting .touch-button,
+body.is-fighting .touch-button.diamond-button,
+body.is-fighting .touch-button-bonus {
+  letter-spacing: 0 !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+  text-align: center !important;
+}
+
+body.is-fighting .touch-button.diamond-button {
+  font-size: 0.52rem !important;
+  line-height: 0.9 !important;
+  text-wrap: balance;
+}
+
+body.is-fighting .touch-button-bonus {
+  font-size: 0.5rem !important;
+  line-height: 0.92 !important;
+  white-space: normal !important;
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  body.is-fighting .control-actions {
+    --diamond-size: clamp(184px, 52vh, 214px) !important;
+    --diamond-button: clamp(58px, 15vh, 70px) !important;
+    --bonus-rail-width: clamp(70px, 18vh, 84px) !important;
+    --bonus-button-height: clamp(40px, 10vh, 50px) !important;
+    --bonus-button-gap: 6px !important;
+  }
+
+  body.is-fighting .attack-diamond {
+    --diamond-size: clamp(184px, 52vh, 214px) !important;
+    --diamond-button: clamp(58px, 15vh, 70px) !important;
+  }
+}
+
 @media (max-width: 860px) {
   .menu-overlay {
     min-height: auto;

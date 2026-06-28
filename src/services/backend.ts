@@ -117,6 +117,7 @@ export type RealtimeLobbySync = {
 };
 
 let activeRealtimeChannel: RealtimeChannel | null = null;
+let activeRealtimeReady = false;
 
 export function recordLocalMatch(match: MatchResult): PlayerStats {
   const recordedAt = new Date().toISOString();
@@ -285,11 +286,21 @@ async function getCurrentSupabaseUser(): Promise<User | null> {
 
   const { data, error } = await supabase.auth.getUser();
   if (error) {
-    console.warn("Supabase user lookup skipped", error);
+    if (!isMissingAuthSession(error)) {
+      console.warn("Supabase user lookup skipped", error);
+    }
     return null;
   }
 
   return data.user ?? null;
+}
+
+function isMissingAuthSession(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.name === "AuthSessionMissingError" || error.message.toLowerCase().includes("auth session missing");
 }
 
 async function ensureSupabaseOnlineUser(): Promise<User | null> {
@@ -990,6 +1001,7 @@ export async function joinRealtimeRoom(input: {
   });
 
   activeRealtimeChannel = channel;
+  activeRealtimeReady = false;
   input.onState({
     lobbyId: input.lobby.id,
     onlineCount: 1,
@@ -1033,6 +1045,7 @@ export async function joinRealtimeRoom(input: {
 
   channel.subscribe(async (status) => {
     if (status === "SUBSCRIBED") {
+      activeRealtimeReady = true;
       await channel.track({
         profileId: user.id,
         displayName: input.avatar.displayName,
@@ -1053,6 +1066,7 @@ export async function joinRealtimeRoom(input: {
     }
 
     if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      activeRealtimeReady = false;
       input.onState({
         lobbyId: input.lobby.id,
         onlineCount: 1,
@@ -1070,18 +1084,15 @@ export function leaveRealtimeRoom() {
     void supabase.removeChannel(activeRealtimeChannel);
   }
   activeRealtimeChannel = null;
+  activeRealtimeReady = false;
 }
 
 export async function broadcastRealtimeInputFrame(frame: RealtimeInputFrame) {
-  if (!activeRealtimeChannel) {
+  if (!activeRealtimeChannel || !activeRealtimeReady) {
     return;
   }
 
-  await activeRealtimeChannel.send({
-    type: "broadcast",
-    event: "input-frame",
-    payload: frame
-  });
+  await sendRealtimeBroadcast("input-frame", frame, { allowHttpFallback: false });
 }
 
 export async function broadcastRealtimeMatchStart(match: RealtimeMatchStart) {
@@ -1089,11 +1100,7 @@ export async function broadcastRealtimeMatchStart(match: RealtimeMatchStart) {
     return;
   }
 
-  await activeRealtimeChannel.send({
-    type: "broadcast",
-    event: "match-start",
-    payload: match
-  });
+  await sendRealtimeBroadcast("match-start", match);
 }
 
 export async function broadcastRealtimeLobbySync(sync: RealtimeLobbySync) {
@@ -1101,10 +1108,30 @@ export async function broadcastRealtimeLobbySync(sync: RealtimeLobbySync) {
     return;
   }
 
+  await sendRealtimeBroadcast("lobby-sync", sync);
+}
+
+async function sendRealtimeBroadcast(
+  event: "input-frame" | "match-start" | "lobby-sync",
+  payload: RealtimeInputFrame | RealtimeMatchStart | RealtimeLobbySync,
+  options: { allowHttpFallback?: boolean } = {}
+) {
+  if (!activeRealtimeChannel) {
+    return;
+  }
+
+  if (!activeRealtimeReady) {
+    if (options.allowHttpFallback === false) {
+      return;
+    }
+    await activeRealtimeChannel.httpSend(event, payload);
+    return;
+  }
+
   await activeRealtimeChannel.send({
     type: "broadcast",
-    event: "lobby-sync",
-    payload: sync
+    event,
+    payload
   });
 }
 
