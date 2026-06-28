@@ -37,8 +37,8 @@ export type NetplayTuning = {
 
 export const defaultNetplayTuning: NetplayTuning = {
   tickRate: 60,
-  inputDelayFrames: 3,
-  jitterBufferFrames: 3,
+  inputDelayFrames: 5,
+  jitterBufferFrames: 5,
   maxRollbackFrames: 36,
   snapshotHistoryFrames: 180
 };
