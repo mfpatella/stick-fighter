@@ -835,6 +835,7 @@ export type OnlineInputBridge = {
   snapshotHistoryFrames: number;
   sendInput: (input: PlayerInput, frame: number) => void;
   readRemoteInput: (frame: number) => PlayerInput | null;
+  getNewestRemoteFrame: () => number;
   getBufferedRemoteFrames: () => number;
   onNetplayStats: (stats: OnlineNetplayStats) => void;
 };
@@ -1421,6 +1422,9 @@ export class TrainingScene extends Phaser.Scene {
     const sendFrame = nextFrame + this.onlineBridge.inputDelayFrames;
     this.storeLocalInput(sendFrame, localInput);
     this.onlineBridge.sendInput(localInput, sendFrame);
+    if (this.shouldPaceForRemoteInput(nextFrame)) {
+      return [];
+    }
     this.netplaySnapshots.set(nextFrame, this.simulation.createSnapshot());
 
     const inputs = this.resolveNetplayInputs(nextFrame);
@@ -1467,6 +1471,20 @@ export class TrainingScene extends Phaser.Scene {
 
   private predictRemoteInput(): PlayerInput {
     return stripTransientInput(this.lastRemotePrediction);
+  }
+
+  private shouldPaceForRemoteInput(nextFrame: number) {
+    if (!this.onlineBridge) {
+      return false;
+    }
+
+    const newestRemoteFrame = this.onlineBridge.getNewestRemoteFrame();
+    const maxPredictionLead = Math.max(12, this.onlineBridge.maxRollbackFrames - this.onlineBridge.inputDelayFrames - 2);
+    if (newestRemoteFrame === 0) {
+      return nextFrame > maxPredictionLead;
+    }
+
+    return nextFrame - newestRemoteFrame > maxPredictionLead;
   }
 
   private findRollbackFrame(): number | null {

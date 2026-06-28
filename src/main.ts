@@ -1461,6 +1461,7 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
 
       return decodePlayerInput(remoteFrame.input);
     },
+    getNewestRemoteFrame: () => Math.max(0, ...remoteInputFrames.keys()),
     getBufferedRemoteFrames: () => remoteInputFrames.size,
     onNetplayStats: updateNetplayStatus
   };
