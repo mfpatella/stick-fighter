@@ -855,6 +855,23 @@ type NetplayFrameInputs = {
   remotePredicted: boolean;
 };
 
+type NetplayDebugWindow = Window & {
+  __sffNetplayScene?: {
+    frame: number;
+    localSide: "player" | "opponent";
+    checksum: number;
+    player: ReturnType<typeof pickDebugFighterState>;
+    opponent: ReturnType<typeof pickDebugFighterState>;
+    settings: Pick<GameLaunchSettings, "playerFighter" | "opponentFighter" | "mode" | "matchType">;
+    recentInputs: Array<{
+      frame: number;
+      local: number;
+      remote: number;
+      remotePredicted: boolean;
+    }>;
+  };
+};
+
 type TouchAction =
   | "left"
   | "right"
@@ -1432,7 +1449,7 @@ export class TrainingScene extends Phaser.Scene {
     const previous = this.netplayInputs.get(frame);
     const remoteInput = this.onlineBridge?.readRemoteInput(frame);
     const remotePredicted = !remoteInput;
-    const remote = remoteInput ?? previous?.remote ?? this.predictRemoteInput();
+    const remote = remoteInput ?? (!previous?.remotePredicted ? previous?.remote : null) ?? this.predictRemoteInput();
     const local = previous?.local ?? createEmptyInput();
 
     if (!remotePredicted) {
@@ -1463,11 +1480,7 @@ export class TrainingScene extends Phaser.Scene {
     for (let frame = oldestFrame; frame <= currentFrame; frame += 1) {
       const usedInputs = this.netplayInputs.get(frame);
       const authoritativeRemote = this.onlineBridge.readRemoteInput(frame);
-      if (
-        usedInputs?.remotePredicted &&
-        authoritativeRemote &&
-        encodePlayerInput(usedInputs.remote) !== encodePlayerInput(authoritativeRemote)
-      ) {
+      if (usedInputs && authoritativeRemote && encodePlayerInput(usedInputs.remote) !== encodePlayerInput(authoritativeRemote)) {
         return frame;
       }
     }
@@ -1484,6 +1497,7 @@ export class TrainingScene extends Phaser.Scene {
     const targetFrame = this.simulation.state.frameNumber;
     this.netplayRollbackCount += 1;
     this.simulation.restoreSnapshot(snapshot);
+    this.seedRemotePrediction(frame);
     this.effects = [];
     this.statusHoldTimer = 0;
     this.blockFlashTimer = 0;
@@ -1499,6 +1513,23 @@ export class TrainingScene extends Phaser.Scene {
       );
       this.netplayInputs.set(replayFrame, inputs);
     }
+  }
+
+  private seedRemotePrediction(beforeFrame: number) {
+    if (!this.onlineBridge) {
+      this.lastRemotePrediction = createEmptyInput();
+      return;
+    }
+
+    const oldestFrame = Math.max(1, beforeFrame - this.onlineBridge.snapshotHistoryFrames);
+    let latestRemote = createEmptyInput();
+    for (let frame = oldestFrame; frame < beforeFrame; frame += 1) {
+      const remoteInput = this.onlineBridge.readRemoteInput(frame);
+      if (remoteInput) {
+        latestRemote = remoteInput;
+      }
+    }
+    this.lastRemotePrediction = latestRemote;
   }
 
   private trimNetplayHistory() {
@@ -1525,6 +1556,28 @@ export class TrainingScene extends Phaser.Scene {
       return;
     }
 
+    const simulationChecksum = getSimulationChecksum(this.simulation.state);
+    const debugWindow = window as NetplayDebugWindow;
+    debugWindow.__sffNetplayScene = {
+      frame: this.simulation.state.frameNumber,
+      localSide: this.onlineBridge.localSide,
+      checksum: simulationChecksum,
+      player: pickDebugFighterState(this.simulation.state.player),
+      opponent: pickDebugFighterState(this.simulation.state.opponent),
+      settings: {
+        playerFighter: this.settings.playerFighter,
+        opponentFighter: this.settings.opponentFighter,
+        mode: this.settings.mode,
+        matchType: this.settings.matchType
+      },
+      recentInputs: [...this.netplayInputs.entries()].slice(-240).map(([frame, inputs]) => ({
+        frame,
+        local: encodePlayerInput(inputs.local),
+        remote: encodePlayerInput(inputs.remote),
+        remotePredicted: inputs.remotePredicted
+      }))
+    };
+
     this.onlineBridge.onNetplayStats({
       frame: this.simulation.state.frameNumber,
       localSide: this.onlineBridge.localSide,
@@ -1532,7 +1585,7 @@ export class TrainingScene extends Phaser.Scene {
       predictedFrames: this.netplayPredictedFrames,
       rollbackCount: this.netplayRollbackCount,
       bufferedRemoteFrames: this.onlineBridge.getBufferedRemoteFrames(),
-      simulationChecksum: getSimulationChecksum(this.simulation.state)
+      simulationChecksum
     });
   }
 
@@ -4732,6 +4785,26 @@ function formatLabFighter(fighter: FighterSnapshot, standardTiming: boolean) {
   const reach = getAttackReachDisplay(fighter);
 
   return `${fighter.name}: ${fighter.attackKind} ${phase} ${toFrames(elapsed)}/${toFrames(timing.total)}f s/a/r ${toFrames(timing.startup)}/${toFrames(timing.active)}/${toFrames(timing.recovery)}${reach ? ` reach ${reach}` : ""}`;
+}
+
+function pickDebugFighterState(fighter: FighterSnapshot) {
+  return {
+    key: fighter.key,
+    x: Math.round(fighter.x * 10) / 10,
+    y: Math.round(fighter.y * 10) / 10,
+    vx: Math.round(fighter.vx * 10) / 10,
+    vy: Math.round(fighter.vy * 10) / 10,
+    facing: fighter.facing,
+    health: Math.round(fighter.health * 10) / 10,
+    stamina: Math.round(fighter.stamina * 10) / 10,
+    state: fighter.state,
+    attackKind: fighter.attackKind,
+    attackElapsed: Math.round(fighter.attackElapsed * 1000) / 1000,
+    hasHitDuringAttack: fighter.hasHitDuringAttack,
+    hasFiredProjectile: fighter.hasFiredProjectile,
+    stunTimer: Math.round(fighter.stunTimer * 1000) / 1000,
+    comboCount: fighter.comboCount
+  };
 }
 
 function getAttackReachDisplay(fighter: FighterSnapshot) {

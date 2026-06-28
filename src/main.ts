@@ -145,12 +145,10 @@ let matchmakingStartedAt = 0;
 let matchmakingPollTimer: number | null = null;
 let matchmakingPulseTimer: number | null = null;
 const minDynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
-const maxDynamicInputDelayFrames = 16;
 const realtimeInputHistoryFrames = 90;
 const realtimeInputKeyframeInterval = 12;
 const realtimeInputSendIntervalFrames = 3;
 let dynamicInputDelayFrames = minDynamicInputDelayFrames;
-let lastNetplayStats: OnlineNetplayStats | null = null;
 const remotePacketAges: number[] = [];
 const supportedOnlineMaxPlayers = 2;
 
@@ -496,7 +494,6 @@ async function enterLobby(
   lastBroadcastEncodedInput = null;
   remotePacketAges.length = 0;
   dynamicInputDelayFrames = minDynamicInputDelayFrames;
-  lastNetplayStats = null;
   activeMatchStartId = null;
   showAppScreen("lobby");
   renderLobbyState();
@@ -1020,7 +1017,6 @@ async function returnToLobbyAfterFight() {
   lastBroadcastFrame = 0;
   lastBroadcastEncodedInput = null;
   remotePacketAges.length = 0;
-  lastNetplayStats = null;
   hasStarted = false;
 
   try {
@@ -1475,7 +1471,6 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
     return;
   }
 
-  adaptInputDelay(stats);
   const newestRemoteFrame = Math.max(0, ...remoteInputFrames.keys());
   const latestRemote = newestRemoteFrame ? remoteInputFrames.get(newestRemoteFrame) : null;
   const packetAge = latestRemote ? Math.max(0, Date.now() - latestRemote.sentAt) : null;
@@ -1488,30 +1483,6 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
   debugWindow.__sffNetplayStats = [...(debugWindow.__sffNetplayStats ?? []), stats].slice(-160);
 
   netplayStatus.textContent = `${sideLabel} f${stats.frame} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${medianLabel} | sync ${syncLabel}`;
-}
-
-function adaptInputDelay(stats: OnlineNetplayStats) {
-  const previousStats = lastNetplayStats;
-  lastNetplayStats = stats;
-
-  if (!previousStats) {
-    return;
-  }
-
-  const newPredictions = stats.predictedFrames - previousStats.predictedFrames;
-  const newRollbacks = stats.rollbackCount - previousStats.rollbackCount;
-  const medianAge = getMedianPacketAge();
-  const highPacketAge = medianAge !== null && medianAge > 120;
-  const stablePacketAge = medianAge !== null && medianAge < 65;
-
-  if ((newPredictions > 8 || newRollbacks > 0 || highPacketAge) && dynamicInputDelayFrames < maxDynamicInputDelayFrames) {
-    dynamicInputDelayFrames += 1;
-    return;
-  }
-
-  if (newPredictions === 0 && newRollbacks === 0 && stablePacketAge && dynamicInputDelayFrames > minDynamicInputDelayFrames) {
-    dynamicInputDelayFrames -= 1;
-  }
 }
 
 function getMedianPacketAge() {
