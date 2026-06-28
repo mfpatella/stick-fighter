@@ -97,6 +97,10 @@ export type RealtimeInputFrame = {
   frame: number;
   side: "player" | "opponent";
   input: EncodedPlayerInput;
+  history?: Array<{
+    frame: number;
+    input: EncodedPlayerInput;
+  }>;
   sentAt: number;
   receivedAt?: number;
 };
@@ -118,6 +122,12 @@ export type RealtimeLobbySync = {
 
 let activeRealtimeChannel: RealtimeChannel | null = null;
 let activeRealtimeReady = false;
+
+type PushableRealtimeChannel = RealtimeChannel & {
+  channelAdapter?: {
+    canPush?: () => boolean;
+  };
+};
 
 export function recordLocalMatch(match: MatchResult): PlayerStats {
   const recordedAt = new Date().toISOString();
@@ -1022,9 +1032,19 @@ export async function joinRealtimeRoom(input: {
   channel.on("broadcast", { event: "input-frame" }, (message) => {
     const frame = message.payload as RealtimeInputFrame;
     if (frame.profileId !== user.id) {
+      const receivedAt = Date.now();
       input.onInputFrame?.({
         ...frame,
-        receivedAt: Date.now()
+        receivedAt
+      });
+      frame.history?.forEach((historyFrame) => {
+        input.onInputFrame?.({
+          ...frame,
+          frame: historyFrame.frame,
+          input: historyFrame.input,
+          history: undefined,
+          receivedAt
+        });
       });
     }
   });
@@ -1120,8 +1140,9 @@ async function sendRealtimeBroadcast(
     return;
   }
 
-  if (!activeRealtimeReady) {
+  if (!canPushRealtime(activeRealtimeChannel)) {
     if (options.allowHttpFallback === false) {
+      activeRealtimeReady = false;
       return;
     }
     await activeRealtimeChannel.httpSend(event, payload);
@@ -1133,6 +1154,10 @@ async function sendRealtimeBroadcast(
     event,
     payload
   });
+}
+
+function canPushRealtime(channel: RealtimeChannel) {
+  return activeRealtimeReady && ((channel as PushableRealtimeChannel).channelAdapter?.canPush?.() ?? false);
 }
 
 function readPresenceParticipants(channel: RealtimeChannel): RealtimeParticipant[] {

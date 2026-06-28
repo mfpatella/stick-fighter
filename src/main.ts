@@ -134,6 +134,10 @@ let currentLobbySource: "supabase" | "local" | null = null;
 let currentLobbyOnlineCount = 0;
 let currentParticipants: RealtimeParticipant[] = [];
 let remoteInputFrames = new Map<number, RealtimeInputFrame>();
+let localInputFrames = new Map<number, number>();
+let lastLocalEncodedInput: number | null = null;
+let lastBroadcastFrame = 0;
+let lastBroadcastEncodedInput: number | null = null;
 let activeMatchStartId: string | null = null;
 let lastFightSettings: GameLaunchSettings | null = null;
 let currentMatchmakingTicketId: string | null = null;
@@ -142,10 +146,17 @@ let matchmakingPollTimer: number | null = null;
 let matchmakingPulseTimer: number | null = null;
 const minDynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
 const maxDynamicInputDelayFrames = 16;
+const realtimeInputHistoryFrames = 90;
+const realtimeInputKeyframeInterval = 12;
+const realtimeInputSendIntervalFrames = 3;
 let dynamicInputDelayFrames = minDynamicInputDelayFrames;
 let lastNetplayStats: OnlineNetplayStats | null = null;
 const remotePacketAges: number[] = [];
 const supportedOnlineMaxPlayers = 2;
+
+type NetplayDebugWindow = Window & {
+  __sffNetplayStats?: OnlineNetplayStats[];
+};
 
 type RoundOverDetail = {
   playerWon: boolean;
@@ -361,6 +372,10 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
     currentLobbyOnlineCount = 0;
     currentParticipants = [];
     remoteInputFrames = new Map();
+    localInputFrames = new Map();
+    lastLocalEncodedInput = null;
+    lastBroadcastFrame = 0;
+    lastBroadcastEncodedInput = null;
     activeMatchStartId = null;
     leaveRoom?.();
     leaveRoom = null;
@@ -475,6 +490,10 @@ async function enterLobby(
     slot: member.slot
   }));
   remoteInputFrames = new Map();
+  localInputFrames = new Map();
+  lastLocalEncodedInput = null;
+  lastBroadcastFrame = 0;
+  lastBroadcastEncodedInput = null;
   remotePacketAges.length = 0;
   dynamicInputDelayFrames = minDynamicInputDelayFrames;
   lastNetplayStats = null;
@@ -632,6 +651,10 @@ async function startOnlineFightFromMatchStart(match: RealtimeMatchStart) {
   }
 
   remoteInputFrames = new Map();
+  localInputFrames = new Map();
+  lastLocalEncodedInput = null;
+  lastBroadcastFrame = 0;
+  lastBroadcastEncodedInput = null;
   dynamicInputDelayFrames = match.inputDelayFrames;
   const bridge = currentLobbySource === "local" ? null : createOnlineInputBridge(getLocalOnlineSide());
   if (bridge) {
@@ -904,6 +927,10 @@ function returnToMenu() {
   currentLobbyOnlineCount = 0;
   currentParticipants = [];
   remoteInputFrames = new Map();
+  localInputFrames = new Map();
+  lastLocalEncodedInput = null;
+  lastBroadcastFrame = 0;
+  lastBroadcastEncodedInput = null;
   activeMatchStartId = null;
   remotePacketAges.length = 0;
   leaveRoom?.();
@@ -988,6 +1015,10 @@ async function returnToLobbyAfterFight() {
   hideRoundOverlay();
   activeMatchStartId = null;
   remoteInputFrames = new Map();
+  localInputFrames = new Map();
+  lastLocalEncodedInput = null;
+  lastBroadcastFrame = 0;
+  lastBroadcastEncodedInput = null;
   remotePacketAges.length = 0;
   lastNetplayStats = null;
   hasStarted = false;
@@ -1403,11 +1434,26 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
         return;
       }
 
+      const encodedInput = encodePlayerInput(input);
+      if (lastLocalEncodedInput !== encodedInput || frame % realtimeInputKeyframeInterval === 0) {
+        localInputFrames.set(frame, encodedInput);
+      }
+      lastLocalEncodedInput = encodedInput;
+      trimLocalInputFrames(frame);
+      if (
+        lastBroadcastEncodedInput === encodedInput &&
+        frame - lastBroadcastFrame < realtimeInputSendIntervalFrames
+      ) {
+        return;
+      }
+      lastBroadcastFrame = frame;
+      lastBroadcastEncodedInput = encodedInput;
       void broadcastRealtimeInputFrame({
         profileId,
         frame,
         side: localSide,
-        input: encodePlayerInput(input),
+        input: encodedInput,
+        history: getRecentLocalInputHistory(frame),
         sentAt: Date.now()
       });
     },
@@ -1438,8 +1484,10 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
   const packetLabel = packetAge === null ? "no remote" : `${packetAge}ms`;
   const medianLabel = medianAge === null ? "n/a" : `${medianAge}ms med`;
   const syncLabel = stats.simulationChecksum.toString(16).padStart(8, "0").slice(-6);
+  const debugWindow = window as NetplayDebugWindow;
+  debugWindow.__sffNetplayStats = [...(debugWindow.__sffNetplayStats ?? []), stats].slice(-160);
 
-  netplayStatus.textContent = `${sideLabel} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${medianLabel} | sync ${syncLabel}`;
+  netplayStatus.textContent = `${sideLabel} f${stats.frame} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${medianLabel} | sync ${syncLabel}`;
 }
 
 function adaptInputDelay(stats: OnlineNetplayStats) {
@@ -1489,6 +1537,23 @@ function trimRemoteInputFrames() {
       remoteInputFrames.delete(frame);
     }
   }
+}
+
+function trimLocalInputFrames(newestFrame: number) {
+  const oldestFrame = newestFrame - realtimeInputHistoryFrames;
+  for (const frame of localInputFrames.keys()) {
+    if (frame < oldestFrame) {
+      localInputFrames.delete(frame);
+    }
+  }
+}
+
+function getRecentLocalInputHistory(currentFrame: number) {
+  const oldestFrame = currentFrame - realtimeInputHistoryFrames;
+  return [...localInputFrames.entries()]
+    .filter(([frame]) => frame >= oldestFrame && frame < currentFrame)
+    .sort(([leftFrame], [rightFrame]) => leftFrame - rightFrame)
+    .map(([frame, input]) => ({ frame, input }));
 }
 
 function hydrateStoredProfile() {
