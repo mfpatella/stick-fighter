@@ -71,6 +71,7 @@ const fighterPortraitAssets: Partial<Record<BaseFighterKey, string>> = {
   blanche: characterAssets.blancheIcon,
   rose: characterAssets.roseIcon,
   moranatee: characterAssets.moranateeIcon,
+  andyBird: characterAssets.andyBirdIcon,
   tRex: characterAssets.trexIcon
 };
 
@@ -221,6 +222,9 @@ game.scene.add("training", TrainingScene, false);
 document.querySelectorAll<HTMLButtonElement>("[data-menu-tab]").forEach((button) => {
   button.addEventListener("click", () => {
     const target = button.dataset.menuTab;
+    if (target === "online") {
+      setFormValue("matchType", "online");
+    }
     document.querySelectorAll<HTMLButtonElement>("[data-menu-tab]").forEach((tab) => {
       tab.classList.toggle("is-active", tab === button);
     });
@@ -981,7 +985,15 @@ async function pollMatchmakingTicket(settings: GameLaunchSettings, avatar: Playe
     return;
   }
 
+  const previousLobby = currentLobby;
   stopMatchmakingSearch(false);
+  if (previousLobby && previousLobby.id !== matchedLobby.id) {
+    try {
+      await leaveLobby(previousLobby.id);
+    } catch (error) {
+      console.warn("Previous lobby leave skipped", error);
+    }
+  }
   await enterLobby(matchedLobby, settings, avatar, "supabase");
   if (onlineStatus) {
     onlineStatus.textContent = `Matched into lobby ${matchedLobby.roomCode}. Ready up, then the host can start.`;
@@ -1780,7 +1792,7 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     tags.push("Chomp");
   }
 
-  if (fighterKey === "lion" || fighterKey === "honeyBadger" || fighterKey === "eagle") {
+  if (fighterKey === "lion" || fighterKey === "honeyBadger" || fighterKey === "eagle" || fighterKey === "andyBird") {
     tags.push("Claws");
   }
 
@@ -1788,7 +1800,7 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     tags.push("Tail");
   }
 
-  if (fighterKey === "eagle") {
+  if (fighterKey === "eagle" || fighterKey === "andyBird") {
     tags.push("Flight");
   }
 
@@ -1806,7 +1818,8 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     fighterKey === "sophia" ||
     fighterKey === "blanche" ||
     fighterKey === "rose" ||
-    fighterKey === "moranatee"
+    fighterKey === "moranatee" ||
+    fighterKey === "andyBird"
   ) {
     tags.push("Sheet moves");
   }
@@ -1839,6 +1852,10 @@ function getFighterTags(fighterKey: BaseFighterKey) {
     tags.push("Splash", "Guard body");
   }
 
+  if (fighterKey === "andyBird") {
+    tags.push("Feathers", "Air rush");
+  }
+
   return tags.length > 0 ? tags : ["Balanced"];
 }
 
@@ -1848,16 +1865,7 @@ function getFighterMoveList(fighterKey: BaseFighterKey) {
   if (fighterKey === "david") {
     moves.push("Fast dash slingshot spacing");
   }
-  if (fighterKey === "jonathan") {
-    moves.push("Stronger block and counter rhythm");
-  }
-  if (fighterKey === "benaiah") {
-    moves.push("Bruiser knockback pressure");
-  }
-  if (fighterKey === "asahel") {
-    moves.push("Long chase dash and quick recovery");
-  }
-  if (fighterKey === "goliath" || fighterKey === "ishbiBenob" || fighterKey === "saph" || fighterKey === "lahmi") {
+  if (fighterKey === "goliath") {
     moves.push("Long reach giant pressure");
   }
   if (fighterKey === "tRex") {
@@ -1916,6 +1924,9 @@ function getFighterMoveList(fighterKey: BaseFighterKey) {
   }
   if (fighterKey === "moranatee") {
     moves.push("Flipper jab", "Water roar", "Slide rush", "Splash slam");
+  }
+  if (fighterKey === "andyBird") {
+    moves.push("W/Space flight lift", "V talon flutter", "Feather shot", "Dive rush");
   }
 
   return moves.slice(0, 9);

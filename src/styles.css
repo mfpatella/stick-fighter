@@ -1243,6 +1243,7 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="blanche"]::before,
 .fighter-icon-grid button[data-fighter-key="rose"]::before,
 .fighter-icon-grid button[data-fighter-key="moranatee"]::before,
+.fighter-icon-grid button[data-fighter-key="andyBird"]::before,
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   content: "";
   width: 39px;
@@ -1334,6 +1335,10 @@ h2 {
   background-image: url("/assets/characters/moranatee/moranatee-icon.png");
 }
 
+.fighter-icon-grid button[data-fighter-key="andyBird"]::before {
+  background-image: url("/assets/characters/andy-bird/andy-bird-icon.png");
+}
+
 .fighter-icon-grid button[data-fighter-key="tRex"]::before {
   background-image: url("/assets/characters/trex/trex-icon.png");
 }
@@ -1369,6 +1374,7 @@ h2 {
 .fighter-icon-grid button[data-fighter-key="blanche"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="rose"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="moranatee"].is-selected::before,
+.fighter-icon-grid button[data-fighter-key="andyBird"].is-selected::before,
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
   border-color: var(--accent);
   background-color: #fff7df;
@@ -1455,6 +1461,10 @@ h2 {
 
 .fighter-icon-grid button[data-fighter-key="moranatee"].is-selected::before {
   background-image: url("/assets/characters/moranatee/moranatee-icon.png");
+}
+
+.fighter-icon-grid button[data-fighter-key="andyBird"].is-selected::before {
+  background-image: url("/assets/characters/andy-bird/andy-bird-icon.png");
 }
 
 .fighter-icon-grid button[data-fighter-key="tRex"].is-selected::before {
@@ -3845,8 +3855,10 @@ body:not(.is-fighting) .menu-tab::before {
 }
 
 body:not(.is-fighting) .menu-form {
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) auto !important;
   min-height: 0 !important;
-  overflow: hidden auto !important;
+  overflow: hidden !important;
   overscroll-behavior: contain !important;
   padding: 14px 14px 0 0 !important;
   scrollbar-gutter: stable;
@@ -3855,15 +3867,16 @@ body:not(.is-fighting) .menu-form {
 
 body:not(.is-fighting) .menu-panel.is-active {
   min-height: 0 !important;
+  overflow: hidden auto !important;
+  padding-bottom: 2px !important;
 }
 
 body:not(.is-fighting) .menu-actions {
-  position: sticky !important;
+  position: static !important;
   z-index: 12 !important;
-  bottom: 0 !important;
   margin-top: 14px !important;
   padding: 10px 0 14px !important;
-  background: linear-gradient(180deg, rgb(3 8 14 / 0%), rgb(3 8 14 / 92%) 24%, rgb(3 8 14 / 98%)) !important;
+  background: linear-gradient(180deg, rgb(3 8 14 / 96%), rgb(3 8 14 / 98%)) !important;
 }
 
 body:not(.is-fighting) .menu-actions .primary-action {

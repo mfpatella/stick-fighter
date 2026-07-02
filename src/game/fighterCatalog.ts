@@ -1,12 +1,6 @@
 export type BaseFighterKey =
   | "david"
-  | "jonathan"
-  | "benaiah"
-  | "asahel"
   | "goliath"
-  | "ishbiBenob"
-  | "saph"
-  | "lahmi"
   | "tRex"
   | "lion"
   | "hippo"
@@ -26,6 +20,7 @@ export type BaseFighterKey =
   | "blanche"
   | "rose"
   | "moranatee"
+  | "andyBird"
   | "guard";
 
 export type FighterStats = {
@@ -68,60 +63,6 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       reachScale: 1
     }
   },
-  jonathan: {
-    key: "jonathan",
-    name: "Jonathan",
-    role: "Shield friend",
-    description: "Steadier guard, patient defense, and reliable counterattacks.",
-    stats: {
-      maxHealth: 108,
-      moveSpeed: 0.96,
-      jumpPower: 0.98,
-      attackPower: 0.96,
-      staminaRegen: 1,
-      staminaCost: 0.96,
-      guardStrength: 1.22,
-      dodgeSpeed: 0.98,
-      bodyScale: 1.02,
-      reachScale: 1
-    }
-  },
-  benaiah: {
-    key: "benaiah",
-    name: "Benaiah",
-    role: "Mighty bruiser",
-    description: "Heavy power and resilience with slower movement.",
-    stats: {
-      maxHealth: 118,
-      moveSpeed: 0.9,
-      jumpPower: 0.92,
-      attackPower: 1.16,
-      staminaRegen: 0.96,
-      staminaCost: 1.04,
-      guardStrength: 1.08,
-      dodgeSpeed: 0.92,
-      bodyScale: 1.08,
-      reachScale: 1.04
-    }
-  },
-  asahel: {
-    key: "asahel",
-    name: "Asahel",
-    role: "Swift runner",
-    description: "High mobility, quick dodges, and lighter hits.",
-    stats: {
-      maxHealth: 92,
-      moveSpeed: 1.18,
-      jumpPower: 1.12,
-      attackPower: 0.92,
-      staminaRegen: 1.12,
-      staminaCost: 0.94,
-      guardStrength: 0.92,
-      dodgeSpeed: 1.2,
-      bodyScale: 0.94,
-      reachScale: 0.98
-    }
-  },
   goliath: {
     key: "goliath",
     name: "Goliath",
@@ -138,60 +79,6 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       dodgeSpeed: 0.68,
       bodyScale: 1.3,
       reachScale: 1.16
-    }
-  },
-  ishbiBenob: {
-    key: "ishbiBenob",
-    name: "Ishbi-Benob",
-    role: "Spear giant",
-    description: "Long reach and strong hits with sluggish repositioning.",
-    stats: {
-      maxHealth: 128,
-      moveSpeed: 0.82,
-      jumpPower: 0.74,
-      attackPower: 1.18,
-      staminaRegen: 0.84,
-      staminaCost: 1.12,
-      guardStrength: 1.06,
-      dodgeSpeed: 0.76,
-      bodyScale: 1.22,
-      reachScale: 1.14
-    }
-  },
-  saph: {
-    key: "saph",
-    name: "Saph",
-    role: "Heavy guard",
-    description: "Durable and steady, but easier to hit and slower to chase.",
-    stats: {
-      maxHealth: 120,
-      moveSpeed: 0.88,
-      jumpPower: 0.82,
-      attackPower: 1.12,
-      staminaRegen: 0.9,
-      staminaCost: 1.08,
-      guardStrength: 1.02,
-      dodgeSpeed: 0.84,
-      bodyScale: 1.14,
-      reachScale: 1.1
-    }
-  },
-  lahmi: {
-    key: "lahmi",
-    name: "Lahmi",
-    role: "Giant duelist",
-    description: "A lighter giant with good power, modest reach, and fewer extreme drawbacks.",
-    stats: {
-      maxHealth: 116,
-      moveSpeed: 0.92,
-      jumpPower: 0.86,
-      attackPower: 1.1,
-      staminaRegen: 0.94,
-      staminaCost: 1.04,
-      guardStrength: 1,
-      dodgeSpeed: 0.88,
-      bodyScale: 1.08,
-      reachScale: 1.08
     }
   },
   tRex: {
@@ -536,6 +423,24 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
       reachScale: 1.02
     }
   },
+  andyBird: {
+    key: "andyBird",
+    name: "Andy Bird",
+    role: "Feather duelist",
+    description: "A quick red-winged trickster with flight bursts, talon swipes, and feather-shot pressure.",
+    stats: {
+      maxHealth: 94,
+      moveSpeed: 1.12,
+      jumpPower: 1.22,
+      attackPower: 0.98,
+      staminaRegen: 1.18,
+      staminaCost: 0.92,
+      guardStrength: 0.84,
+      dodgeSpeed: 1.18,
+      bodyScale: 0.94,
+      reachScale: 1.02
+    }
+  },
   guard: {
     key: "guard",
     name: "Training Guard",
@@ -558,13 +463,7 @@ export const baseFighters: Record<BaseFighterKey, BaseFighter> = {
 
 export const playerFighterKeys: BaseFighterKey[] = [
   "david",
-  "jonathan",
-  "benaiah",
-  "asahel",
   "goliath",
-  "ishbiBenob",
-  "saph",
-  "lahmi",
   "tRex",
   "lion",
   "hippo",
@@ -583,6 +482,7 @@ export const playerFighterKeys: BaseFighterKey[] = [
   "sophia",
   "blanche",
   "rose",
-  "moranatee"
+  "moranatee",
+  "andyBird"
 ];
 export const opponentFighterKeys: BaseFighterKey[] = ["guard", ...playerFighterKeys];

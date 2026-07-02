@@ -912,6 +912,37 @@ export async function cancelMatchmakingTicket(ticketId: string | null) {
   }
 }
 
+async function fetchMatchedLobbyForTicket(ticketId: string): Promise<GameLobby | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("matchmaking_tickets")
+    .select("status, matched_lobby_id")
+    .eq("id", ticketId)
+    .eq("profile_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (data?.status !== "matched" || !data.matched_lobby_id) {
+    return null;
+  }
+
+  return fetchLobbyById(data.matched_lobby_id);
+}
+
 export async function tryMatchmaking(ticketId: string, avatar: PlayerAvatar): Promise<GameLobby | null> {
   if (!supabase) {
     return null;
@@ -925,7 +956,7 @@ export async function tryMatchmaking(ticketId: string, avatar: PlayerAvatar): Pr
     if (error) {
       console.warn("Matchmaking skipped", error);
     }
-    return null;
+    return fetchMatchedLobbyForTicket(ticketId);
   }
 
   const lobby = await fetchLobbyById(data);

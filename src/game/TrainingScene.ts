@@ -31,13 +31,7 @@ import { backgroundAssets, characterAssets, effectAssets } from "./artAssets";
 
 const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   david: { color: 0x1f2a35, accent: 0x8a5a28 },
-  jonathan: { color: 0x26364a, accent: 0x6f7d86 },
-  benaiah: { color: 0x2e2a24, accent: 0xb36a2d },
-  asahel: { color: 0x203b34, accent: 0x4e9a86 },
   goliath: { color: 0x292522, accent: 0xa54f2b },
-  ishbiBenob: { color: 0x312820, accent: 0xb58235 },
-  saph: { color: 0x332f2a, accent: 0x8d7541 },
-  lahmi: { color: 0x2f2c29, accent: 0x9c6841 },
   tRex: { color: 0x2f4934, accent: 0x8aaa5d },
   lion: { color: 0x8b5b2e, accent: 0xd8a84f },
   hippo: { color: 0x5f6670, accent: 0x9aa5ad },
@@ -57,6 +51,7 @@ const fighterStyles: Record<PartOwner, { color: number; accent: number }> = {
   blanche: { color: 0x9b3e72, accent: 0xf2a9d6 },
   rose: { color: 0xe9b5a6, accent: 0xf2d06b },
   moranatee: { color: 0x465d64, accent: 0x63c8f2 },
+  andyBird: { color: 0xb91518, accent: 0xffd166 },
   guard: { color: 0x2a2926, accent: 0x8b2635 },
   neutral: { color: 0x5d4a16, accent: 0xd8b45d }
 };
@@ -142,17 +137,12 @@ type SheetFighterKey = Extract<
   | "blanche"
   | "rose"
   | "moranatee"
+  | "andyBird"
 >;
 
 const outlineSheetBackplateColors: Partial<Record<SheetFighterKey, number>> = {};
 
 const proceduralOutlineBackplateColors: Partial<Record<PartOwner, number>> = {
-  jonathan: 0x5dc6ff,
-  benaiah: 0xff9a52,
-  asahel: 0x63d9a5,
-  ishbiBenob: 0xd1a05a,
-  saph: 0x9f8df2,
-  lahmi: 0xf28a70,
   guard: 0x8fd3ff
 };
 
@@ -780,6 +770,26 @@ const characterSheetConfigs: Record<SheetFighterKey, CharacterSheetConfig> = {
     originX: 0.5,
     originY: 0.92,
     yOffset: 1
+  },
+  andyBird: {
+    textureKey: "character-andy-bird-actions",
+    asset: characterAssets.andyBirdRuntimeActions,
+    ...standardRuntimeFrame(),
+    idle: { frames: [0, 4, 5, 6, 7, 8, 15, 23] },
+    run: { frames: [0, 4, 5, 6, 7] },
+    clawSwipe: { frames: [13, 20, 21] },
+    light: { frames: [13, 20, 21] },
+    high: { frames: [40, 13, 21] },
+    heavy: { frames: [36, 38] },
+    kick: { frames: [13, 21] },
+    spinKick: { frames: [13, 21] },
+    low: { frames: [8, 13, 15] },
+    blockedFrames: [1, 2, 3, 9, 10, 11, 12, 17, 18, 19, 24, 25, 26, 27, 32, 33, 34, 35, 37, 39, 41, 42, 43, 44, 45, 46],
+    scale: 0.98,
+    baseBodyScale: 0.94,
+    originX: 0.5,
+    originY: 0.91,
+    yOffset: 0
   }
 };
 
@@ -4780,7 +4790,7 @@ function getAnimalAbilitySummary(fighter: FighterSnapshot) {
     fighter.bonusParts.some((part) => part.trait === "crocodile") || hasNaturalChomp(fighter) ? "C chomp" : "",
     fighter.bonusParts.some((part) => part.category === "tail") || hasNaturalTail(fighter) ? "T tail strike" : "",
     fighter.bonusParts.some((part) => part.category === "claws") || hasNaturalClaws(fighter) ? "V claw swipe" : "",
-    fighter.bonusParts.some((part) => part.category === "wings") || fighter.key === "eagle" ? "W/Space fly" : ""
+    fighter.bonusParts.some((part) => part.category === "wings") || fighter.key === "eagle" || fighter.key === "andyBird" ? "W/Space fly" : ""
   ].filter(Boolean);
 
   return abilities.join(", ");
@@ -4935,7 +4945,7 @@ function hasNaturalTail(fighter: FighterSnapshot) {
 }
 
 function hasNaturalClaws(fighter: FighterSnapshot) {
-  return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle";
+  return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle" || fighter.key === "andyBird";
 }
 
 function isPartsMode(settings: GameLaunchSettings) {
@@ -4954,32 +4964,8 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
     return controls(["Sling", "high"], ["Punch", "light"], ["Kick", "kick"], ["Sword", "heavy"]);
   }
 
-  if (fighter.key === "jonathan") {
-    return controls(["Shield", "high"], ["Counter", "light"], ["Kick", "kick"], ["Oath", "heavy"]);
-  }
-
-  if (fighter.key === "benaiah") {
-    return controls(["Lion Hit", "heavy"], ["Strike", "light"], ["Kick", "kick"], ["Sweep", "low"]);
-  }
-
-  if (fighter.key === "asahel") {
-    return controls(["High", "high"], ["Quick", "light"], ["Fleet Kick", "kick"], ["Dash Hit", "low"]);
-  }
-
   if (fighter.key === "goliath") {
     return controls(["Spear", "high"], ["Punch", "light"], ["Kick", "kick"], ["Sword", "heavy"]);
-  }
-
-  if (fighter.key === "ishbiBenob") {
-    return controls(["Spear", "high"], ["Hook", "light"], ["Kick", "kick"], ["Giant Hit", "heavy"]);
-  }
-
-  if (fighter.key === "saph") {
-    return controls(["Guard Hit", "high"], ["Jab", "light"], ["Low Kick", "low"], ["Crush", "heavy"]);
-  }
-
-  if (fighter.key === "lahmi") {
-    return controls(["Duel Cut", "high"], ["Jab", "light"], ["Kick", "kick"], ["Blade", "heavy"]);
   }
 
   if (fighter.key === "tRex") {
@@ -4992,6 +4978,10 @@ function getAttackControlsForFighter(fighter: FighterSnapshot): AttackControlDef
 
   if (fighter.key === "eagle") {
     return controls(["Dive", "heavy"], ["Talon", "claw"], ["Kick", "kick"], ["Spin", "powerKick"]);
+  }
+
+  if (fighter.key === "andyBird") {
+    return controls(["Feather Shot", "high"], ["Talon", "claw"], ["Wing Kick", "kick"], ["Dive Rush", "heavy"]);
   }
 
   if (fighter.key === "lion") {

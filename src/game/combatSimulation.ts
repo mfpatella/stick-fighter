@@ -658,6 +658,9 @@ const projectileSpecs: Partial<Record<FighterKey, Partial<Record<AttackKind, Pro
   },
   moranatee: {
     high: { kind: "water", spawn: frames(11), speed: 520, yOffset: -70, width: 86, height: 30, damageScale: 0.78, knockbackScale: 0.76, life: 0.64, gravity: 20 }
+  },
+  andyBird: {
+    high: { kind: "paper", spawn: frames(9), speed: 620, yOffset: -76, width: 74, height: 28, damageScale: 0.74, knockbackScale: 0.78, life: 0.68, gravity: 40 }
   }
 };
 
@@ -808,6 +811,14 @@ const fighterAttackBoxTuning: Partial<Record<FighterKey, Partial<Record<AttackKi
     low: { reach: 112, width: 136, height: 42, yOffset: -36 },
     spinKick: { reach: 116, width: 138, height: 64, yOffset: -66 }
   },
+  andyBird: {
+    clawSwipe: { reach: 82, width: 96, height: 52, yOffset: -74 },
+    light: { reach: 78, width: 90, height: 46, yOffset: -72 },
+    high: { reach: 86, width: 98, height: 44, yOffset: -84 },
+    kick: { reach: 92, width: 104, height: 50, yOffset: -56 },
+    heavy: { reach: 96, width: 112, height: 54, yOffset: -66 },
+    spinKick: { reach: 100, width: 112, height: 58, yOffset: -76 }
+  },
   guard: {
     light: { reach: 44, width: 48, height: 36, yOffset: -70 },
     heavy: { reach: 54, width: 58, height: 44, yOffset: -64 },
@@ -839,7 +850,8 @@ const fighterHurtBoxTuning: Partial<Record<FighterKey, HurtBoxTuning>> = {
   sophia: { width: 48, height: 106, headWidth: 50, armWidth: 118, legWidth: 104, bodyWidth: 64 },
   blanche: { width: 52, height: 114, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 },
   rose: { width: 52, height: 112, headWidth: 54, armWidth: 122, legWidth: 112, bodyWidth: 66 },
-  moranatee: { width: 84, height: 116, yOffset: -1, headWidth: 60, headHeight: 48, headYOffset: -112, armWidth: 132, armHeight: 54, armYOffset: -82, legWidth: 128, legYOffset: -42, bodyWidth: 96, bodyHeight: 78, bodyYOffset: -82 }
+  moranatee: { width: 84, height: 116, yOffset: -1, headWidth: 60, headHeight: 48, headYOffset: -112, armWidth: 132, armHeight: 54, armYOffset: -82, legWidth: 128, legYOffset: -42, bodyWidth: 96, bodyHeight: 78, bodyYOffset: -82 },
+  andyBird: { width: 62, height: 110, yOffset: -4, headWidth: 56, headHeight: 48, headYOffset: -112, armWidth: 134, armHeight: 56, armYOffset: -82, legWidth: 108, legYOffset: -42, bodyWidth: 72, bodyHeight: 76, bodyYOffset: -78 }
 };
 
 export class CombatSimulation {
@@ -3293,7 +3305,7 @@ function hasCrocodileHead(fighter: FighterSnapshot) {
 }
 
 function canFly(fighter: FighterSnapshot) {
-  return (fighter.bonusParts.some((part) => part.category === "wings") || fighter.key === "eagle") && fighter.stamina >= 8;
+  return (fighter.bonusParts.some((part) => part.category === "wings") || fighter.key === "eagle" || fighter.key === "andyBird") && fighter.stamina >= 8;
 }
 
 function hasNaturalChomp(fighter: FighterSnapshot) {
@@ -3305,7 +3317,7 @@ function hasNaturalTail(fighter: FighterSnapshot) {
 }
 
 function hasNaturalClaws(fighter: FighterSnapshot) {
-  return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle";
+  return fighter.key === "lion" || fighter.key === "honeyBadger" || fighter.key === "eagle" || fighter.key === "andyBird";
 }
 
 function isNaturalGuarder(fighter: FighterSnapshot) {
@@ -3347,6 +3359,10 @@ function getNaturalClawBonus(fighter: FighterSnapshot) {
 
   if (fighter.key === "eagle") {
     return 1.06;
+  }
+
+  if (fighter.key === "andyBird") {
+    return 1.05;
   }
 
   return 1.04;
