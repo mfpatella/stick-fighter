@@ -3152,7 +3152,16 @@ body {
 }
 
 .menu-panel select option {
-  color: #101820;
+  background: #101820;
+  color: #f7f0dc;
+}
+
+.menu-panel select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: rgb(9 15 18 / 92%) !important;
+  color: #f7f0dc !important;
+  color-scheme: dark;
 }
 
 .fighter-preview-card {

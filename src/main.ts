@@ -224,6 +224,8 @@ document.querySelectorAll<HTMLButtonElement>("[data-menu-tab]").forEach((button)
     const target = button.dataset.menuTab;
     if (target === "online") {
       setFormValue("matchType", "online");
+    } else if (target === "play" && readSettings().matchType === "online") {
+      setFormValue("matchType", defaultGameSettings.matchType);
     }
     document.querySelectorAll<HTMLButtonElement>("[data-menu-tab]").forEach((tab) => {
       tab.classList.toggle("is-active", tab === button);

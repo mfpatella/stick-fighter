@@ -5,7 +5,7 @@ import {
   type SupabaseClient,
   type User
 } from "@supabase/supabase-js";
-import type { BaseFighterKey } from "../game/fighterCatalog";
+import { baseFighters, type BaseFighterKey } from "../game/fighterCatalog";
 import type { EncodedPlayerInput } from "../game/combatSimulation";
 import type { GameLaunchSettings } from "../game/gameSettings";
 import type { LevelKey } from "../game/levels";
@@ -426,7 +426,7 @@ export async function loadPlayerStats(): Promise<PlayerStats> {
 
 export async function fetchLobbyById(lobbyId: string): Promise<GameLobby | null> {
   if (!supabase) {
-    const lobby = readLocalJson<GameLobby | null>(localLobbyKey, null);
+    const lobby = normalizeLobby(readLocalJson<GameLobby | null>(localLobbyKey, null));
     return lobby?.id === lobbyId ? lobby : null;
   }
 
@@ -458,15 +458,25 @@ export function saveLocalProfile(avatar: PlayerAvatar) {
 }
 
 export function loadLocalProfile(): PlayerAvatar | null {
-  return readLocalJson<PlayerAvatar | null>(localProfileKey, null);
+  return normalizeAvatar(readLocalJson<PlayerAvatar | null>(localProfileKey, null));
 }
 
 export function loadLocalPlayerStats(): PlayerStats {
-  return readLocalJson<PlayerStats | null>(localStatsKey, null) ?? createEmptyStats();
+  const stats = readLocalJson<PlayerStats | null>(localStatsKey, null) ?? createEmptyStats();
+  return {
+    ...stats,
+    favoriteFighter: normalizeFighterKey(stats.favoriteFighter)
+  };
 }
 
 export function loadLocalMatchResults(): MatchResult[] {
-  return readLocalJson<MatchResult[]>(localResultsKey, []);
+  return readLocalJson<MatchResult[]>(localResultsKey, [])
+    .filter((match) => isFighterKey(match.fighterKey))
+    .map((match) => ({
+      ...match,
+      fighterKey: normalizeFighterKey(match.fighterKey),
+      opponentFighterKey: match.opponentFighterKey ? normalizeFighterKey(match.opponentFighterKey) : undefined
+    }));
 }
 
 export function createLocalLobby(input: {
@@ -582,7 +592,7 @@ export async function createGameLobby(input: {
 
 export async function setLobbyMemberReady(lobbyId: string, ready: boolean) {
   if (!supabase) {
-    const lobby = readLocalJson<GameLobby | null>(localLobbyKey, null);
+    const lobby = normalizeLobby(readLocalJson<GameLobby | null>(localLobbyKey, null));
     if (lobby) {
       lobby.members = lobby.members.map((member) =>
         member.profileId === "local-player"
@@ -738,19 +748,22 @@ export async function joinLobbyByRoomCode(input: {
     members: [
       ...memberRows
         .filter((member) => member.profile_id !== user.id)
-        .map((member) => ({
-          profileId: member.profile_id,
-          displayName: "Player",
-          fighterKey: member.fighter_key as BaseFighterKey,
-          avatar: {
+        .map((member) => {
+          const fighterKey = normalizeFighterKey(member.fighter_key);
+          return {
+            profileId: member.profile_id,
             displayName: "Player",
-            frame: "shepherd" as const,
-            color: "olive" as const,
-            favoriteFighter: member.fighter_key as BaseFighterKey
-          },
-          ready: member.ready,
-          slot: member.slot as 1 | 2 | 3 | 4
-        })),
+            fighterKey,
+            avatar: {
+              displayName: "Player",
+              frame: "shepherd" as const,
+              color: "olive" as const,
+              favoriteFighter: fighterKey
+            },
+            ready: member.ready,
+            slot: member.slot as 1 | 2 | 3 | 4
+          };
+        }),
       {
         profileId: user.id,
         displayName: input.avatar.displayName,
@@ -773,7 +786,7 @@ function joinLocalLobbyByRoomCode(input: {
   fighterKey: BaseFighterKey;
 }): GameLobby {
   const normalizedRoomCode = input.roomCode.trim().toUpperCase();
-  const lobby = readLocalJson<GameLobby | null>(localLobbyKey, null);
+  const lobby = normalizeLobby(readLocalJson<GameLobby | null>(localLobbyKey, null));
 
   if (!lobby || lobby.roomCode !== normalizedRoomCode || (lobby.status !== "open" && lobby.status !== "ready")) {
     throw new Error(`Local lobby ${normalizedRoomCode} was not found.`);
@@ -870,7 +883,7 @@ export async function createMatchmakingTicket(input: {
   const ticket: MatchmakingTicket = {
     id: data.id,
     profileId: data.profile_id,
-    fighterKey: data.fighter_key,
+    fighterKey: normalizeFighterKey(data.fighter_key),
     levelKey: data.level_key,
     mode: data.mode,
     status: data.status,
@@ -1198,7 +1211,7 @@ function readPresenceParticipants(channel: RealtimeChannel): RealtimeParticipant
         const participant = entry as Record<string, unknown>;
         const profileId = typeof participant.profileId === "string" ? participant.profileId : "";
         const displayName = typeof participant.displayName === "string" ? participant.displayName : "Player";
-        const fighterKey = typeof participant.fighterKey === "string" ? (participant.fighterKey as BaseFighterKey) : "david";
+        const fighterKey = normalizeFighterKey(participant.fighterKey);
         const ready = typeof participant.ready === "boolean" ? participant.ready : true;
         const rawSlot = typeof participant.slot === "number" ? participant.slot : 1;
         const slot = rawSlot >= 1 && rawSlot <= 4 ? (rawSlot as 1 | 2 | 3 | 4) : 1;
@@ -1261,7 +1274,7 @@ async function hydrateLobby(lobbyRow: {
     maxPlayers: lobbyRow.max_players,
     members: memberRows.map((member) => {
       const profile = profiles.get(member.profile_id);
-      const fighterKey = member.fighter_key as BaseFighterKey;
+      const fighterKey = normalizeFighterKey(member.fighter_key);
       return {
         profileId: member.profile_id,
         displayName: profile?.display_name ?? "Player",
@@ -1270,7 +1283,7 @@ async function hydrateLobby(lobbyRow: {
           displayName: profile?.display_name ?? "Player",
           frame: profile?.avatar_frame ?? "shepherd",
           color: profile?.avatar_color ?? "olive",
-          favoriteFighter: profile?.favorite_fighter ?? fighterKey
+          favoriteFighter: normalizeFighterKey(profile?.favorite_fighter, fighterKey)
         },
         ready: member.ready,
         slot: member.slot as 1 | 2 | 3 | 4
@@ -1360,8 +1373,50 @@ function applyMatchToStats(stats: PlayerStats, match: MatchResult, updatedAt: st
     currentStreak: nextStreak,
     bestStreak: Math.max(stats.bestStreak, nextStreak),
     totalDurationSeconds: stats.totalDurationSeconds + match.durationSeconds,
-    favoriteFighter: match.fighterKey,
+    favoriteFighter: normalizeFighterKey(match.fighterKey),
     updatedAt
+  };
+}
+
+function isFighterKey(value: unknown): value is BaseFighterKey {
+  return typeof value === "string" && value in baseFighters;
+}
+
+function normalizeFighterKey(value: unknown, fallback: BaseFighterKey = "david"): BaseFighterKey {
+  return isFighterKey(value) ? value : fallback;
+}
+
+function normalizeAvatar(avatar: PlayerAvatar | null): PlayerAvatar | null {
+  if (!avatar) {
+    return null;
+  }
+
+  return {
+    ...avatar,
+    favoriteFighter: normalizeFighterKey(avatar.favoriteFighter)
+  };
+}
+
+function normalizeLobby(lobby: GameLobby | null): GameLobby | null {
+  if (!lobby) {
+    return null;
+  }
+
+  return {
+    ...lobby,
+    members: lobby.members.map((member) => {
+      const fighterKey = normalizeFighterKey(member.fighterKey);
+      return {
+        ...member,
+        fighterKey,
+        avatar: normalizeAvatar(member.avatar) ?? {
+          displayName: member.displayName,
+          frame: "shepherd",
+          color: "olive",
+          favoriteFighter: fighterKey
+        }
+      };
+    })
   };
 }
 
