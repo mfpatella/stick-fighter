@@ -3156,6 +3156,33 @@ body {
   color: #aeb7aa !important;
 }
 
+.lobby-room-share {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.lobby-room-share button {
+  min-height: 38px;
+  border: 1px solid rgb(228 179 72 / 48%);
+  border-radius: 4px;
+  padding: 7px 10px;
+  background: rgb(228 179 72 / 14%);
+  color: #fff8e6;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.lobby-room-share button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .menu-panel select,
 .menu-panel input[type="text"],
 .menu-panel input[type="email"],
@@ -4198,6 +4225,14 @@ body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-actions button {
 @media (max-width: 520px) {
   body:not(.is-fighting) .lobby-screen:not([hidden]) .lobby-actions {
     grid-template-columns: 1fr !important;
+  }
+
+  .lobby-room-share {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-room-share button {
+    width: 100%;
   }
 }
 

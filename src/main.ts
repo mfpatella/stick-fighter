@@ -88,6 +88,7 @@ const leaveLobbyButton = document.querySelector<HTMLButtonElement>("#leave-lobby
 const refreshLobbyButton = document.querySelector<HTMLButtonElement>("#refresh-lobby");
 const readyLobbyButton = document.querySelector<HTMLButtonElement>("#ready-lobby");
 const startOnlineFightButton = document.querySelector<HTMLButtonElement>("#start-online-fight");
+const copyRoomCodeButton = document.querySelector<HTMLButtonElement>("#copy-room-code");
 const exitFightButton = document.querySelector<HTMLButtonElement>("#exit-fight");
 const lobbyRoomCode = document.querySelector<HTMLElement>("#lobby-room-code");
 const lobbyStatus = document.querySelector<HTMLElement>("#lobby-status");
@@ -149,6 +150,7 @@ let matchmakingPollTimer: number | null = null;
 let matchmakingPulseTimer: number | null = null;
 let onlineCreateBusy = false;
 let joinLobbyBusy = false;
+let roomCodeShareFeedback: { roomCode: string; message: string; expiresAt: number } | null = null;
 const minDynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
 const realtimeInputHistoryFrames = 90;
 const realtimeInputKeyframeInterval = 12;
@@ -317,6 +319,10 @@ refreshLobbyButton?.addEventListener("click", () => {
 
 readyLobbyButton?.addEventListener("click", () => {
   void handleToggleLobbyReady();
+});
+
+copyRoomCodeButton?.addEventListener("click", () => {
+  void handleCopyRoomCode();
 });
 
 leaveLobbyButton?.addEventListener("click", () => {
@@ -834,6 +840,41 @@ async function handleToggleLobbyReady() {
   renderLobbyState();
 }
 
+async function handleCopyRoomCode() {
+  const roomCode = currentLobby?.roomCode;
+  if (!roomCode || !lobbyStatus) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(roomCode);
+    setRoomCodeShareFeedback(roomCode, `Copied ${roomCode}. Share it with the other player, then ready up here.`);
+  } catch {
+    setRoomCodeShareFeedback(roomCode, `Room code ${roomCode}. Select and copy it manually if clipboard access is blocked.`);
+  }
+}
+
+function setRoomCodeShareFeedback(roomCode: string, message: string) {
+  roomCodeShareFeedback = {
+    roomCode,
+    message,
+    expiresAt: Date.now() + 4500
+  };
+
+  if (lobbyStatus) {
+    lobbyStatus.textContent = message;
+  }
+
+  window.setTimeout(() => {
+    if (roomCodeShareFeedback?.roomCode !== roomCode || roomCodeShareFeedback.expiresAt > Date.now()) {
+      return;
+    }
+
+    roomCodeShareFeedback = null;
+    renderLobbyState();
+  }, 4500);
+}
+
 function renderAuthState() {
   const email = authSnapshot.user?.email;
   const hasOnlineSession = Boolean(authSnapshot.user);
@@ -1335,6 +1376,10 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
     lobbyRoomCode.textContent = currentLobby?.roomCode ?? "------";
   }
 
+  if (copyRoomCodeButton) {
+    copyRoomCodeButton.disabled = !currentLobby;
+  }
+
   if (lobbyPlayerCount) {
     const maxPlayers = currentLobby?.maxPlayers ?? currentLobbySettings?.maxPlayers ?? 2;
     lobbyPlayerCount.textContent = `${currentLobbyOnlineCount} / ${maxPlayers}`;
@@ -1372,6 +1417,16 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
   }
 
   if (lobbyStatus) {
+    if (currentLobby && roomCodeShareFeedback?.roomCode === currentLobby.roomCode && roomCodeShareFeedback.expiresAt > Date.now()) {
+      lobbyStatus.textContent = roomCodeShareFeedback.message;
+      renderLobbyActions();
+      return;
+    }
+
+    if (roomCodeShareFeedback?.expiresAt && roomCodeShareFeedback.expiresAt <= Date.now()) {
+      roomCodeShareFeedback = null;
+    }
+
     if (!currentLobby) {
       lobbyStatus.textContent = "Create or join a room to fight another player online.";
     } else if (currentLobbySource === "local") {

@@ -334,7 +334,7 @@
               <input name="roomCode" type="text" maxlength="12" autocomplete="off" placeholder="ABC123" />
             </label>
             <button id="join-lobby" class="secondary-action" type="button">Join by Code</button>
-            <p class="online-helper">Start online to create/search a room. Join by code only when another player has shared a private room code.</p>
+            <p class="online-helper">Start online to create/search a room. Join by code only when another player has shared a private room code. For a two-tab local test, use a private window or second browser profile so each player gets a separate guest session.</p>
             <dl id="stats-summary" class="stats-summary" aria-label="Local player stats">
               <div>
                 <dt>Wins</dt>
@@ -373,7 +373,10 @@
         <div class="lobby-grid">
           <article class="lobby-card">
             <span>Room Code</span>
-            <strong id="lobby-room-code">------</strong>
+            <div class="lobby-room-share">
+              <strong id="lobby-room-code">------</strong>
+              <button id="copy-room-code" type="button" aria-label="Copy room code">Copy Code</button>
+            </div>
             <p id="lobby-status">Create or join a room to fight another player online.</p>
           </article>
           <article class="lobby-card">
