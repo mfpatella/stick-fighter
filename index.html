@@ -259,7 +259,7 @@
             <section class="profile-setup" aria-label="Player profile setup">
               <div class="profile-copy">
                 <p class="setup-step">1. Pick your fighter identity</p>
-                <span>Choose a username and avatar color before creating an account. These settings are saved locally now and synced online when Supabase is connected.</span>
+                <span>Choose a username and avatar color. Guests get a temporary online session; signed-in players keep profile and stats sync.</span>
               </div>
               <label>
                 <span>Username</span>
@@ -296,7 +296,7 @@
               <div>
                 <p class="setup-step">2. Save online</p>
                 <p id="auth-status" class="auth-status">Playing as local guest</p>
-                <span id="auth-detail">Online lobbies create a temporary guest session automatically.</span>
+                <span id="auth-detail">Online lobbies create a temporary guest session automatically. Sign in when you want this profile to persist.</span>
               </div>
               <div class="auth-fields">
                 <label>
@@ -333,7 +333,8 @@
               <span>Room Code</span>
               <input name="roomCode" type="text" maxlength="12" autocomplete="off" placeholder="ABC123" />
             </label>
-            <button id="join-lobby" class="secondary-action" type="button">Join Lobby</button>
+            <button id="join-lobby" class="secondary-action" type="button">Join by Code</button>
+            <p class="online-helper">Start online to create/search a room. Join by code only when another player has shared a private room code.</p>
             <dl id="stats-summary" class="stats-summary" aria-label="Local player stats">
               <div>
                 <dt>Wins</dt>
@@ -353,7 +354,7 @@
               </div>
             </dl>
             <section id="balance-telemetry" class="balance-telemetry" aria-label="Local fighter balance telemetry"></section>
-            <p id="online-status" class="menu-note">Local lobby data will be saved now; Supabase can sync the same shape later.</p>
+            <p id="online-status" class="menu-note">Choose Casual or Ranked to search, or Private Lobby to create a shareable room code.</p>
           </section>
           <div class="menu-actions">
             <button id="begin-game" class="primary-action" type="submit">Start Fight</button>

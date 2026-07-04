@@ -970,6 +970,24 @@ h2 {
   font-weight: 800;
 }
 
+.online-helper {
+  align-self: end;
+  grid-column: span 2;
+  margin: 0;
+  border: 1px solid rgb(228 179 72 / 30%);
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: rgb(228 179 72 / 10%);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+#lobby-player-list {
+  white-space: pre-line;
+}
+
 .auth-panel {
   display: grid;
   grid-column: 1 / -1;

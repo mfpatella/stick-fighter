@@ -112,6 +112,8 @@ const signInButton = document.querySelector<HTMLButtonElement>("#sign-in");
 const signUpButton = document.querySelector<HTMLButtonElement>("#sign-up");
 const signOutButton = document.querySelector<HTMLButtonElement>("#sign-out");
 const joinLobbyButton = document.querySelector<HTMLButtonElement>("#join-lobby");
+const roomCodeField = setupForm?.elements.namedItem("roomCode");
+const roomCodeInput = roomCodeField instanceof HTMLInputElement ? roomCodeField : null;
 const avatarPreviewToken = document.querySelector<HTMLElement>("#avatar-preview-token");
 const avatarPreviewName = document.querySelector<HTMLElement>("#avatar-preview-name");
 const avatarPreviewMeta = document.querySelector<HTMLElement>("#avatar-preview-meta");
@@ -145,6 +147,8 @@ let currentMatchmakingTicketId: string | null = null;
 let matchmakingStartedAt = 0;
 let matchmakingPollTimer: number | null = null;
 let matchmakingPulseTimer: number | null = null;
+let onlineCreateBusy = false;
+let joinLobbyBusy = false;
 const minDynamicInputDelayFrames = defaultNetplayTuning.inputDelayFrames + defaultNetplayTuning.jitterBufferFrames;
 const realtimeInputHistoryFrames = 90;
 const realtimeInputKeyframeInterval = 12;
@@ -233,6 +237,7 @@ document.querySelectorAll<HTMLButtonElement>("[data-menu-tab]").forEach((button)
     document.querySelectorAll<HTMLElement>("[data-menu-panel]").forEach((panel) => {
       panel.classList.toggle("is-active", panel.dataset.menuPanel === target);
     });
+    updateOnlineControls();
   });
 });
 
@@ -241,6 +246,7 @@ updateAvatarPreview();
 updateFighterPreview();
 updateFighterIconSelection();
 updateBalanceTelemetry();
+updateOnlineControls();
 void refreshAuthState();
 void updateStatsSummary();
 
@@ -248,6 +254,7 @@ setupForm?.addEventListener("input", () => {
   updateAvatarPreview();
   updateFighterPreview();
   updateFighterIconSelection();
+  updateOnlineControls();
 });
 
 document.querySelectorAll<HTMLButtonElement>("[data-fighter-target][data-fighter-key]").forEach((button) => {
@@ -276,6 +283,7 @@ resetButton?.addEventListener("click", () => {
   updateAvatarPreview();
   updateFighterPreview();
   updateFighterIconSelection();
+  updateOnlineControls();
 });
 
 window.addEventListener("sff:stats-updated", () => {
@@ -425,6 +433,7 @@ async function openOnlineLobby(settings: GameLaunchSettings) {
   const avatar = createAvatar(lobbySettings);
 
   try {
+    setOnlineCreateBusy(true, lobbySettings.matchmakingMode);
     await savePlayerProfile(avatar);
 
     if (lobbySettings.matchmakingMode !== "private") {
@@ -473,6 +482,8 @@ async function openOnlineLobby(settings: GameLaunchSettings) {
     if (onlineStatus) {
       onlineStatus.textContent = `Online lobby failed: ${formatError(error)}`;
     }
+  } finally {
+    setOnlineCreateBusy(false, lobbySettings.matchmakingMode);
   }
 }
 
@@ -744,6 +755,7 @@ async function handleJoinLobby() {
   const avatar = createAvatar(settings);
 
   try {
+    setJoinLobbyBusy(true);
     const lobby = await joinLobbyByRoomCode({
       roomCode,
       avatar,
@@ -762,8 +774,10 @@ async function handleJoinLobby() {
     }
   } catch (error) {
     if (onlineStatus) {
-      onlineStatus.textContent = formatError(error);
+      onlineStatus.textContent = formatJoinLobbyError(error, roomCode);
     }
+  } finally {
+    setJoinLobbyBusy(false);
   }
 }
 
@@ -830,8 +844,8 @@ function renderAuthState() {
     authDetail.textContent = email
       ? "Profiles, lobbies, and stats will sync through Supabase."
       : hasOnlineSession
-        ? "A temporary guest session is ready for online lobbies and synced fights."
-        : "Online lobbies create a temporary guest session automatically.";
+        ? "A temporary guest session is ready for online lobbies and synced fights. Sign in later to keep this profile."
+        : "Online lobbies create a temporary guest session automatically. Sign in when you want this profile to persist.";
   }
   if (signInButton) {
     signInButton.hidden = Boolean(email);
@@ -884,6 +898,86 @@ function readRoomCode() {
   return String(data.get("roomCode") ?? "").trim().toUpperCase();
 }
 
+function updateOnlineControls() {
+  const settings = readSettings();
+  const activeMenuTab = document.querySelector<HTMLButtonElement>("[data-menu-tab].is-active")?.dataset.menuTab ?? "play";
+  const onlineFocused = activeMenuTab === "online" || settings.matchType === "online";
+  const roomCode = readRoomCode();
+
+  if (beginButton) {
+    beginButton.disabled = onlineCreateBusy;
+    if (!onlineFocused) {
+      beginButton.textContent = "Start Fight";
+    } else if (onlineCreateBusy) {
+      beginButton.textContent = settings.matchmakingMode === "private" ? "Creating Lobby..." : "Searching...";
+    } else if (settings.matchmakingMode === "private") {
+      beginButton.textContent = "Create Private Lobby";
+    } else {
+      beginButton.textContent = `Find ${formatMatchmakingMode(settings.matchmakingMode)} Match`;
+    }
+  }
+
+  if (joinLobbyButton) {
+    joinLobbyButton.disabled = joinLobbyBusy || !roomCode;
+    joinLobbyButton.textContent = joinLobbyBusy ? "Joining..." : roomCode ? "Join by Code" : "Enter Code to Join";
+  }
+
+  if (roomCodeInput) {
+    roomCodeInput.value = roomCode;
+  }
+}
+
+function setOnlineCreateBusy(busy: boolean, mode = readSettings().matchmakingMode) {
+  onlineCreateBusy = busy;
+  if (!beginButton) {
+    return;
+  }
+
+  beginButton.disabled = busy;
+  beginButton.textContent = busy
+    ? mode === "private"
+      ? "Creating Lobby..."
+      : "Searching..."
+    : mode === "private"
+      ? "Create Private Lobby"
+      : `Find ${formatMatchmakingMode(mode)} Match`;
+}
+
+function setJoinLobbyBusy(busy: boolean) {
+  joinLobbyBusy = busy;
+  if (!joinLobbyButton) {
+    return;
+  }
+
+  joinLobbyButton.disabled = busy || !readRoomCode();
+  joinLobbyButton.textContent = busy ? "Joining..." : readRoomCode() ? "Join by Code" : "Enter Code to Join";
+}
+
+function formatJoinLobbyError(error: unknown, roomCode: string) {
+  const message = formatError(error);
+  if (message.toLowerCase().includes("is full")) {
+    return `Room ${roomCode} is full. Ask the host for a new code, or create a Private Lobby and share your room code.`;
+  }
+
+  if (message.toLowerCase().includes("was not found")) {
+    return `No open room found for ${roomCode}. Check the code, or create a Private Lobby first and share that code.`;
+  }
+
+  return message;
+}
+
+function formatMatchmakingMode(mode: GameLaunchSettings["matchmakingMode"]) {
+  if (mode === "ranked") {
+    return "Ranked";
+  }
+
+  if (mode === "private") {
+    return "Private";
+  }
+
+  return "Casual";
+}
+
 function createAvatar(settings: GameLaunchSettings): PlayerAvatar {
   return {
     displayName: settings.displayName,
@@ -915,6 +1009,9 @@ function showAppScreen(screen: "menu" | "lobby" | "fight") {
   }
   if (closeMenuButton) {
     closeMenuButton.hidden = true;
+  }
+  if (screen === "menu") {
+    updateOnlineControls();
   }
 }
 
@@ -1265,7 +1362,7 @@ function renderLobbyState(status: string = currentLobby ? "online" : "idle") {
                   participant.ready ? "ready" : "not ready"
                 }`
             )
-            .join(", ")
+            .join("\n")
         : "Waiting for players...";
   }
 
@@ -1307,7 +1404,7 @@ function renderLobbyActions() {
   if (readyLobbyButton) {
     const localParticipant = getLocalLobbyParticipant();
     readyLobbyButton.disabled = !hasLobby || isLocalFallback || Boolean(activeMatchStartId);
-    readyLobbyButton.textContent = isLocalFallback ? "Bot Ready" : localParticipant?.ready === false ? "Ready" : "Not Ready";
+    readyLobbyButton.textContent = isLocalFallback ? "Bot Ready" : localParticipant?.ready === false ? "Mark Ready" : "Set Not Ready";
   }
 
   if (refreshLobbyButton) {
