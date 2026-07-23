@@ -1439,10 +1439,11 @@ export class TrainingScene extends Phaser.Scene {
 
     const nextFrame = this.simulation.state.frameNumber + 1;
     const sendFrame = nextFrame + this.onlineBridge.inputDelayFrames;
-    const checksumFrame = this.simulation.state.frameNumber;
-    const checksum = checksumFrame % 15 === 0
-      ? getSimulationSnapshotChecksum(this.simulation.createSnapshot())
+    const checksumFrame = this.simulation.state.frameNumber - this.onlineBridge.maxRollbackFrames;
+    const checksumSnapshot = checksumFrame >= 15 && checksumFrame % 15 === 0
+      ? this.netplaySnapshots.get(checksumFrame + 1)
       : undefined;
+    const checksum = checksumSnapshot ? getSimulationSnapshotChecksum(checksumSnapshot) : undefined;
     this.storeLocalInput(sendFrame, localInput);
     this.onlineBridge.sendInput(localInput, sendFrame, checksum === undefined ? undefined : checksumFrame, checksum);
     if (this.shouldPaceForRemoteInput(nextFrame)) {

@@ -1598,6 +1598,11 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
         return;
       }
 
+      if (checksumFrame !== undefined && checksum !== undefined) {
+        localChecksums.set(checksumFrame, checksum);
+        compareAvailableChecksums();
+      }
+
       const encodedInput = encodePlayerInput(input);
       if (lastLocalEncodedInput !== encodedInput || frame % realtimeInputKeyframeInterval === 0) {
         localInputFrames.set(frame, encodedInput);
@@ -1644,8 +1649,6 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
   }
 
   latestLocalSimulationFrame = stats.frame;
-  localChecksums.set(stats.frame, stats.simulationChecksum);
-  compareAvailableChecksums();
   const newestRemoteFrame = Math.max(0, ...remoteInputFrames.keys());
   const latestRemote = newestRemoteFrame ? remoteInputFrames.get(newestRemoteFrame) : null;
   const packetSilence = latestRemote?.receivedAt ? Math.max(0, Date.now() - latestRemote.receivedAt) : null;
