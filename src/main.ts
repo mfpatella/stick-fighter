@@ -503,8 +503,14 @@ async function enterLobby(
   avatar: PlayerAvatar,
   source: "supabase" | "local"
 ) {
+  const lobbySettings: GameLaunchSettings = {
+    ...settings,
+    matchmakingMode: lobby.mode,
+    level: readLevel(lobby.levelKey),
+    maxPlayers: lobby.maxPlayers
+  };
   currentLobby = lobby;
-  currentLobbySettings = settings;
+  currentLobbySettings = lobbySettings;
   currentLobbySource = source;
   currentLobbyOnlineCount = Math.max(1, lobby.members.length);
   currentParticipants = lobby.members.map((member) => ({
