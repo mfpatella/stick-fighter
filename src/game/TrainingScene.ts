@@ -15,7 +15,7 @@ import {
   getAttackTiming,
   getHurtBox,
   getProjectileBox,
-  getSimulationChecksum,
+  getSimulationSnapshotChecksum,
   getTargetHurtBox,
   groundY,
   isAttackActive,
@@ -843,7 +843,7 @@ export type OnlineInputBridge = {
   inputDelayFrames: number;
   maxRollbackFrames: number;
   snapshotHistoryFrames: number;
-  sendInput: (input: PlayerInput, frame: number) => void;
+  sendInput: (input: PlayerInput, frame: number, checksumFrame?: number, checksum?: number) => void;
   readRemoteInput: (frame: number) => PlayerInput | null;
   getNewestRemoteFrame: () => number;
   getBufferedRemoteFrames: () => number;
@@ -1000,6 +1000,9 @@ export class TrainingScene extends Phaser.Scene {
     });
     if (!this.textures.exists("oga-spark")) {
       this.load.spritesheet("oga-spark", effectAssets.spark, { frameWidth: 32, frameHeight: 32 });
+    }
+    if (!this.textures.exists("sff-impact")) {
+      this.load.spritesheet("sff-impact", effectAssets.impact, { frameWidth: 64, frameHeight: 64 });
     }
     if (!this.textures.exists("oga-spark-alt")) {
       this.load.spritesheet("oga-spark-alt", effectAssets.sparkAlt, { frameWidth: 32, frameHeight: 32 });
@@ -1334,10 +1337,16 @@ export class TrainingScene extends Phaser.Scene {
 
     let steps = 0;
     while (this.accumulator >= fixedStep && steps < maxFixedSteps) {
-      this.previousRenderState = this.cloneRenderState();
+      const previousRenderState = this.cloneRenderState();
       const localInput = this.readLocalInput();
       const events = this.stepSimulation(localInput);
 
+      if (events === null) {
+        this.accumulator = Math.min(this.accumulator, fixedStep);
+        break;
+      }
+
+      this.previousRenderState = previousRenderState;
       this.pendingJump = false;
       this.pendingLight = false;
       this.pendingHeavy = false;
@@ -1418,7 +1427,7 @@ export class TrainingScene extends Phaser.Scene {
     };
   }
 
-  private stepSimulation(localInput: PlayerInput): CombatEvent[] {
+  private stepSimulation(localInput: PlayerInput): CombatEvent[] | null {
     if (!this.onlineBridge) {
       return this.simulation.step(localInput, fixedStep);
     }
@@ -1430,10 +1439,14 @@ export class TrainingScene extends Phaser.Scene {
 
     const nextFrame = this.simulation.state.frameNumber + 1;
     const sendFrame = nextFrame + this.onlineBridge.inputDelayFrames;
+    const checksumFrame = this.simulation.state.frameNumber;
+    const checksum = checksumFrame % 15 === 0
+      ? getSimulationSnapshotChecksum(this.simulation.createSnapshot())
+      : undefined;
     this.storeLocalInput(sendFrame, localInput);
-    this.onlineBridge.sendInput(localInput, sendFrame);
+    this.onlineBridge.sendInput(localInput, sendFrame, checksum === undefined ? undefined : checksumFrame, checksum);
     if (this.shouldPaceForRemoteInput(nextFrame)) {
-      return [];
+      return null;
     }
     this.netplaySnapshots.set(nextFrame, this.simulation.createSnapshot());
 
@@ -1584,7 +1597,7 @@ export class TrainingScene extends Phaser.Scene {
       return;
     }
 
-    const simulationChecksum = getSimulationChecksum(this.simulation.state);
+    const simulationChecksum = getSimulationSnapshotChecksum(this.simulation.createSnapshot());
     const debugWindow = window as NetplayDebugWindow;
     debugWindow.__sffNetplayScene = {
       frame: this.simulation.state.frameNumber,
@@ -1857,8 +1870,8 @@ export class TrainingScene extends Phaser.Scene {
     if (!this.anims.exists("spark-pop")) {
       this.anims.create({
         key: "spark-pop",
-        frames: this.anims.generateFrameNumbers("oga-spark", { start: 0, end: 8 }),
-        frameRate: 30,
+        frames: this.anims.generateFrameNumbers("sff-impact", { start: 0, end: 7 }),
+        frameRate: 36,
         repeat: 0
       });
     }
@@ -2788,7 +2801,12 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private spawnAnimatedEffect(animationKey: "spark-pop" | "spark-guard" | "finish-burst", x: number, y: number, scale: number, angle: number) {
-    const sprite = this.add.sprite(x, y, animationKey === "finish-burst" ? "oga-toon-explosion" : "oga-spark");
+    const textureKey = animationKey === "finish-burst"
+      ? "oga-toon-explosion"
+      : animationKey === "spark-pop"
+        ? "sff-impact"
+        : "oga-spark-alt";
+    const sprite = this.add.sprite(x, y, textureKey);
     sprite.setDepth(35);
     sprite.setScale(scale);
     sprite.setAngle(angle);
@@ -2895,7 +2913,7 @@ export class TrainingScene extends Phaser.Scene {
           : defender.y - 74);
     const color = event.blocked ? 0xf2d06b : 0xf07d3b;
 
-    this.spawnAnimatedEffect(event.blocked ? "spark-guard" : "spark-pop", impactX, impactY, event.blocked ? 1.42 : 1.65, attacker.facing === 1 ? 0 : 180);
+    this.spawnAnimatedEffect(event.blocked ? "spark-guard" : "spark-pop", impactX, impactY, event.blocked ? 1.42 : 0.95, attacker.facing === 1 ? 0 : 180);
     if (!event.blocked && (event.detachedPart || event.attackKind === "heavy" || event.attackKind === "spinKick" || event.attackKind === "chomp")) {
       this.spawnAnimatedEffect("finish-burst", impactX + attacker.facing * 10, impactY + 4, 0.34, Phaser.Math.Between(-12, 12));
     }
@@ -3997,7 +4015,7 @@ export class TrainingScene extends Phaser.Scene {
   private getSheetSpriteFrame(fighter: FighterSnapshot, config: CharacterSheetConfig) {
     if (fighter.state === "attack" && fighter.attackKind) {
       const spec = attackSpecs[fighter.attackKind];
-      const total = spec.startup + spec.active + spec.recovery;
+      const total = getAttackTiming(fighter, spec, this.settings.mode === "standardFighter").total;
       const progress = Phaser.Math.Clamp(fighter.attackElapsed / total, 0, 0.999);
       const row = getCharacterAttackRow(config, fighter.attackKind);
 

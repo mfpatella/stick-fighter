@@ -139,9 +139,17 @@ let currentLobbyOnlineCount = 0;
 let currentParticipants: RealtimeParticipant[] = [];
 let remoteInputFrames = new Map<number, RealtimeInputFrame>();
 let localInputFrames = new Map<number, number>();
+let localChecksums = new Map<number, number>();
+let remoteChecksums = new Map<number, number>();
 let lastLocalEncodedInput: number | null = null;
 let lastBroadcastFrame = 0;
 let lastBroadcastEncodedInput: number | null = null;
+let lastRemotePacketReceivedAt: number | null = null;
+let lastRemotePacketFrame = 0;
+let latestLocalSimulationFrame = 0;
+let lastComparedChecksumFrame = 0;
+let checksumMismatchStreak = 0;
+let checksumStatus = "sync waiting";
 let activeMatchStartId: string | null = null;
 let lastFightSettings: GameLaunchSettings | null = null;
 let currentMatchmakingTicketId: string | null = null;
@@ -156,7 +164,7 @@ const realtimeInputHistoryFrames = 90;
 const realtimeInputKeyframeInterval = 12;
 const realtimeInputSendIntervalFrames = 3;
 let dynamicInputDelayFrames = minDynamicInputDelayFrames;
-const remotePacketAges: number[] = [];
+const remotePacketJitters: number[] = [];
 const supportedOnlineMaxPlayers = 2;
 
 type NetplayDebugWindow = Window & {
@@ -389,11 +397,7 @@ async function startFight(settings: GameLaunchSettings, onlineBridge: OnlineInpu
     currentLobbySource = null;
     currentLobbyOnlineCount = 0;
     currentParticipants = [];
-    remoteInputFrames = new Map();
-    localInputFrames = new Map();
-    lastLocalEncodedInput = null;
-    lastBroadcastFrame = 0;
-    lastBroadcastEncodedInput = null;
+    resetNetplayTransportState();
     activeMatchStartId = null;
     leaveRoom?.();
     leaveRoom = null;
@@ -510,12 +514,7 @@ async function enterLobby(
     ready: member.ready,
     slot: member.slot
   }));
-  remoteInputFrames = new Map();
-  localInputFrames = new Map();
-  lastLocalEncodedInput = null;
-  lastBroadcastFrame = 0;
-  lastBroadcastEncodedInput = null;
-  remotePacketAges.length = 0;
+  resetNetplayTransportState();
   dynamicInputDelayFrames = minDynamicInputDelayFrames;
   activeMatchStartId = null;
   showAppScreen("lobby");
@@ -542,11 +541,17 @@ async function enterLobby(
       }
     },
     onInputFrame: (frame) => {
+      if (!isExpectedRemoteInputFrame(frame)) {
+        return;
+      }
+
       remoteInputFrames.set(frame.frame, frame);
-      const age = Math.max(0, (frame.receivedAt ?? Date.now()) - frame.sentAt);
-      remotePacketAges.push(age);
-      if (remotePacketAges.length > 60) {
-        remotePacketAges.shift();
+      if (!frame.fromHistory && frame.checksumFrame !== undefined && frame.checksum !== undefined) {
+        remoteChecksums.set(frame.checksumFrame, frame.checksum);
+        compareAvailableChecksums();
+      }
+      if (!frame.fromHistory) {
+        trackRemotePacketJitter(frame);
       }
       trimRemoteInputFrames();
     },
@@ -642,7 +647,12 @@ async function handleStartOnlineFight() {
 }
 
 async function handleRealtimeMatchStart(match: RealtimeMatchStart) {
-  if (!currentLobby || match.lobbyId !== currentLobby.id || activeMatchStartId === match.matchId) {
+  if (
+    !currentLobby ||
+    match.lobbyId !== currentLobby.id ||
+    match.hostProfileId !== currentLobby.hostId ||
+    activeMatchStartId === match.matchId
+  ) {
     return;
   }
 
@@ -670,11 +680,7 @@ async function startOnlineFightFromMatchStart(match: RealtimeMatchStart) {
     return;
   }
 
-  remoteInputFrames = new Map();
-  localInputFrames = new Map();
-  lastLocalEncodedInput = null;
-  lastBroadcastFrame = 0;
-  lastBroadcastEncodedInput = null;
+  resetNetplayTransportState();
   dynamicInputDelayFrames = match.inputDelayFrames;
   const bridge = currentLobbySource === "local" ? null : createOnlineInputBridge(getLocalOnlineSide());
   if (bridge) {
@@ -1067,13 +1073,8 @@ function returnToMenu() {
   currentLobbySource = null;
   currentLobbyOnlineCount = 0;
   currentParticipants = [];
-  remoteInputFrames = new Map();
-  localInputFrames = new Map();
-  lastLocalEncodedInput = null;
-  lastBroadcastFrame = 0;
-  lastBroadcastEncodedInput = null;
+  resetNetplayTransportState();
   activeMatchStartId = null;
-  remotePacketAges.length = 0;
   leaveRoom?.();
   leaveRoom = null;
   renderLobbyState();
@@ -1163,12 +1164,7 @@ async function returnToLobbyAfterFight() {
   game.scene.stop("training");
   hideRoundOverlay();
   activeMatchStartId = null;
-  remoteInputFrames = new Map();
-  localInputFrames = new Map();
-  lastLocalEncodedInput = null;
-  lastBroadcastFrame = 0;
-  lastBroadcastEncodedInput = null;
-  remotePacketAges.length = 0;
+  resetNetplayTransportState();
   hasStarted = false;
 
   try {
@@ -1591,7 +1587,7 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
     },
     maxRollbackFrames: defaultNetplayTuning.maxRollbackFrames,
     snapshotHistoryFrames: defaultNetplayTuning.snapshotHistoryFrames,
-    sendInput: (input, frame) => {
+    sendInput: (input, frame, checksumFrame, checksum) => {
       if (!currentLobby || currentLobbySource === "local") {
         return;
       }
@@ -1611,12 +1607,15 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
       lastBroadcastFrame = frame;
       lastBroadcastEncodedInput = encodedInput;
       void broadcastRealtimeInputFrame({
+        matchId: activeMatchStartId ?? "local-match",
         profileId,
         frame,
         side: localSide,
         input: encodedInput,
         history: getRecentLocalInputHistory(frame),
-        sentAt: Date.now()
+        sentAt: Date.now(),
+        checksumFrame,
+        checksum
       });
     },
     readRemoteInput: (frame) => {
@@ -1638,32 +1637,34 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
     return;
   }
 
+  latestLocalSimulationFrame = stats.frame;
+  localChecksums.set(stats.frame, stats.simulationChecksum);
+  compareAvailableChecksums();
   const newestRemoteFrame = Math.max(0, ...remoteInputFrames.keys());
   const latestRemote = newestRemoteFrame ? remoteInputFrames.get(newestRemoteFrame) : null;
-  const packetAge = latestRemote ? Math.max(0, Date.now() - latestRemote.sentAt) : null;
-  const medianAge = getMedianPacketAge();
+  const packetSilence = latestRemote?.receivedAt ? Math.max(0, Date.now() - latestRemote.receivedAt) : null;
+  const medianJitter = getMedianPacketJitter();
   const sideLabel = stats.localSide === "player" ? "P1" : "P2";
-  const packetLabel = packetAge === null ? "no remote" : `${packetAge}ms`;
-  const medianLabel = medianAge === null ? "n/a" : `${medianAge}ms med`;
-  const syncLabel = stats.simulationChecksum.toString(16).padStart(8, "0").slice(-6);
+  const packetLabel = packetSilence === null ? "no remote" : `${packetSilence}ms since packet`;
+  const jitterLabel = medianJitter === null ? "jitter n/a" : `${medianJitter}ms jitter`;
   const debugWindow = window as NetplayDebugWindow;
   debugWindow.__sffNetplayStats = [...(debugWindow.__sffNetplayStats ?? []), stats].slice(-160);
 
-  netplayStatus.textContent = `${sideLabel} f${stats.frame} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${medianLabel} | sync ${syncLabel}`;
+  netplayStatus.textContent = `${sideLabel} f${stats.frame} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${jitterLabel} | ${checksumStatus}`;
 }
 
-function getMedianPacketAge() {
-  if (remotePacketAges.length === 0) {
+function getMedianPacketJitter() {
+  if (remotePacketJitters.length === 0) {
     return null;
   }
 
-  const sorted = [...remotePacketAges].sort((a, b) => a - b);
+  const sorted = [...remotePacketJitters].sort((a, b) => a - b);
   return Math.round(sorted[Math.floor(sorted.length / 2)]);
 }
 
 function calculateMatchStartLeadMs() {
-  const medianAge = getMedianPacketAge() ?? 80;
-  return Math.max(900, Math.min(1800, 700 + medianAge * 4));
+  const medianJitter = getMedianPacketJitter() ?? 20;
+  return Math.max(1000, Math.min(1800, 900 + medianJitter * 5));
 }
 
 function trimRemoteInputFrames() {
@@ -1675,6 +1676,87 @@ function trimRemoteInputFrames() {
       remoteInputFrames.delete(frame);
     }
   }
+
+  for (const frame of remoteChecksums.keys()) {
+    if (frame < oldestFrame) {
+      remoteChecksums.delete(frame);
+    }
+  }
+
+  for (const frame of localChecksums.keys()) {
+    if (frame < oldestFrame) {
+      localChecksums.delete(frame);
+    }
+  }
+}
+
+function isExpectedRemoteInputFrame(frame: RealtimeInputFrame) {
+  if (!activeMatchStartId || frame.matchId !== activeMatchStartId || frame.side === getLocalOnlineSide()) {
+    return false;
+  }
+
+  const remoteProfileId = getRemoteProfileId();
+  if (!remoteProfileId || frame.profileId !== remoteProfileId) {
+    return false;
+  }
+
+  const oldestAcceptedFrame = Math.max(1, latestLocalSimulationFrame - defaultNetplayTuning.snapshotHistoryFrames);
+  const newestAcceptedFrame = latestLocalSimulationFrame + defaultNetplayTuning.snapshotHistoryFrames;
+  return frame.frame >= oldestAcceptedFrame && frame.frame <= newestAcceptedFrame;
+}
+
+function trackRemotePacketJitter(frame: RealtimeInputFrame) {
+  if (frame.frame <= lastRemotePacketFrame) {
+    return;
+  }
+
+  const receivedAt = frame.receivedAt ?? Date.now();
+  if (lastRemotePacketReceivedAt !== null) {
+    const actualGap = receivedAt - lastRemotePacketReceivedAt;
+    const expectedGap = ((frame.frame - lastRemotePacketFrame) * 1000) / defaultNetplayTuning.tickRate;
+    remotePacketJitters.push(Math.max(0, Math.abs(actualGap - expectedGap)));
+    if (remotePacketJitters.length > 60) {
+      remotePacketJitters.shift();
+    }
+  }
+  lastRemotePacketReceivedAt = receivedAt;
+  lastRemotePacketFrame = frame.frame;
+}
+
+function compareAvailableChecksums() {
+  const comparableFrames = [...localChecksums.keys()]
+    .filter((frame) => frame > lastComparedChecksumFrame && remoteChecksums.has(frame))
+    .sort((left, right) => left - right);
+
+  for (const frame of comparableFrames) {
+    const localChecksum = localChecksums.get(frame);
+    const remoteChecksum = remoteChecksums.get(frame);
+    lastComparedChecksumFrame = frame;
+    if (localChecksum === remoteChecksum) {
+      checksumMismatchStreak = 0;
+      checksumStatus = `sync ok f${frame}`;
+    } else {
+      checksumMismatchStreak += 1;
+      checksumStatus = checksumMismatchStreak >= 3 ? `DESYNC f${frame}` : `sync checking f${frame}`;
+    }
+  }
+}
+
+function resetNetplayTransportState() {
+  remoteInputFrames = new Map();
+  localInputFrames = new Map();
+  localChecksums = new Map();
+  remoteChecksums = new Map();
+  lastLocalEncodedInput = null;
+  lastBroadcastFrame = 0;
+  lastBroadcastEncodedInput = null;
+  lastRemotePacketReceivedAt = null;
+  lastRemotePacketFrame = 0;
+  latestLocalSimulationFrame = 0;
+  lastComparedChecksumFrame = 0;
+  checksumMismatchStreak = 0;
+  checksumStatus = "sync waiting";
+  remotePacketJitters.length = 0;
 }
 
 function trimLocalInputFrames(newestFrame: number) {

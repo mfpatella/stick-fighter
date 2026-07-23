@@ -93,6 +93,7 @@ export type RealtimeParticipant = {
 };
 
 export type RealtimeInputFrame = {
+  matchId: string;
   profileId: string;
   frame: number;
   side: "player" | "opponent";
@@ -103,6 +104,9 @@ export type RealtimeInputFrame = {
   }>;
   sentAt: number;
   receivedAt?: number;
+  fromHistory?: boolean;
+  checksumFrame?: number;
+  checksum?: number;
 };
 
 export type RealtimeMatchStart = {
@@ -1074,7 +1078,10 @@ export async function joinRealtimeRoom(input: {
   });
 
   channel.on("broadcast", { event: "input-frame" }, (message) => {
-    const frame = message.payload as RealtimeInputFrame;
+    const frame = parseRealtimeInputFrame(message.payload);
+    if (!frame) {
+      return;
+    }
     if (frame.profileId !== user.id) {
       const receivedAt = Date.now();
       input.onInputFrame?.({
@@ -1087,14 +1094,18 @@ export async function joinRealtimeRoom(input: {
           frame: historyFrame.frame,
           input: historyFrame.input,
           history: undefined,
-          receivedAt
+          receivedAt,
+          fromHistory: true
         });
       });
     }
   });
 
   channel.on("broadcast", { event: "match-start" }, (message) => {
-    const match = message.payload as RealtimeMatchStart;
+    const match = parseRealtimeMatchStart(message.payload);
+    if (!match) {
+      return;
+    }
     if (match.hostProfileId !== user.id) {
       input.onMatchStart?.(match);
     }
@@ -1228,6 +1239,86 @@ function readPresenceParticipants(channel: RealtimeChannel): RealtimeParticipant
       })
       .filter((participant): participant is RealtimeParticipant => Boolean(participant))
   );
+}
+
+const maxEncodedInput = 0x7fff;
+const maxInputHistory = 90;
+
+function parseRealtimeInputFrame(payload: unknown): RealtimeInputFrame | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const frame = payload as Record<string, unknown>;
+  if (
+    typeof frame.matchId !== "string" ||
+    typeof frame.profileId !== "string" ||
+    !Number.isSafeInteger(frame.frame) ||
+    (frame.frame as number) < 1 ||
+    (frame.side !== "player" && frame.side !== "opponent") ||
+    !isEncodedInput(frame.input) ||
+    typeof frame.sentAt !== "number" ||
+    !Number.isFinite(frame.sentAt)
+  ) {
+    return null;
+  }
+
+  const history = Array.isArray(frame.history)
+    ? frame.history.slice(-maxInputHistory).flatMap((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return [];
+        }
+        const candidate = entry as Record<string, unknown>;
+        return Number.isSafeInteger(candidate.frame) && (candidate.frame as number) >= 1 && isEncodedInput(candidate.input)
+          ? [{ frame: candidate.frame as number, input: candidate.input as EncodedPlayerInput }]
+          : [];
+      })
+    : undefined;
+  const checksumFrame = Number.isSafeInteger(frame.checksumFrame) && (frame.checksumFrame as number) >= 0
+    ? (frame.checksumFrame as number)
+    : undefined;
+  const checksum = Number.isSafeInteger(frame.checksum) && (frame.checksum as number) >= 0 && (frame.checksum as number) <= 0xffffffff
+    ? (frame.checksum as number)
+    : undefined;
+
+  return {
+    matchId: frame.matchId,
+    profileId: frame.profileId,
+    frame: frame.frame as number,
+    side: frame.side,
+    input: frame.input as EncodedPlayerInput,
+    history,
+    sentAt: frame.sentAt,
+    ...(checksumFrame !== undefined && checksum !== undefined ? { checksumFrame, checksum } : {})
+  };
+}
+
+function parseRealtimeMatchStart(payload: unknown): RealtimeMatchStart | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const match = payload as Record<string, unknown>;
+  if (
+    typeof match.matchId !== "string" ||
+    typeof match.lobbyId !== "string" ||
+    typeof match.hostProfileId !== "string" ||
+    typeof match.startAt !== "number" ||
+    !Number.isFinite(match.startAt) ||
+    !Number.isSafeInteger(match.inputDelayFrames) ||
+    (match.inputDelayFrames as number) < 0 ||
+    (match.inputDelayFrames as number) > 30 ||
+    !match.settings ||
+    typeof match.settings !== "object"
+  ) {
+    return null;
+  }
+
+  return match as unknown as RealtimeMatchStart;
+}
+
+function isEncodedInput(value: unknown): value is EncodedPlayerInput {
+  return Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= maxEncodedInput;
 }
 
 async function hydrateLobby(lobbyRow: {

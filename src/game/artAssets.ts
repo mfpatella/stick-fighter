@@ -26,6 +26,7 @@ export const backgroundAssets = {
 export type BackgroundAssetKey = keyof typeof backgroundAssets;
 
 export const effectAssets = {
+  impact: "/assets/effects/stick-impact-strip8.png",
   spark: `${openGameArtEffectBase}/spark_sprite_strip9.png`,
   sparkAlt: `${openGameArtEffectBase}/spark_sprite2_strip9.png`,
   toonExplosion: `${openGameArtEffectBase}/toon_explosion_31.png`

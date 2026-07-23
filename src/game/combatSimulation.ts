@@ -2266,6 +2266,7 @@ export function getSimulationChecksum(state: CombatState) {
   let hash = 2166136261;
   hash = hashNumber(hash, state.frameNumber);
   hash = hashNumber(hash, Math.floor(state.elapsedSeconds * combatFps));
+  hash = hashNumber(hash, state.roundOver ? 1 : 0);
   hash = hashFighter(hash, state.player);
   hash = hashFighter(hash, state.opponent);
   hash = hashNumber(hash, state.detachedParts.length);
@@ -2275,6 +2276,10 @@ export function getSimulationChecksum(state: CombatState) {
     hash = hashString(hash, part.part);
     hash = hashNumber(hash, Math.round(part.x * 10));
     hash = hashNumber(hash, Math.round(part.y * 10));
+    hash = hashNumber(hash, Math.round(part.vx * 10));
+    hash = hashNumber(hash, Math.round(part.vy * 10));
+    hash = hashNumber(hash, Math.round(part.rotation * 100));
+    hash = hashNumber(hash, Math.round(part.angularVelocity * 100));
     hash = hashNumber(hash, part.grounded ? 1 : 0);
   }
   hash = hashNumber(hash, state.projectiles.length);
@@ -2285,7 +2290,26 @@ export function getSimulationChecksum(state: CombatState) {
     hash = hashString(hash, projectile.attackKind);
     hash = hashNumber(hash, Math.round(projectile.x * 10));
     hash = hashNumber(hash, Math.round(projectile.y * 10));
+    hash = hashNumber(hash, Math.round(projectile.vx * 10));
+    hash = hashNumber(hash, Math.round(projectile.vy * 10));
     hash = hashNumber(hash, Math.round(projectile.life * combatFps));
+  }
+  return hash >>> 0;
+}
+
+export function getSimulationSnapshotChecksum(snapshot: SimulationSnapshot) {
+  let hash = getSimulationChecksum(snapshot.state);
+  hash = hashNumber(hash, Math.round(snapshot.internal.cpuAttackCooldown * combatFps));
+  hash = hashNumber(hash, Math.round(snapshot.internal.cpuAttachCooldown * combatFps));
+  hash = hashNumber(hash, Math.round(snapshot.internal.cpuBlockTimer * combatFps));
+  hash = hashNumber(hash, Math.round(snapshot.internal.hitStopTimer * combatFps));
+  hash = hashNumber(hash, snapshot.internal.rngSeed);
+  hash = hashNumber(hash, snapshot.internal.nextDetachedPartId);
+  hash = hashNumber(hash, snapshot.internal.nextProjectileId);
+  hash = hashNumber(hash, Math.round(snapshot.internal.neutralDropTimer * combatFps));
+  for (const kind of Object.keys(attackSpecs) as AttackKind[]) {
+    hash = hashString(hash, kind);
+    hash = hashNumber(hash, Math.round((snapshot.internal.playerAttackMemory[kind] ?? 0) * combatFps));
   }
   return hash >>> 0;
 }
@@ -2471,10 +2495,22 @@ function hashFighter(hash: number, fighter: FighterSnapshot) {
   hash = hashString(hash, fighter.state);
   hash = hashString(hash, fighter.attackKind ?? "none");
   hash = hashNumber(hash, Math.round(fighter.attackElapsed * combatFps));
+  hash = hashNumber(hash, fighter.hasHitDuringAttack ? 1 : 0);
   hash = hashNumber(hash, Math.round((fighter.parryCounterTimer ?? 0) * combatFps));
   hash = hashNumber(hash, Math.round((fighter.parryVulnerableTimer ?? 0) * combatFps));
   hash = hashNumber(hash, fighter.hasFiredProjectile ? 1 : 0);
+  hash = hashString(hash, fighter.queuedAttack ?? "none");
+  hash = hashNumber(hash, Math.round(fighter.inputBufferTimer * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.jumpBufferTimer * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.coyoteTimer * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.dashTimer * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.dashCooldownTimer * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.invulnerableTimer * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.guardLockTimer * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.hitCooldown * combatFps));
+  hash = hashNumber(hash, Math.round(fighter.stunTimer * combatFps));
   hash = hashNumber(hash, fighter.comboCount);
+  hash = hashNumber(hash, Math.round(fighter.comboTimer * combatFps));
   hash = hashString(hash, fighter.lastComboAttack ?? "none");
   hash = hashNumber(hash, fighter.receivedHitCount);
   hash = hashNumber(hash, Math.round(fighter.receivedHitTimer * combatFps));

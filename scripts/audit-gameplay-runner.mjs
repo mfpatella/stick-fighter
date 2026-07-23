@@ -8,6 +8,7 @@ import {
   getAttackBox,
   getAttackTiming,
   getHurtBox,
+  getSimulationSnapshotChecksum,
   groundY
 } from "../qa-output/gameplay-build/combatSimulation.js";
 import { baseFighters, playerFighterKeys } from "../qa-output/gameplay-build/fighterCatalog.js";
@@ -284,6 +285,78 @@ function testProjectileReflection() {
   return { reflected, reflectedHit };
 }
 
+function createNetplayAuditSimulation() {
+  return new CombatSimulation({
+    difficulty: "gentle",
+    randomDrops: true,
+    partsEnabled: true,
+    playerFighter: "david",
+    opponentFighter: "goliath",
+    opponentControlled: true,
+    standardTiming: true,
+    noDeath: true
+  });
+}
+
+function getScriptedNetplayInput(frame, side) {
+  const input = createEmptyInput();
+  input.right = side === "player" && frame >= 10 && frame < 72;
+  input.left = side === "opponent" && frame >= 18 && frame < 76;
+  input.block = side === "player" ? frame >= 170 && frame < 188 : frame >= 145 && frame < 163;
+  input.jumpPressed = frame === (side === "player" ? 82 : 96);
+  input.lightPressed = frame === (side === "player" ? 108 : 124);
+  input.heavyPressed = frame === (side === "player" ? 214 : 236);
+  input.kickPressed = frame === (side === "player" ? 286 : 304);
+  input.dashPressed = frame === (side === "player" ? 338 : 350);
+  return input;
+}
+
+function testRollbackDeterminism() {
+  const totalFrames = 420;
+  const correctionFrame = 140;
+  const correctionEnd = 206;
+  const baseline = createNetplayAuditSimulation();
+  const twin = createNetplayAuditSimulation();
+  const rollback = createNetplayAuditSimulation();
+  let correctionSnapshot = null;
+
+  for (let frame = 0; frame < totalFrames; frame += 1) {
+    const playerInput = getScriptedNetplayInput(frame, "player");
+    const opponentInput = getScriptedNetplayInput(frame, "opponent");
+    baseline.step(playerInput, fixedStep, opponentInput);
+    twin.step(playerInput, fixedStep, opponentInput);
+
+    if (frame === correctionFrame) {
+      correctionSnapshot = rollback.createSnapshot();
+    }
+    rollback.step(
+      playerInput,
+      fixedStep,
+      frame >= correctionFrame && frame < correctionEnd ? createEmptyInput() : opponentInput
+    );
+
+    const baselineChecksum = getSimulationSnapshotChecksum(baseline.createSnapshot());
+    const twinChecksum = getSimulationSnapshotChecksum(twin.createSnapshot());
+    assert(baselineChecksum === twinChecksum, `deterministic simulations diverged at frame ${frame + 1}`);
+  }
+
+  assert(Boolean(correctionSnapshot), "rollback audit did not capture its correction snapshot");
+  rollback.restoreSnapshot(correctionSnapshot);
+  for (let frame = correctionFrame; frame < totalFrames; frame += 1) {
+    rollback.step(getScriptedNetplayInput(frame, "player"), fixedStep, getScriptedNetplayInput(frame, "opponent"));
+  }
+
+  const baselineChecksum = getSimulationSnapshotChecksum(baseline.createSnapshot());
+  const rollbackChecksum = getSimulationSnapshotChecksum(rollback.createSnapshot());
+  assert(baselineChecksum === rollbackChecksum, "rollback replay did not converge to the authoritative simulation");
+  return {
+    frames: totalFrames,
+    correctedFrames: totalFrames - correctionFrame,
+    converged: baselineChecksum === rollbackChecksum,
+    checksum: baselineChecksum.toString(16).padStart(8, "0")
+  };
+}
+
 for (const key of [...playerFighterKeys, "guard"]) {
   const boxReport = auditBoxes(key);
   const commandResults = {};
@@ -316,7 +389,8 @@ for (const key of [...playerFighterKeys, "guard"]) {
 
 const mechanics = {
   perfectBlockCounter: testPerfectBlockCounter(),
-  projectileReflection: testProjectileReflection()
+  projectileReflection: testProjectileReflection(),
+  rollbackDeterminism: testRollbackDeterminism()
 };
 
 const report = {

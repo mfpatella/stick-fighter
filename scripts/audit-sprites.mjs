@@ -5,7 +5,7 @@ import zlib from "node:zlib";
 const root = process.cwd();
 const outputDir = path.join(root, "qa-output", "sprite-audit");
 const alphaThreshold = 12;
-const hardIssueTypes = new Set(["dimensionMismatch", "frameOutOfRange", "emptyFrame", "edgeTouch"]);
+const hardIssueTypes = new Set(["dimensionMismatch", "frameOutOfRange", "emptyFrame", "edgeTouch", "staticAnimation"]);
 
 function readText(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -355,6 +355,7 @@ function getFrameMetrics(image, config, frame) {
   let edgeCount = 0;
   let nearEdgeCount = 0;
   let edgeDarkPixels = 0;
+  let visualHash = 2166136261;
 
   for (let y = 0; y < config.frameHeight; y += 1) {
     for (let x = 0; x < config.frameWidth; x += 1) {
@@ -365,6 +366,10 @@ function getFrameMetrics(image, config, frame) {
       }
 
       count += 1;
+      visualHash ^= x + y * config.frameWidth;
+      visualHash = Math.imul(visualHash, 16777619);
+      visualHash ^= image.pixels[source] | (image.pixels[source + 1] << 8) | (image.pixels[source + 2] << 16) | (alpha << 24);
+      visualHash = Math.imul(visualHash, 16777619);
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x);
@@ -401,7 +406,8 @@ function getFrameMetrics(image, config, frame) {
       : null,
     edgeCount,
     nearEdgeCount,
-    edgeDarkPixels
+    edgeDarkPixels,
+    visualHash: visualHash >>> 0
   };
 }
 
@@ -511,6 +517,30 @@ function run() {
       }
       if (metrics.edgeDarkPixels > 16) {
         sheetIssues.push({ type: "edgeDarkPixels", frame, edgeDarkPixels: metrics.edgeDarkPixels });
+      }
+    }
+
+    const metricsByFrame = new Map(frameReports.map((report) => [report.frame, report]));
+    for (const [row, frames] of Object.entries(config.rows)) {
+      const reports = frames.map((frame) => metricsByFrame.get(frame)).filter(Boolean);
+      if (reports.length < 2) {
+        continue;
+      }
+
+      const uniqueFrames = new Set(reports.map((report) => report.visualHash)).size;
+      const bottoms = reports.map((report) => report.bounds?.maxY ?? 0);
+      const heights = reports.map((report) => report.bounds?.height ?? 0).filter((height) => height > 0);
+      const bottomSpread = Math.max(...bottoms) - Math.min(...bottoms);
+      const scaleRatio = heights.length > 0 ? Math.max(...heights) / Math.max(1, Math.min(...heights)) : 1;
+
+      if (uniqueFrames === 1) {
+        sheetIssues.push({ type: "staticAnimation", row, frames });
+      }
+      if (bottomSpread > config.frameHeight * 0.24) {
+        sheetIssues.push({ type: "anchorDrift", row, bottomSpread });
+      }
+      if (scaleRatio > 3.5) {
+        sheetIssues.push({ type: "scaleDrift", row, scaleRatio: Number(scaleRatio.toFixed(2)) });
       }
     }
 

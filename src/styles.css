@@ -3506,8 +3506,7 @@ body:not(.is-fighting) .shell {
 }
 
 .topbar h1::after {
-  content: " FIGHTER";
-  color: var(--ui-red-hot);
+  content: "";
 }
 
 .mode-pill {
