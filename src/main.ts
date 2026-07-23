@@ -1610,6 +1610,7 @@ function createOnlineInputBridge(localSide: "player" | "opponent"): OnlineInputB
       lastLocalEncodedInput = encodedInput;
       trimLocalInputFrames(frame);
       if (
+        checksum === undefined &&
         lastBroadcastEncodedInput === encodedInput &&
         frame - lastBroadcastFrame < realtimeInputSendIntervalFrames
       ) {
