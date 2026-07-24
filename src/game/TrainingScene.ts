@@ -912,6 +912,7 @@ const heldTouchActions = new Set<TouchAction>(["left", "right", "block"]);
 export class TrainingScene extends Phaser.Scene {
   private simulation = new CombatSimulation();
   private previousRenderState: RenderState | null = null;
+  private rollbackRenderBaseline: RenderState | null = null;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private graphics!: Phaser.GameObjects.Graphics;
   private statusText!: Phaser.GameObjects.Text;
@@ -1342,11 +1343,14 @@ export class TrainingScene extends Phaser.Scene {
       const events = this.stepSimulation(localInput);
 
       if (events === null) {
+        if (this.rollbackRenderBaseline) {
+          this.previousRenderState = this.rollbackRenderBaseline;
+        }
         this.accumulator = Math.min(this.accumulator, fixedStep);
         break;
       }
 
-      this.previousRenderState = previousRenderState;
+      this.previousRenderState = this.rollbackRenderBaseline ?? previousRenderState;
       this.pendingJump = false;
       this.pendingLight = false;
       this.pendingHeavy = false;
@@ -1428,6 +1432,7 @@ export class TrainingScene extends Phaser.Scene {
   }
 
   private stepSimulation(localInput: PlayerInput): CombatEvent[] | null {
+    this.rollbackRenderBaseline = null;
     if (!this.onlineBridge) {
       return this.simulation.step(localInput, fixedStep);
     }
@@ -1435,6 +1440,7 @@ export class TrainingScene extends Phaser.Scene {
     const correctionFrame = this.findRollbackFrame();
     if (correctionFrame !== null) {
       this.rollbackAndReplay(correctionFrame);
+      this.rollbackRenderBaseline = this.cloneRenderState();
     }
 
     const nextFrame = this.simulation.state.frameNumber + 1;

@@ -165,6 +165,7 @@ const realtimeInputKeyframeInterval = 12;
 const realtimeInputSendIntervalFrames = 3;
 let dynamicInputDelayFrames = minDynamicInputDelayFrames;
 const remotePacketJitters: number[] = [];
+const sessionPacketJitters: number[] = [];
 const supportedOnlineMaxPlayers = 2;
 
 type NetplayDebugWindow = Window & {
@@ -1663,17 +1664,17 @@ function updateNetplayStatus(stats: OnlineNetplayStats) {
   netplayStatus.textContent = `${sideLabel} f${stats.frame} delay ${dynamicInputDelayFrames}f | rollback ${stats.rollbackCount} | predict ${stats.predictedFrames} | buffer ${stats.bufferedRemoteFrames} | ${packetLabel} | ${jitterLabel} | ${checksumStatus}`;
 }
 
-function getMedianPacketJitter() {
-  if (remotePacketJitters.length === 0) {
+function getMedianPacketJitter(samples = remotePacketJitters) {
+  if (samples.length === 0) {
     return null;
   }
 
-  const sorted = [...remotePacketJitters].sort((a, b) => a - b);
+  const sorted = [...samples].sort((a, b) => a - b);
   return Math.round(sorted[Math.floor(sorted.length / 2)]);
 }
 
 function calculateMatchStartLeadMs() {
-  const medianJitter = getMedianPacketJitter() ?? 20;
+  const medianJitter = getMedianPacketJitter(sessionPacketJitters) ?? 20;
   return Math.max(1000, Math.min(1800, 900 + medianJitter * 5));
 }
 
@@ -1724,9 +1725,14 @@ function trackRemotePacketJitter(frame: RealtimeInputFrame) {
   if (lastRemotePacketReceivedAt !== null) {
     const actualGap = receivedAt - lastRemotePacketReceivedAt;
     const expectedGap = ((frame.frame - lastRemotePacketFrame) * 1000) / defaultNetplayTuning.tickRate;
-    remotePacketJitters.push(Math.max(0, Math.abs(actualGap - expectedGap)));
+    const jitter = Math.max(0, Math.abs(actualGap - expectedGap));
+    remotePacketJitters.push(jitter);
+    sessionPacketJitters.push(jitter);
     if (remotePacketJitters.length > 60) {
       remotePacketJitters.shift();
+    }
+    if (sessionPacketJitters.length > 180) {
+      sessionPacketJitters.shift();
     }
   }
   lastRemotePacketReceivedAt = receivedAt;

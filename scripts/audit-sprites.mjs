@@ -530,8 +530,11 @@ function run() {
       const uniqueFrames = new Set(reports.map((report) => report.visualHash)).size;
       const bottoms = reports.map((report) => report.bounds?.maxY ?? 0);
       const heights = reports.map((report) => report.bounds?.height ?? 0).filter((height) => height > 0);
+      const widths = reports.map((report) => report.bounds?.width ?? 0).filter((width) => width > 0);
       const bottomSpread = Math.max(...bottoms) - Math.min(...bottoms);
-      const scaleRatio = heights.length > 0 ? Math.max(...heights) / Math.max(1, Math.min(...heights)) : 1;
+      const heightRatio = heights.length > 0 ? Math.max(...heights) / Math.max(1, Math.min(...heights)) : 1;
+      const widthRatio = widths.length > 0 ? Math.max(...widths) / Math.max(1, Math.min(...widths)) : 1;
+      const scaleRatio = Math.max(heightRatio, widthRatio);
 
       if (uniqueFrames === 1) {
         sheetIssues.push({ type: "staticAnimation", row, frames });
